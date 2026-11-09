@@ -38,9 +38,13 @@ public final class StudioActivity extends Activity {
   private MediaRecorder recorder;
   private boolean recording = false;
   private File reference;
+  private boolean lastBusy;
   private final Runnable ticker =
       new Runnable() {
         public void run() {
+          boolean running = StudioJobService.busy;
+          if (lastBusy && !running && (tab == 2 || (tab == 0 && step == 3))) show();
+          lastBusy = running;
           if (live != null) live.setText(StudioJobService.status);
           ui.postDelayed(this, 700);
         }
@@ -195,7 +199,7 @@ public final class StudioActivity extends Activity {
                 : step == 2
                     ? "Review pacing before you render."
                     : "Preview and export the latest completed narration. A new result replaces it"
-                          + " only after a successful render.");
+                        + " only after a successful render.");
     if (step == 0) {
       editor = new EditText(this);
       editor.setText(draft);
@@ -684,6 +688,7 @@ public final class StudioActivity extends Activity {
     releasePlayer();
     try {
       StudioJobService.busy = true;
+      lastBusy = true;
       StudioJobService.status = "Starting…";
       startForegroundService(intent);
     } catch (Exception e) {
@@ -735,7 +740,8 @@ public final class StudioActivity extends Activity {
 
   private void export() {
     try {
-      result();
+      FileIntegrity.write(
+          new File(getFilesDir(), "pending-export.txt"), result().getCanonicalPath());
       Intent i =
           new Intent(Intent.ACTION_CREATE_DOCUMENT)
               .setType("audio/wav")
@@ -754,7 +760,11 @@ public final class StudioActivity extends Activity {
     if (request == 501 && code == RESULT_OK && data != null && data.getData() != null) {
       Uri uri = data.getData();
       try {
-        File f = result();
+        File f = new File(FileIntegrity.read(new File(getFilesDir(), "pending-export.txt")));
+        if (!f.getCanonicalPath()
+                .startsWith(new File(getFilesDir(), "renders").getCanonicalPath() + File.separator)
+            || !f.isFile())
+          throw new IOException("The selected audio is no longer available. Export again.");
         io.execute(
             () -> {
               try (InputStream in = new FileInputStream(f);

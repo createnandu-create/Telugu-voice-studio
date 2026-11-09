@@ -49,3 +49,7 @@ The new renderer has no 220-sentence limit. It uses capped sentence chunks, stab
 A 60,000-character per-job limit is explicit and rejects oversized renders without truncating the script. Native calls run two CPU threads. This build samples process PSS, battery temperature (not CPU temperature), thermal status, elapsed time, output duration and reused chunks. No MOS/voice similarity is fabricated. Resuming is manual, and model downloads restart rather than resume byte ranges. Installed voices use ~63.5 MB each; shared phonemes and render chunks consume extra storage.
 
 The heuristic director is not full-script understanding. Correct pronunciation, convincing emotion, speaker similarity, code mixing, abbreviation handling, prosodic continuity and physical-phone performance remain acceptance gates. The original system-TTS fallback retains its older 220-sentence export limit; the new neural path removes that restriction. WAV export in the new Studio uses Android's document picker and works without broad storage access.
+
+## Concurrent audio-quality fixes preserved
+
+Before publishing, the remote branch had advanced through `014c2a113a3af2db65d64cfda2801606490c6661`. The incoming AudioPolish implementation/tests, quality-sorted system-voice picker, neutral defaults and diagnosis were merged intact. Read [the supplied WAV diagnosis](../AUDIO_QUALITY_DIAGNOSIS.md). Clarity EQ remains opt-in in the system-TTS fallback; it is not silently added to the neural renderer or claimed to fix model timbre. No user-supplied audio was published.

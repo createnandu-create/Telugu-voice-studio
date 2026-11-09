@@ -51,3 +51,10 @@ Make an Android app that accepts the complete Telugu script for a 10–20 minute
 
 ## Repository execution checklist
 Read code; inspect workflows, GitHub permissions and existing tests. Keep the previous working behavior. Work in small commits on `telugu-voice-testing`; run the tests, build, collect real logs, repair failures, and attach APK + source ZIP. Present release/Actions links only when confirmed. Provide concise Telugu updates explaining exactly what is verified vs still experimental. Never suggest a demo webpage is equivalent to native, offline cloning.
+
+## Voice quality regression blocker: reproduced from user's WAV (2026-11-09)
+BEFORE claiming success, read `docs/AUDIO_QUALITY_DIAGNOSIS.md`. The user played two bit-for-bit identical exported WAVs (12.315 sec, PCM16 mono 24kHz). They sound hollow/metallic/robotic and lack authentic human expressions. WAV file format is valid, and ~0.008% near-clipped samples alone does not account for the whole timbre. Main suspect: underlying Android system Telugu voice, aggravated by pitch/speed modulation and selecting the first available offline voice. Do not blame compression or promise a simple EQ can fix a low-quality model.
+
+The test branch now has a voice quality selector, default natural baseline pitch/rate 1.0, optional gentle modulation, and an experimental clarity EQ checkbox OFF by default. Perform same-script A/B: raw neutral; same neutral + EQ; mild modulation raw; different offline voice raw. Loudness-match and listen with headphones and phone speakers; compare live and exported WAV. Record real voice ID, Android engine ID, sample rate, sample peak/clipped samples, and user listening verdict. The optional PCM filter requires real APK compilation and device listening before claiming it works.
+
+**Priority fix is genuine neural Telugu voice and phonemizer** (Piper ONNX as a baseline, not a clone). Expressive Telugu voice cloning with Indic-Mio/MioCodec remains experimental and requires actual ARM64 device inference and consented reference. Preserve the user's human-level 10–20 minute YouTube narration goal, do not substitute another simple system TTS demo.

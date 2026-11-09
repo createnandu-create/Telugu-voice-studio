@@ -14,6 +14,13 @@ Current baseline as of 2026-11-09: GitHub `telugu-voice-testing` has heuristic `
 
 Follow the complete skill: `.agents/skills/telugu-youtube-narrator/SKILL.md`. If GitHub permissions fail, say so specifically and preserve existing work. Deliver working, verified artifacts rather than repeated generic proposals. Answer me mainly in Telugu, with concise technical English when needed.
 
+## URGENT: Audible user bug and implemented diagnostic patch (2026-11-09)
+
+The user uploaded **two exactly identical** WAV files, duration 12.315 s at 24kHz, PCM16 mono; the output sounds like a hollow metal box with rattling/robotic speech and weak human-like expression. Root cause is most likely **the stock Android Telugu TTS acoustic voice**, not broken WAV encoding (only a few samples peak near full-scale). Merely boosting pitch, filtering noise, or adding reverb will not create a new human voice.
+
+Immediately read `docs/AUDIO_QUALITY_DIAGNOSIS.md`. The test branch has a local offline-voice selector (sorted by engine quality metadata), a **Natural 1.0 pitch/1.0 rate** mode, a mildly modulated alternate mode, and optional `AudioPolish.java` PCM16 EQ (+ test). The clean filter is deliberately OFF by default; users must A/B raw vs polished. Tests must run in Actions and on Nothing Phone (1) before a result can be called verified.
+
+**Your task**: compile debug APK, fix real CI compile/runtime errors, test and log all offline voices plus RAW/EQ A/B, and determine whether the metallic timbre exists in live TTS or only export. If all installed Telugu voices are robotic, implement a locally running Telugu neural TTS model with a proper Telugu phonemizer rather than stacking DSP effects. Preserve true fully offline 10–20-minute narration, contextual emotions and consented voice cloning as the long-term goal. Publish only a proven real APK download link. Do not pretend the current voice filter has already solved the user's complaint.
 
 ## Incremental upgrade handoff — 2026-11-09
 

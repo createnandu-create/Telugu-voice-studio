@@ -26,6 +26,6 @@ The test signing key is intentionally public and committed for repeatable update
 
 ## Validation status
 
-28 Java checks passed locally; actual Gradle assembly and lint were executed. Linux host inference produced 602.97 s male and 66.60 s female WAVs with the installed-model hashes. These are not Android or listening-quality benchmarks. Release workflow execution is verified separately in the final delivery report.
+28 director/pipeline checks plus the incoming AudioPolish Java suite passed locally; actual Gradle assembly and lint were executed. Linux host inference produced 602.97 s male and 66.60 s female WAVs with the installed-model hashes. These are not Android or listening-quality benchmarks. Release workflow execution is verified separately in the final delivery report.
 
 No physical Nothing Phone was connected. No semantic LLM, true expressive voice engine, on-device model training or voice cloning is integrated. The future semantic prompt/validation contract is not AI inference. The existing fallback remains a baseline with its older export restrictions. Read the device acceptance checklist before treating this as a finished narration product.

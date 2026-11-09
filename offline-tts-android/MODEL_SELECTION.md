@@ -12,8 +12,8 @@
 
 ## Suggested two-stage architecture
 
-1. **ScriptDirector**: Existing \`NarrationDirector.java\` is an offline deterministic fallback. Replace with a local model **only after** benchmarking Telugu script understanding and structured output validity.
-2. **Optional semantic understanding model**: A community-converted \`litert-community/Qwen3.5-0.8B\` \`.litertlm\` bundle (2026-11-06, approx. 791 MB) is a concrete candidate for the on-device script director. It needs LiteRT-LM >=0.20.0 and validation on Android. Its 0.8B size does not guarantee deep Telugu understanding.
+1. **ScriptDirector**: Existing `NarrationDirector.java` is an offline deterministic fallback. Replace with a local model **only after** benchmarking Telugu script understanding and structured output validity.
+2. **Optional semantic understanding model**: A community-converted `litert-community/Qwen3.5-0.8B` `.litertlm` bundle (2026-11-06, approx. 791 MB) is a concrete candidate for the on-device script director. It needs LiteRT-LM >=0.20.0 and validation on Android. Its 0.8B size does not guarantee deep Telugu understanding.
 3. **Voice**: Piper with Android-capable ONNX runtime can provide base offline Telugu. It has no clone/emotion tags. For expressive cloning, research and port Indic-Mio end to end (including MioCodec). Don't claim real offline cloning until reference-audio voice identity and output have been verified on the actual Nothing Phone (1).
 4. Generate sentence WAV chunks and merge with stable loudness, chosen pauses, no accidental tag speech. Review important sections before output.
 5. Run inference modules **sequentially**, not all loaded simultaneously; monitor RAM, device temperature, and speed.

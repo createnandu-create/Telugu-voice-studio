@@ -1,0 +1,53 @@
+---
+name: telugu-youtube-offline-narrator
+description: Work on the user's Telugu Voice Studio Android app. Prioritize fully offline, human-sounding Telugu 10–20-minute YouTube narration, meaningful emotion direction, consented voice cloning, reproducible APK builds, and honest testing.
+---
+
+# Telugu YouTube Offline Narrator — project skill (v1, 2026-11-09)
+
+## Source of truth and scope
+Repository: `createnandu-create/Telugu-voice-studio`
+Development branch: `telugu-voice-testing`
+Application: `offline-tts-android/`
+Device: Nothing Phone (1), Snapdragon 778G+, ARM64, Android 15, 8 GB physical RAM, 256 GB storage.
+Read `AGENTS.md`, `docs/ASTRA6_HANDOFF.md`, `offline-tts-android/MODEL_SELECTION.md` and the current implementation BEFORE editing.
+Do not change `main` or other user projects without explicit request; operate on test branch. Prefer small verified commits and a downloadable debug APK.
+
+## User intent — not generic text to speech
+Make an Android app that accepts the complete Telugu script for a 10–20 minute YouTube video, understands the topic and the purpose of each segment, and produces natural **Telugu narration** as a skilled YouTuber would deliver it. The user specifically wants meaningful variation: confident introductory hook, clear teaching tone for "ఇక్కడ క్లిక్ చేయండి", excited surprise for "వావ్!", appropriate seriousness for warnings, slower pacing for important details, sustained engagement without robotic/overacted delivery, logical pauses and emphasis. Keep every factual word from the script intact unless the user explicitly requests edits.
+
+**Audio and meaning are separate tasks.** Build a Script Director that outputs verified sentence/paragraph plans, then an expressive neural speech renderer. A faster pitch/rate filter is not equivalent to genuine neural expressive speech. A phone system voice is a baseline fallback only.
+
+## Absolute constraints
+- Audio synthesis and script analysis must work with mobile data/Wi-Fi switched **off** after models are installed. No online API, inference server, shared free GPU or Google Cloud calls in offline mode.
+- Optional one-time download of redistributable weights is acceptable, with model size, SHA-256, version and license recorded; thereafter no network.
+- Nothing Phone (1): prioritize memory-efficient sequential execution, avoid loading the LLM and speech model together if RAM becomes high; no unverified speed/quality claims.
+- Voice cloning only with the speaker's own sample or explicit consent. Do not embed third-party voices without permission or violate model/codec licenses.
+- Voice consistency, correct Telugu phonemes, numbers, mixed Telugu/English, long-script continuity and readable WAV/optional MP3 outputs are essential.
+- Output user-visible files and a real APK download. No false “Build successful”, “90% human”, “offline cloning works”, or fake download URLs.
+
+## Required architecture
+1. `ScriptInput`: accept Telugu text, paragraphs, categories (tutorial, product demo, storytelling, educational, news/serious), user style choice and optional user override. Do not hallucinate words.
+2. `OfflineSemanticDirector`: full-script context summary and JSON segment plan with `text`, `emotion`, `emphasis`, `speed`, `pitch`, `energy`, `pause_ms`, `reason_te`. Tags: neutral, welcome, guide, curiosity, surprise, excited, empathy, serious, call-to-action. Allow manual correction. Fallback: deterministic `NarrationDirector.java`.
+3. `OfflineNeuralTTS`: Telugu ONNX voice baseline (e.g., Piper) with correct phonemization on Android; benchmark offline in flight mode. Piper does NOT clone voice or natively generate emotional speech.
+4. `OfflineExpressiveClone` (research / conditional feature): investigate Indic-Mio 0.6B + MioCodec end-to-end ARM64/CPU quantization and licensing. Do NOT call it implemented until a clone generated on the user's device is played and exported. Check other Android voice-cloning libraries only if checkpoints demonstrably support Telugu; API support != Telugu voice support.
+5. `RenderQueue`: generate 1–3-sentence audio chunks, preserve narrator timbre and loudness, preserve original script order, stitch silence without gaps/clicks, save incrementally with resumability/cancel, export playable WAV to Android MediaStore. Report actual elapsed render time, memory and output duration.
+6. `DownloadBuild`: GitHub Actions debug build on branch; Publish APK and source ZIP to GitHub Releases after successful build, link prominently from root README.
+
+## Narration behaviors and examples
+- "నమస్కారం ఫ్రెండ్స్!": natural friendly opening, not shouting.
+- "ఇప్పుడు ఇక్కడ క్లిక్ చేయండి.": clearly and deliberately guide; soften speed, keep precise pronunciation.
+- "వావ్! ఎంత అద్భుతం జరిగింది!": brief believable surprise, raised energy then return to baseline.
+- "ఈ సెట్టింగ్ తప్పుగా మారితే జాగ్రత్త.": lower pace and more serious, no cheerful tone.
+- Ask questions with genuine curiosity, state step-by-step facts plainly; CTA should be concise, not obnoxious.
+- Paragraph-level emotional arc, not a random new mood on each sentence. Context rules beat punctuation alone. Allow override if director misunderstands intent.
+
+## Quality target and rigorous acceptance
+“90% like a real human/Google expressive TTS” is a **user goal, not a measured achievement**. Evaluate blind-listening Telugu samples (at least 20 scripts covering hooks, steps, stories, warnings, numbers, code mixing, long-form), naturalness, word correctness, emotion fit, speaker consistency and continuity. Compare to reference audio only if lawful and available. Log objective results and ask a human reviewer to score naturalness. Do not claim success based on one successful WAV.
+- Build must pass Java tests + Android `:app:assembleDebug`.
+- Install on Nothing Phone (1), airplane mode ON, close/reopen app, play + save WAV; no network traffic or cloud fallback.
+- At least one 10–20 minute original Telugu script rendered, with stable memory/temperature and a playable final audio file.
+- Voice-cloning label stays experimental until a consenting voice sample leads to intelligible Telugu audio fully offline on physical phone.
+
+## Repository execution checklist
+Read code; inspect workflows, GitHub permissions and existing tests. Keep the previous working behavior. Work in small commits on `telugu-voice-testing`; run the tests, build, collect real logs, repair failures, and attach APK + source ZIP. Present release/Actions links only when confirmed. Provide concise Telugu updates explaining exactly what is verified vs still experimental. Never suggest a demo webpage is equivalent to native, offline cloning.

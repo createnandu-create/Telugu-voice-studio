@@ -1,43 +1,93 @@
-name: Build Telugu Offline TTS Debug APK
+name: Build and publish Telugu Voice Studio debug downloads
+
 on:
   push:
     branches: [telugu-voice-testing]
     paths:
       - 'offline-tts-android/**'
+      - '.agents/skills/**'
+      - 'docs/ASTRA6_HANDOFF.md'
+      - 'AGENTS.md'
       - '.github/workflows/offline-tts-debug.yml'
   workflow_dispatch:
+
 permissions:
-  contents: read
+  contents: write
+
 jobs:
-  build:
+  debug_apk:
+    if: github.ref == 'refs/heads/telugu-voice-testing'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
-        with: {distribution: temurin, java-version: '17'}
-      - name: Install Android 35 with runner SDK
-        run: |
-          echo "SDK root: ${ANDROID_HOME:-${ANDROID_SDK_ROOT}}"
-          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -1)
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
-      - name: Set up Gradle
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
-        with: {gradle-version: '8.9'}
-      - name: Verify pure Java narration tests
+        with:
+          gradle-version: '8.9'
+
+      - name: Install Android SDK platform and tools
         run: |
-          mkdir -p /tmp/narration-tests
-          javac -encoding UTF-8 -d /tmp/narration-tests offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/NarrationDirector.java offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/SemanticNarrationPrompt.java offline-tts-android/tests/NarrationDirectorTest.java
-          java -cp /tmp/narration-tests in.aitechapp.teluguoffline.NarrationDirectorTest
-      - name: Build debug APK
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$SDK_ROOT" ]; then
+            echo "Android SDK is not configured on the build runner" >&2
+            exit 1
+          fi
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Run pure Java narration tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/telugu-narration-tests
+          javac -encoding UTF-8 -d /tmp/telugu-narration-tests \
+            offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/NarrationDirector.java \
+            offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/SemanticNarrationPrompt.java \
+            offline-tts-android/tests/NarrationDirectorTest.java
+          java -cp /tmp/telugu-narration-tests in.aitechapp.teluguoffline.NarrationDirectorTest
+
+      - name: Build Android 15 debug APK
         run: gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug
-      - name: Upload test APK
+
+      - name: Prepare APK and source ZIP for direct download
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp offline-tts-android/app/build/outputs/apk/debug/app-debug.apk dist/TeluguVoiceStudio-debug.apk
+          zip -qr dist/TeluguVoiceStudio-source.zip offline-tts-android .agents/skills/telugu-youtube-narrator docs/ASTRA6_HANDOFF.md AGENTS.md
+          sha256sum dist/TeluguVoiceStudio-debug.apk dist/TeluguVoiceStudio-source.zip > dist/SHA256SUMS.txt
+          test -s dist/TeluguVoiceStudio-debug.apk
+          test -s dist/TeluguVoiceStudio-source.zip
+
+      - name: Upload files to GitHub Actions
         uses: actions/upload-artifact@v4
         with:
-          name: TeluguOfflineVoice-debug-apk
-          path: offline-tts-android/app/build/outputs/apk/debug/app-debug.apk
+          name: TeluguVoiceStudio-APK-and-Source
+          path: dist/*
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish direct-download assets to rolling GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view debug-latest >/dev/null 2>&1; then
+            gh release upload debug-latest dist/TeluguVoiceStudio-debug.apk dist/TeluguVoiceStudio-source.zip dist/SHA256SUMS.txt --clobber
+            gh release edit debug-latest --notes "Debug Android APK and source ZIP built from test branch, workflow run $GITHUB_RUN_ID; commit $GITHUB_SHA. This prototype uses offline Android system TTS + a heuristic narration director. It does NOT include neural voice cloning."
+          else
+            gh release create debug-latest \
+              dist/TeluguVoiceStudio-debug.apk dist/TeluguVoiceStudio-source.zip dist/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" --prerelease \
+              --title "Telugu Voice Studio — latest debug APK" \
+              --notes "Debug APK and source from the test branch. This is an offline system-voice heuristic narrator, NOT a neural expressive clone. Run $GITHUB_RUN_ID; commit $GITHUB_SHA."
+          fi

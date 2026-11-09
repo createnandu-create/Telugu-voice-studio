@@ -1,46 +1,31 @@
-# Telugu Expressive Narrator — Android 15 trial overlay
+# Telugu Voice Studio — native offline Android test build
 
-Created as a drop-in **test-branch** overlay for the existing `createnandu-create/Aiide` repository's `offline-tts-android/` folder, `telugu-voice-testing` branch.
+Continue this module on `telugu-voice-testing`. See [research and limitations](../docs/research/OFFLINE_NEURAL_UPGRADE.md), [evidence](../docs/evaluation/README.md) and [licenses/source](NOTICE.md).
 
-## What is implemented
+## Included
 
-- Offline **heuristic** script director class (`NarrationDirector.java`) choosing guidance, excitement, surprise, warning, etc. per sentence.
-- Narration-category selection (`AUTO`, `TUTORIAL`, `STORY`, `NEWS`, `REVIEW`) and on-screen segment plan.
-- Sequential local playback (not enqueue-all) to apply rate and pitch separately to each segment, with pauses.
-- Native Android TTS only, requiring **preinstalled Telugu OFFLINE voice** (no cloud fallback, no API key, no Internet permission).
-- WAV export to `Music/TeluguVoiceStudio` with PCM segments and appropriate inter-sentence pauses.
-- Java-only tests; 11 checks passed with `javac` on the script director and the semantic model prompt contract.
-- `SemanticNarrationPrompt.java` is an integration **contract for a future local LLM**; does not claim installed AI inference.
+- English native Android Studio with Script → Voice → editable Direction → Generate/Preview/Export; bottom tabs for Voices, Models and Settings.
+- ARM64 sherpa-onnx 1.12.26 runtime with eSpeak Telugu phonemes; separate checksum-verified Venkatesh and Padmavathi Piper downloads (63.5 MB each). No weights in the APK.
+- Heuristic director retained; original factual text preserved in the new Studio. Decimal/version dots no longer split sentences; punctuation alone does not mark excitement. Rate and pauses are editable. Piper does not implement emotion, pitch, emphasis or cloning.
+- Foreground local rendering, atomic chunk WAVs, per-chunk checksums, cancel at sentence boundaries, manual resume with exact-job identity, streaming final WAV and document-picker export.
+- Actual render telemetry (elapsed time, sampled PSS, duration, Android thermal status, battery temperature), model storage controls, consented local voice-reference recording. Recording does not enable cloning.
+- Existing Android system-TTS fallback accessible from Settings.
 
-## Not implemented / not verified
+## Build and verify
 
-- **NO neural voice-cloning model** or Indic-Mio weights / codec are bundled; this is not 90%-Google-quality offline expressive Telugu.
-- Heuristics do not truly understand the full topic, and Android TTS pitch/rate modulation does NOT equal a neural expressive TTS model.
-- Android APK build and Nothing Phone (1) hardware playback were **not executed** in this environment (Android SDK/Gradle unavailable).
-- GPL or non-commercial library code has not been copied.
+JDK 17, Gradle 8.9, Android SDK platform/build-tools 35.0.0:
 
-## How to merge
+```sh
+python3 offline-tts-android/scripts/verify-bundle.py
+bash offline-tts-android/scripts/test-java.sh
+gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug
+gradle --no-daemon --project-dir offline-tts-android :app:lintDebug
+```
 
-Overlay this project's `offline-tts-android/` onto the SAME folder on the `telugu-voice-testing` branch, not `main`. You can replace the old standalone Android test module. Preserve the existing `voice-testing/` website, `api/`, and git workflows without changes. The existing GitHub Action `.github/workflows/offline-tts-debug.yml` targets this module. Run workflow and install debug APK after the build succeeds.
+The test signing key is intentionally public and committed for repeatable update signatures; never use it as a production credential. The workflow publishes the successful APK, exact tracked source ZIP (without build/cache directories), and SHA256SUMS.txt to an immutable commit release plus `debug-latest`. The immutable release is the authoritative commit-to-artifact mapping; the old rolling tag's git target may predate its replaceable assets.
 
-## Model/Library rationale
+## Validation status
 
-See `MODEL_SELECTION.md` for the actual 2026 model choices, LiteRT-LM / Qwen3.5 offline semantic analysis candidate, Indic-Mio port caveats and acceptance tests.
+28 Java checks passed locally; actual Gradle assembly and lint were executed. Linux host inference produced 602.97 s male and 66.60 s female WAVs with the installed-model hashes. These are not Android or listening-quality benchmarks. Release workflow execution is verified separately in the final delivery report.
 
-## Better neural voice follow-up
-
-1. Keep `NarrationDirector.Segment` as the common interface for an optional local LLM Script Director (LiteRT-LM or llama.cpp). An LLM must output structured, user-reviewable emotion, emphasis and pause tags.
-2. For a proven neural offline Android TTS, integrate sherpa-onnx and a phonemization-compatible **Telugu** voice (e.g. Piper Telugu, after conversion/testing). This voice is not cloned and does not inherently support emotion tags.
-3. For expressive cloning, benchmark Indic-Mio plus MioCodec on ARM64 **before** wiring it into app. Its existing reference implementation is Python/GPU, not an available Android .aar. If the port fails, show the feature as unavailable, not as falsely working.
-4. ZipVoice/Pocket voice cloning can be driven by sherpa-onnx on Android, but the widely published checkpoints don't establish fluent Telugu; never assume language support.
-5. Obtain permission for voice samples and comply with model/voice licenses, including attribution where required.
-
-## Build command on an Android CI machine
-
-`gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug`
-
-## Run pure Java tests
-
-`javac -encoding UTF-8 -d /tmp/narration-tests offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/NarrationDirector.java offline-tts-android/tests/NarrationDirectorTest.java`
-
-`java -cp /tmp/narration-tests in.aitechapp.teluguoffline.NarrationDirectorTest`
+No physical Nothing Phone was connected. No semantic LLM, true expressive voice engine, on-device model training or voice cloning is integrated. The future semantic prompt/validation contract is not AI inference. The existing fallback remains a baseline with its older export restrictions. Read the device acceptance checklist before treating this as a finished narration product.

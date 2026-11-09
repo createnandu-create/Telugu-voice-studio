@@ -1,0 +1,90 @@
+{
+  "SPRINGLab/Indic-Mio": {
+    "revision": "25feace00ca76c71c40b1e8d921fd3c2943c545e",
+    "license": "apache-2.0",
+    "files": [
+      {
+        "name": "added_tokens.json",
+        "size": 309597,
+        "sha256": null
+      },
+      {
+        "name": "config.json",
+        "size": 1394,
+        "sha256": null
+      },
+      {
+        "name": "generation_config.json",
+        "size": 183,
+        "sha256": null
+      },
+      {
+        "name": "model.safetensors",
+        "size": 1217825224,
+        "sha256": "065f42f7ab6148b66f43e9be0d01ac336343dfe16161350c37b71a87c3e1981b"
+      },
+      {
+        "name": "special_tokens_map.json",
+        "size": 613,
+        "sha256": null
+      },
+      {
+        "name": "tokenizer.json",
+        "size": 13817944,
+        "sha256": "abcde038b87ccd029a4523b0c5cec1da6d84b4f3d68b351495df086d63033f1f"
+      },
+      {
+        "name": "tokenizer_config.json",
+        "size": 2272720,
+        "sha256": null
+      },
+      {
+        "name": "vocab.json",
+        "size": 2776833,
+        "sha256": null
+      }
+    ]
+  },
+  "Aratako/MioCodec-25Hz-24kHz": {
+    "revision": "3a737f0de2c6324cb2fe40c1fbd1056c7add423d",
+    "license": "mit",
+    "files": [
+      {
+        "name": "model.safetensors",
+        "size": 523087956,
+        "sha256": "60483759cde136451d53ff5a2f7e283c015758ab540de9037b5d4519366a7705"
+      }
+    ]
+  },
+  "litert-community/Qwen3.5-0.8B": {
+    "revision": "5a0a1232e9d6538ec5451ec640b759828f3b634b",
+    "license": "apache-2.0",
+    "files": [
+      {
+        "name": "Qwen3.5-0.8B-VL_int8.litertlm",
+        "size": 1303724032,
+        "sha256": "7413f51eafb82e7cf0b707fa506eddfc76c10433b26fa8f0dc2f051970d2feb5"
+      },
+      {
+        "name": "Qwen3.5-0.8B_dynamic_wi8_afp32.litertlm",
+        "size": 790659072,
+        "sha256": "63f10ec01fcc6b8fbe36612658593ae99c2b369cada6558f6e18b28ca01824c4"
+      },
+      {
+        "name": "Qwen3.5-0.8B_int8.litertlm",
+        "size": 964657152,
+        "sha256": "d6702088983b3a997db5299558a37d2fd924a94daf2b09bd42c4e618c6f694a4"
+      },
+      {
+        "name": "Qwen3.5-0.8B_int8_gpu_composite_v0190.litertlm",
+        "size": 888373248,
+        "sha256": "177b57e1da0847ab7ec2d203842a74649b5745cb1903dd398b982ac6b117309d"
+      },
+      {
+        "name": "litertlm_manifest.json",
+        "size": 33380,
+        "sha256": null
+      }
+    ]
+  }
+}

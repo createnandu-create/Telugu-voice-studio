@@ -13,3 +13,8 @@ Preserve the existing app and improve it incrementally. Use native Android/Kotli
 Current baseline as of 2026-11-09: GitHub `telugu-voice-testing` has heuristic `NarrationDirector.java`, `SemanticNarrationPrompt.java`, Java tests, an Android system-offline-TTS prototype and a debug workflow. It is **NOT** yet a true on-device semantic LLM / neural expressive Telugu voice clone. Respect this distinction.
 
 Follow the complete skill: `.agents/skills/telugu-youtube-narrator/SKILL.md`. If GitHub permissions fail, say so specifically and preserve existing work. Deliver working, verified artifacts rather than repeated generic proposals. Answer me mainly in Telugu, with concise technical English when needed.
+
+
+## Incremental upgrade handoff — 2026-11-09
+
+The testing branch now has `StudioActivity`, `VoiceModelStore`, `StudioJobService`, `RenderJournal`, `PcmWave`, `DirectionContract` and a downloadable Piper/sherpa ARM64 baseline. Follow `docs/research/OFFLINE_NEURAL_UPGRADE.md` and `docs/evaluation/README.md` for actual status; the earlier baseline description above is historical. Java tests, bundle integrity checks, actual Gradle assembly and lint are part of delivery. Host speech generation does not establish Android device inference. Semantic LLM and Indic-Mio cloning remain unintegrated. The default Studio must not claim those capabilities. Keep main safe and preserve the system-TTS fallback.

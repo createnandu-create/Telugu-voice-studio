@@ -2,7 +2,7 @@
 
 **Android 15 · Nothing Phone (1) · 8 GB RAM · Snapdragon 778G+**
 
-An actively developed offline Telugu YouTube voice narrator prototype. Current release is **system-offline Telugu TextToSpeech with a heuristic expression director**. It does **not** yet include human-like neural expressive voice cloning or an on-device LLM.
+An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a native English Android Studio and resumable local WAV rendering**. It does **not** yet include human-like neural expressive voice cloning or an on-device LLM.
 
 ## Downloads
 
@@ -32,6 +32,15 @@ Build command:
 gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug
 ```
 
-Use the `telugu-voice-testing` branch. A successful CI run uploads an APK and source ZIP and publishes the same as downloadable GitHub Release assets. To prove "offline", first install a **genuinely offline Telugu voice** in Android text-to-speech settings, then turn off Wi-Fi and mobile data, reopen the app, play and export WAV.
+Use the `telugu-voice-testing` branch. A successful CI run uploads an APK and source ZIP and publishes the same as downloadable GitHub Release assets. To test offline mode, install a voice from **Models** in the app, turn off Wi-Fi and mobile data, reopen Studio, generate, preview and export WAV. Physical-phone acceptance is still pending.
 
 The requested roadmap is **real Telugu human-like neural expressiveness, topic-aware pacing and consented voice cloning for 10–20 minute YouTube narration**. Those AI engines remain research/integration tasks, not existing production features.
+
+## Neural upgrade evidence
+
+- [Implementation, semantic-model evaluation and Indic-Mio port limitations](docs/research/OFFLINE_NEURAL_UPGRADE.md)
+- [Actual host WAV measurements and phone acceptance checklist](docs/evaluation/README.md)
+- [Android source and build instructions](offline-tts-android/README.md)
+- [GPL application license, voice attribution and corresponding native source](offline-tts-android/NOTICE.md)
+
+Piper applies speed and pauses; it does not synthesize the displayed emotion notes or clone voices. The APK is ARM64, approximately 30 MB; each model downloads separately. No paid inference or cloud API is required. The app is still a test build, with no proven human-naturalness score.

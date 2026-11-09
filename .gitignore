@@ -1,0 +1,8 @@
+.gradle/
+**/build/
+local.properties
+.asset-cache/
+dist/
+*.jks
+*.keystore
+!offline-tts-android/signing/public-debug.keystore

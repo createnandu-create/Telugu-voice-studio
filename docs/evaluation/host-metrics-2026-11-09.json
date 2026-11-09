@@ -1,0 +1,32 @@
+[
+  {
+    "voice": "venkatesh",
+    "platform": "Linux x86_64 CPU host; NOT Android phone",
+    "engine": "1.12.26",
+    "model_sha256": "180977ceb7886be2c69b6c240a0072396aca16fff46f79a397040e679b5e6b52",
+    "load_seconds": 0.7995727840025211,
+    "render_seconds": 49.735809959005564,
+    "audio_seconds": 602.9685260770975,
+    "real_time_factor": 0.08248491887725194,
+    "chunks": 114,
+    "process_peak_rss_kib": 413704,
+    "pcm_float_peak": 0.6677767038345337,
+    "quality_score": null,
+    "sha256": "496fb8bf3fe2b13ada3f794a03ed6f49808eaa2fd0f49b60e4d252758cfe9251"
+  },
+  {
+    "voice": "padmavathi",
+    "platform": "Linux x86_64 CPU host; NOT Android phone",
+    "engine": "1.12.26",
+    "model_sha256": "4eecc3c3da95e6915bb1a7227b345830e3662bf419ad47da8045c5eaf1614597",
+    "load_seconds": 1.617097650996584,
+    "render_seconds": 9.679603004995442,
+    "audio_seconds": 66.60467120181406,
+    "real_time_factor": 0.14532919133653507,
+    "chunks": 10,
+    "process_peak_rss_kib": 413704,
+    "pcm_float_peak": 0.6666654348373413,
+    "quality_score": null,
+    "sha256": "618ed0442f31f612714511537d095346945f2b20b5d6919bb93c2b8099ef794f"
+  }
+]

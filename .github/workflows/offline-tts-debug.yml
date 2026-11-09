@@ -11,6 +11,10 @@ on:
       - '.github/workflows/offline-tts-debug.yml'
   workflow_dispatch:
 
+concurrency:
+  group: telugu-voice-testing-release
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -45,26 +49,29 @@ jobs:
           test -x "$SDKMANAGER"
           "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Run pure Java narration tests
+      - name: Verify offline bundles and run Java tests
         run: |
-          set -euo pipefail
-          mkdir -p /tmp/telugu-narration-tests
-          javac -encoding UTF-8 -d /tmp/telugu-narration-tests \
-            offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/NarrationDirector.java \
-            offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/SemanticNarrationPrompt.java \
-            offline-tts-android/tests/NarrationDirectorTest.java
-          java -cp /tmp/telugu-narration-tests in.aitechapp.teluguoffline.NarrationDirectorTest
+          python3 offline-tts-android/scripts/verify-bundle.py
+          bash offline-tts-android/scripts/test-java.sh
 
       - name: Build Android 15 debug APK
         run: gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug
+
+      - name: Android lint
+        run: gradle --no-daemon --project-dir offline-tts-android :app:lintDebug
+
+      - name: Verify APK signature and 16 KB alignment
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose offline-tts-android/app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 4 offline-tts-android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare APK and source ZIP for direct download
         run: |
           set -euo pipefail
           mkdir -p dist
           cp offline-tts-android/app/build/outputs/apk/debug/app-debug.apk dist/TeluguVoiceStudio-debug.apk
-          zip -qr dist/TeluguVoiceStudio-source.zip offline-tts-android .agents/skills/telugu-youtube-narrator docs/ASTRA6_HANDOFF.md AGENTS.md
-          sha256sum dist/TeluguVoiceStudio-debug.apk dist/TeluguVoiceStudio-source.zip > dist/SHA256SUMS.txt
+          git archive --format=zip --output=dist/TeluguVoiceStudio-source.zip HEAD
+          (cd dist && sha256sum TeluguVoiceStudio-debug.apk TeluguVoiceStudio-source.zip > SHA256SUMS.txt)
           test -s dist/TeluguVoiceStudio-debug.apk
           test -s dist/TeluguVoiceStudio-source.zip
 
@@ -76,18 +83,33 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish direct-download assets to rolling GitHub Release
+      - name: Publish verified immutable and rolling test releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if gh release view debug-latest >/dev/null 2>&1; then
-            gh release upload debug-latest dist/TeluguVoiceStudio-debug.apk dist/TeluguVoiceStudio-source.zip dist/SHA256SUMS.txt --clobber
-            gh release edit debug-latest --notes "Debug Android APK and source ZIP built from test branch, workflow run $GITHUB_RUN_ID; commit $GITHUB_SHA. This prototype uses offline Android system TTS + a heuristic narration director. It does NOT include neural voice cloning."
+          TAG="testing-${GITHUB_SHA:0:12}"
+          cat > /tmp/release-notes.md <<EOF
+          Native ARM64 Android test build from commit $GITHUB_SHA.
+          Build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+          Download the APK below. Install one 63.5 MB Telugu voice in Models, then generate locally. Includes English native UI, editable heuristic rate/pause plans, chunk cancellation/resume, WAV export and consented reference recording.
+
+          Piper is a basic neural voice: no semantic LLM, emotional voice cloning or proven 90% human naturalness. Linux host WAVs were generated; Nothing Phone flight-mode playback and performance remain unverified. See source docs/evaluation and docs/research.
+
+          The source ZIP includes application source, licenses and upstream corresponding-source archives. This is a publicly debug-signed test APK, not a production release. All three files below belong to this commit; SHA256SUMS.txt can be checked after download.
+          EOF
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --notes-file /tmp/release-notes.md
           else
-            gh release create debug-latest \
-              dist/TeluguVoiceStudio-debug.apk dist/TeluguVoiceStudio-source.zip dist/SHA256SUMS.txt \
-              --target "$GITHUB_SHA" --prerelease \
-              --title "Telugu Voice Studio — latest debug APK" \
-              --notes "Debug APK and source from the test branch. This is an offline system-voice heuristic narrator, NOT a neural expressive clone. Run $GITHUB_RUN_ID; commit $GITHUB_SHA."
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --prerelease \
+              --title "Telugu Voice Studio 0.3 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
+          fi
+          if gh release view debug-latest >/dev/null 2>&1; then
+            gh release upload debug-latest dist/* --clobber
+            gh release edit debug-latest --notes-file /tmp/release-notes.md
+          else
+            gh release create debug-latest dist/* --target "$GITHUB_SHA" --prerelease \
+              --title "Telugu Voice Studio — latest debug APK" --notes-file /tmp/release-notes.md
           fi

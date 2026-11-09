@@ -1,0 +1,14 @@
+[
+  {
+    "voice": "venkatesh",
+    "bytes": 63516050,
+    "sha256": "dfaa5b7833cd48d946f3fe18c9c934aaa4e8590aac6922fddf34783a694c3c87",
+    "url": "https://huggingface.co/rhasspy/piper-voices/resolve/cf910fb59f1d79ab3b625a63993a108751c6c25d/te/te_IN/venkatesh/medium/te_IN-venkatesh-medium.onnx"
+  },
+  {
+    "voice": "padmavathi",
+    "bytes": 63516050,
+    "sha256": "414aa5960d91ceb6e45bbdf8c27fdc71af09f205130d7be4e99470f3c2cfa57d",
+    "url": "https://huggingface.co/rhasspy/piper-voices/resolve/cf910fb59f1d79ab3b625a63993a108751c6c25d/te/te_IN/padmavathi/medium/te_IN-padmavathi-medium.onnx"
+  }
+]

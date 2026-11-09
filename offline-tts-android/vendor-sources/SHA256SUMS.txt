@@ -1,0 +1,2 @@
+c896631793627f790b22c19f7c90265a211b0968b5fc7caa47301e683f9354db  offline-tts-android/vendor-sources/espeak-ng-f6fed6c.tar.gz
+d0b679a5d9a10d32da9d9fd49b5f92c981652d71e01b01dfbc4a1d1ff3615d31  offline-tts-android/vendor-sources/sherpa-onnx-v1.12.26.tar.gz

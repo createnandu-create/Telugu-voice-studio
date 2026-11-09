@@ -1,0 +1,20 @@
+{
+  "venkatesh": {
+    "original_sha256": "dfaa5b7833cd48d946f3fe18c9c934aaa4e8590aac6922fddf34783a694c3c87",
+    "converted_sha256": "180977ceb7886be2c69b6c240a0072396aca16fff46f79a397040e679b5e6b52",
+    "config": {
+      "noise_scale": 0.667,
+      "length_scale": 1,
+      "noise_w": 0.8
+    }
+  },
+  "padmavathi": {
+    "original_sha256": "414aa5960d91ceb6e45bbdf8c27fdc71af09f205130d7be4e99470f3c2cfa57d",
+    "converted_sha256": "4eecc3c3da95e6915bb1a7227b345830e3662bf419ad47da8045c5eaf1614597",
+    "config": {
+      "noise_scale": 0.667,
+      "length_scale": 1,
+      "noise_w": 0.8
+    }
+  }
+}

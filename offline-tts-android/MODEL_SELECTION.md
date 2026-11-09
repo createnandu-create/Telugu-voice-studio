@@ -1,3 +1,7 @@
+# Current implementation note (2026-11-09)
+
+Piper/sherpa integration now exists on the testing branch. Read [the current evaluation and limitations](../docs/research/OFFLINE_NEURAL_UPGRADE.md) for pinned model versions, measured host audio, and still-unverified Android execution. The proposal below is historical; its "candidate" and "no GPL code" statements describe the pre-upgrade baseline, not this release.
+
 # November 2026: What can actually run on Nothing Phone (1) (Snapdragon 778G+, 8 GB RAM)?
 
 ## Proven public infrastructure vs Telugu capability

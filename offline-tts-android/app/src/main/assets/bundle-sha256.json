@@ -1,0 +1,14 @@
+{
+  "assets/licenses/ONNX-Runtime-MIT.txt": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+  "assets/licenses/eSpeak-NG-GPL.txt": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+  "assets/licenses/model-provenance.json": "6a439350c8e25ff14fea3527f9ee7e311299231169c9b14ed422cf03542ec538",
+  "assets/licenses/padmavathi-MODEL_CARD.txt": "8cdccd0ca4c26d1e949431f03180bcf9eaeb3c013f627087c6a806a3f7487b07",
+  "assets/licenses/sherpa-onnx-LICENSE.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+  "assets/licenses/venkatesh-MODEL_CARD.txt": "1e72b79b6453653bd6c43722f80fb34f429dbeccaf18116480d6faa20b01e685",
+  "assets/padmavathi-tokens.txt": "ef3a7e4a8d1af0c9d4dc45aaae1a6242ebe24a7ed6f3d025a49eb29682784c6d",
+  "assets/phonemes.zip": "51c3c31e08d74fcd51584ebbb86811fa9b842993815b175c58182d3e4e2b79a8",
+  "assets/piper-metadata.bin": "e60ab8fa70c962eb9715ba37931db0cabb60ad45f52682222a5c5a220b58f6fa",
+  "assets/venkatesh-tokens.txt": "ef3a7e4a8d1af0c9d4dc45aaae1a6242ebe24a7ed6f3d025a49eb29682784c6d",
+  "jniLibs/arm64-v8a/libonnxruntime.so": "c7c0e6b0f9c364a4df4bfc9a3a3576b691899e96f4d9beb60f3b3a7ce4bf572c",
+  "jniLibs/arm64-v8a/libsherpa-onnx-jni.so": "2f8c220229c5e620e759cca974a2d2f2a3578141c92f8806767cca05fc213564"
+}

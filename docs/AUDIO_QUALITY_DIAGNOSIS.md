@@ -48,3 +48,37 @@ Do not upload the user's audio without explicit consent; analyze locally.
 - Target natural spoken Telugu on 20 blind-rated test scripts (tutorial, product review, YouTube hook, surprise, caution, story, mixed Telugu-English, numeric values, 10–20 minute session). Never claim 90% Google-quality without actual blinded testing.
 
 **Important**: The user is reporting a real, audible voice-quality bug. Do not answer “just use a denoiser” or “EQ makes it human”. Prove voice selection, WAV integrity and a native neural engine with actual generated sound.
+
+## Extra independent spectrum check — user suspects missing Android filter (2026-11-09)
+
+Analysed original WAV via Welch PSD over full 12.315s, including pauses. Fractions are relative to its total spectral power and do **not** by themselves prove a unique root cause (speech naturally has much low-frequency power):
+- 85–250 Hz: ~36.4%
+- **250–650 Hz: ~46.2%**
+- 1–2.5 kHz: ~10.6%
+- **2.5–5 kHz: ~1.2%**
+- 5–8 kHz: ~0.1%
+
+This skew **supports testing** a mild cut in 250–650 Hz boxy/muddy speech plus gentle vocal presence. It is not evidence that a mandatory Kotlin/plugin/library is missing. The original and user-resubmitted WAV are byte-identical. A previous mild clarity test WAV (local working artifact) changed the broad-band balance and increased peak headroom; any audible improvement requires direct user A/B listening.
+
+**Do not insert a microphone noise suppressor into synthesized speech just because output is robotic.** RNNoise, WebRTC AudioProcessing and DeepFilterNet remove recorded background noise / microphone artifacts; a clean but synthetic or low-fidelity TTS voice may be harmed, and they do not create missing human prosody. DeepFilterNet's readily documented CLI expects 48 kHz WAV; the sample is 24 kHz and would need correctly bandlimited resampling. DeepFilterNet license is MIT/Apache 2.0, but Android packaging is a separate engineering task.
+
+**Android media API distinction**: `android.media.audiofx.DynamicsProcessing` can attach EQ/compression/limiter to `AudioTrack` or `MediaPlayer` audio sessions for **playback**. It is not magically embedded into `TextToSpeech.synthesizeToFile()` output; file exports require explicit raw PCM processing, which the opt-in `AudioPolish` now provides. The real question is whether *live TTS*, *exported WAV*, and *same-file alternate-player playback* all show the metallic tone.
+
+**Missing-library selection**:
+- Postprocessing: existing `AudioPolish.java` is a native Java/Android-compatible no-network PCM16 DSP library already in this repository, no external Kotlin plugin needed. It processes export only and is OFF by default for diagnostics.
+- Live preview audio EQ: Android DynamicsProcessing on an app-owned AudioTrack/MediaPlayer session; if using Android TTS `speak()`, that session may not be owned by this app. Instead preview exported WAV through a player with a configurable audio session.
+- Neural denoiser: optionally trial DeepFilterNet after validated 48 kHz resampling on **noisy recorded microphone** input; not default on synthetic output.
+- Core timbre upgrade: select a higher-quality installed offline Telugu voice and A/B neutral pitch/rate; if still bad, replace the acoustic TTS model, not just filters. Genuine on-device Telugu neural model inference (ONNX/sherpa-onnx with correct Telugu phonemization) is the priority.
+
+### Exact next check
+On Nothing Phone (1) run **one sentence** through:
+A. native live Android TTS speaker at pitch/rate 1.0;
+B. raw exported WAV at pitch/rate 1.0;
+C. the same WAV with optional clarity EQ;
+D. another installed offline Telugu TTS voice if available.
+Compare B on headphones, phone speaker and an independent music player. Loudness-match A/B/C before judging. If live A sounds clean but WAV B has metal rattles, isolate export, sample conversion and stitching. If A and B are equally robotic, replace voice model. If B is clean on headphones but not speaker, investigate device playback processing. Document the voice **engine package and voice name**. Record no confidential audio in public repositories.
+
+References:
+- https://developer.android.com/reference/android/media/audiofx/DynamicsProcessing
+- https://developer.android.com/reference/android/speech/tts/TextToSpeech
+- https://github.com/Rikorose/DeepFilterNet

@@ -31,6 +31,8 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
   private Voice voice;
   private Spinner voicePicker;
   private CheckBox neutralMode;
+  private CheckBox clarityMode;
+  private boolean exportPolish=false;
   private final ArrayList<Voice> availableOfflineVoices = new ArrayList<>();
   private EditText input;
   private Spinner styleInput;
@@ -80,6 +82,10 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     neutralMode.setText("Natural baseline (pitch 1.0, rate 1.0) — recommended");
     neutralMode.setChecked(true);neutralMode.setTextColor(Color.WHITE);
     root.addView(neutralMode);
+    clarityMode=new CheckBox(this);
+    clarityMode.setText("WAV clarity EQ (mild de-boxing + 6ms fades) — compare ON/OFF");
+    clarityMode.setChecked(false);clarityMode.setTextColor(Color.WHITE);
+    root.addView(clarityMode);
     button(root,"1. Analyze Script / Expression Plan",()->showPlan());
     button(root,"2. Find installed OFFLINE Telugu voice",()->checkVoice());
     button(root,"3. Install offline voice data",()->installVoice());
@@ -223,6 +229,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     stopAll();segments=getPlan();
     if(segments.isEmpty()){tell("Enter Telugu script.");return;}
     if(segments.size()>220){tell("Export at most 220 sentences at once; split longer scripts.");return;}
+    exportPolish=clarityMode!=null && clarityMode.isChecked();
     files.clear();exporting=true;exportAt(0);
   }
   private void exportAt(int n){
@@ -281,6 +288,7 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         WavePart p=inspectWave(files.get(i));
         if(i==0){rate=p.rate;ch=p.ch;}
         if(rate!=p.rate||ch!=p.ch)throw new IOException("Audio formats changed between chunks");
+        if(p.size % (p.ch * 2L) != 0)throw new IOException("PCM chunk is not frame aligned");
         total+=p.size;pieces.add(p);
         if(i<files.size()-1)total+=(long)Math.round(rate*segments.get(i).pauseAfterMs/1000.0)*ch*2;
       }
@@ -303,8 +311,16 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
         for(int i=0;i<pieces.size();i++){
           WavePart p=pieces.get(i);
           try(RandomAccessFile src=new RandomAccessFile(p.f,"r")){
-            src.seek(p.offset);long remain=p.size;
-            while(remain>0){int count=(int)Math.min(remain,buffer.length);src.readFully(buffer,0,count);out.write(buffer,0,count);remain-=count;}
+            src.seek(p.offset);
+            long remain=p.size, partOffset=0;
+            AudioPolish cleaner=exportPolish?new AudioPolish(rate,ch):null;
+            while(remain>0){
+              int count=(int)Math.min(remain,buffer.length);
+              src.readFully(buffer,0,count);
+              if(cleaner!=null)cleaner.processInPlace(buffer,count,partOffset,p.size);
+              out.write(buffer,0,count);
+              remain-=count;partOffset+=count;
+            }
           }
           if(i<pieces.size()-1){
             int silentBytes=(int)(Math.round(rate*segments.get(i).pauseAfterMs/1000.0)*ch*2);
@@ -316,7 +332,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
       values.clear();values.put(MediaStore.Audio.Media.IS_PENDING,0);
       getContentResolver().update(uri,values,null,null);
       for(File f:files)f.delete();
-      tell("Offline WAV saved to Music/TeluguVoiceStudio. Note: quality is limited by installed Android voice.");
+      tell("Offline WAV saved to Music/TeluguVoiceStudio ("+
+           (exportPolish?"mild clarity EQ ON":"RAW, no filter")+
+           "). Neural quality is limited by the chosen TTS voice.");
     }catch(Exception e){
       if(uri!=null)try{getContentResolver().delete(uri,null,null);}catch(Exception ignored){}
       tell("WAV merge failed: "+e.getMessage());

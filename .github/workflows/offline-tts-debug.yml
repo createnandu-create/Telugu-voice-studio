@@ -52,8 +52,11 @@ jobs:
           javac -encoding UTF-8 -d /tmp/telugu-narration-tests \
             offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/NarrationDirector.java \
             offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/SemanticNarrationPrompt.java \
-            offline-tts-android/tests/NarrationDirectorTest.java
+            offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline/AudioPolish.java \
+            offline-tts-android/tests/NarrationDirectorTest.java \
+            offline-tts-android/tests/AudioPolishTest.java
           java -cp /tmp/telugu-narration-tests in.aitechapp.teluguoffline.NarrationDirectorTest
+          java -cp /tmp/telugu-narration-tests in.aitechapp.teluguoffline.AudioPolishTest
 
       - name: Build Android 15 debug APK
         run: gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug

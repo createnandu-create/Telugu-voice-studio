@@ -1,7 +1,5 @@
 # Telugu Voice Studio
 
-Android offline Telugu narration development repository.
+Offline Android Telugu narrator prototype. Development: `telugu-voice-testing` branch, module: `offline-tts-android/`.
 
-Development happens on the [`telugu-voice-testing`](../../tree/telugu-voice-testing) branch. The Android test module is under `offline-tts-android/`.
-
-This test app uses Android's installed offline Telugu voice with a heuristic narration director. It is **not** an offline neural voice-cloning implementation.
+Current implementation is heuristic narration with installed offline Android Telugu system TTS. It does **not** bundle an expressive neural TTS model or voice cloning.

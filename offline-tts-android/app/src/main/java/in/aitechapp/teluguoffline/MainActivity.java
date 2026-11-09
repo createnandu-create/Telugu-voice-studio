@@ -29,6 +29,9 @@ import java.util.*;
 public class MainActivity extends Activity implements TextToSpeech.OnInitListener {
   private TextToSpeech tts;
   private Voice voice;
+  private Spinner voicePicker;
+  private CheckBox neutralMode;
+  private final ArrayList<Voice> availableOfflineVoices = new ArrayList<>();
   private EditText input;
   private Spinner styleInput;
   private TextView status;
@@ -61,10 +64,26 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
         new String[]{"AUTO","TUTORIAL","STORY","NEWS","REVIEW"});
     styleInput.setAdapter(adapter);root.addView(styleInput);
+    text(root,"Select OFFLINE Telugu voice (quality sorted)",15,Color.WHITE);
+    voicePicker=new Spinner(this);
+    voicePicker.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
+        new String[]{"Detecting installed offline Telugu voices..."}));
+    root.addView(voicePicker);
+    voicePicker.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+      @Override public void onItemSelected(AdapterView<?> p,View v,int position,long id){
+        if(tts!=null && position>=0 && position<availableOfflineVoices.size())
+          selectVoice(availableOfflineVoices.get(position));
+      }
+      @Override public void onNothingSelected(AdapterView<?> p){}
+    });
+    neutralMode=new CheckBox(this);
+    neutralMode.setText("Natural baseline (pitch 1.0, rate 1.0) — recommended");
+    neutralMode.setChecked(true);neutralMode.setTextColor(Color.WHITE);
+    root.addView(neutralMode);
     button(root,"1. Analyze Script / Expression Plan",()->showPlan());
     button(root,"2. Find installed OFFLINE Telugu voice",()->checkVoice());
     button(root,"3. Install offline voice data",()->installVoice());
-    button(root,"▶ Speak with automatic pace and pitch",()->startSpeaking());
+    button(root,"▶ Speak selected voice (baseline / mild expression)",()->startSpeaking());
     button(root,"■ Stop",()->stopAll());
     button(root,"4. Save directed narration as WAV",()->startExport());
     status=text(root,"Checking offline Telugu voices...",15,Color.rgb(164,221,190));
@@ -132,18 +151,42 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
   }
   private void checkVoice(){
     if(tts==null){tell("TTS service not ready");return;}
+    String previous=voice==null?null:voice.getName();
     voice=null;
+    availableOfflineVoices.clear();
     Set<Voice> voices=tts.getVoices();
-    if(voices!=null){
-      for(Voice v:voices){
-        if(v.getLocale()!=null && "te".equals(v.getLocale().getLanguage()) && !v.isNetworkConnectionRequired()){
-          voice=v;break;
-        }
-      }
+    if(voices!=null)for(Voice v:voices){
+      if(v.getLocale()!=null && "te".equals(v.getLocale().getLanguage()) &&
+          !v.isNetworkConnectionRequired()) availableOfflineVoices.add(v);
     }
-    if(voice!=null && tts.setVoice(voice)==TextToSpeech.SUCCESS){
-      tell("Offline voice: "+voice.getName()+". Turn on Flight mode for a real offline check.");
-    }else tell("No installed OFFLINE Telugu TTS voice. Install voice data, then check again.");
+    availableOfflineVoices.sort((a,b)->{
+      int quality=Integer.compare(b.getQuality(),a.getQuality());
+      return quality!=0?quality:Integer.compare(a.getLatency(),b.getLatency());
+    });
+    if(availableOfflineVoices.isEmpty()){
+      voicePicker.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
+          new String[]{"No installed OFFLINE Telugu voice"}));
+      tell("No offline Telugu voice installed. Install local voice data, then check again.");
+      return;
+    }
+    ArrayList<String> labels=new ArrayList<>();
+    int selected=0;
+    for(int i=0;i<availableOfflineVoices.size();i++){
+      Voice v=availableOfflineVoices.get(i);
+      labels.add(v.getName()+" — quality "+v.getQuality()+" / latency "+v.getLatency());
+      if(previous!=null && previous.equals(v.getName()))selected=i;
+    }
+    voicePicker.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,labels));
+    voicePicker.setSelection(selected);
+    selectVoice(availableOfflineVoices.get(selected));
+  }
+  private void selectVoice(Voice chosen){
+    if(tts==null || chosen==null || chosen.isNetworkConnectionRequired())return;
+    if(tts.setVoice(chosen)==TextToSpeech.SUCCESS){
+      voice=chosen;
+      tell("Offline voice: "+chosen.getName()+" | quality "+chosen.getQuality()+
+          " | latency "+chosen.getLatency()+". Rating is not a human-listening score.");
+    }else{voice=null;tell("Could not activate selected offline Telugu voice.");}
   }
   private void installVoice(){
     try{startActivity(new Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA));}
@@ -168,8 +211,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     if(n>=segments.size()){playing=false;tell("Finished local narration preview.");return;}
     index=n;
     NarrationDirector.Segment s=segments.get(n);
-    tts.setSpeechRate(s.rate);
-    tts.setPitch(s.pitch);
+    boolean neutral=neutralMode!=null && neutralMode.isChecked();
+    tts.setSpeechRate(neutral?1.0f:Math.max(0.94f,Math.min(1.06f,s.rate)));
+    tts.setPitch(neutral?1.0f:Math.max(0.96f,Math.min(1.05f,s.pitch)));
     tell("Speaking "+(n+1)+"/"+segments.size()+": "+s.label());
     int r=tts.speak(s.text,TextToSpeech.QUEUE_ADD,new Bundle(),"SPEAK-"+n);
     if(r!=TextToSpeech.SUCCESS){playing=false;tell("Local TTS refused segment "+(n+1));}
@@ -189,7 +233,9 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
     }
     index=n;
     NarrationDirector.Segment s=segments.get(n);
-    tts.setPitch(s.pitch);tts.setSpeechRate(s.rate);
+    boolean neutral=neutralMode!=null && neutralMode.isChecked();
+    tts.setPitch(neutral?1.0f:Math.max(0.96f,Math.min(1.05f,s.pitch)));
+    tts.setSpeechRate(neutral?1.0f:Math.max(0.94f,Math.min(1.06f,s.rate)));
     File f=new File(getCacheDir(),"directed-"+n+".wav");files.add(f);
     tell("Exporting WAV chunk "+(n+1)+"/"+segments.size()+" ["+s.label()+"]");
     int r=tts.synthesizeToFile(s.text,new Bundle(),f,"FILE-"+n);

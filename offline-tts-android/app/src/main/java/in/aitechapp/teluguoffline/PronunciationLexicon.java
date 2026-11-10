@@ -12,10 +12,10 @@ public final class PronunciationLexicon {
 
   public static String apply(String original, Map<String, String> dictionary, boolean readDigits) {
     String text = Normalizer.normalize(original, Normalizer.Form.NFC);
-    // Only leading invisible formatting markers; do not modify legitimate joiners within Telugu.
-    while (!text.isEmpty() && (text.charAt(0) == '\\uFEFF'
-        || text.charAt(0) == '\\u200C' || text.charAt(0) == '\\u200B'
-        || text.charAt(0) == '\\u200D')) {
+    // Strip only leading invisible formatting marks, preserving in-word Telugu joiners.
+    while (!text.isEmpty() && (text.charAt(0) == 0xFEFF
+        || text.charAt(0) == 0x200C || text.charAt(0) == 0x200B
+        || text.charAt(0) == 0x200D)) {
       text = text.substring(1);
     }
     List<String> keys = new ArrayList<>(dictionary.keySet());

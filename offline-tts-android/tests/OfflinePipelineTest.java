@@ -75,7 +75,26 @@ public final class OfflinePipelineTest {
               new NarrationDirector.Segment(
                   "రెండు.", NarrationDirector.Emotion.NEUTRAL, 1, 1, 2000));
       PcmWave.merge(Arrays.asList(a, b), two, out, new AtomicBoolean());
-      check(PcmWave.validate(out) == 101430, "exact silence, no trailing pause");
+      check(
+          PcmWave.validate(out) == 101430 + PcmWave.HEAD_PADDING_BYTES
+              + PcmWave.TAIL_PADDING_BYTES,
+          "exact interior pause plus 150ms head/100ms tail protection");
+      check(PcmWave.HEAD_PADDING_BYTES == 6616, "150ms rounded to whole 22.05kHz PCM frames");
+      check(PcmWave.TAIL_PADDING_BYTES == 4410, "100ms exact PCM frames");
+      try (RandomAccessFile r = new RandomAccessFile(out, "r");
+           RandomAccessFile original = new RandomAccessFile(a, "r")) {
+        r.seek(44);
+        for (int i = 0; i < PcmWave.HEAD_PADDING_BYTES; i++)
+          check(r.readUnsignedByte() == 0, "head is zero PCM");
+        // Guard must never erase or alter the original first-phoneme waveform.
+        original.seek(44);
+        for (int i = 0; i < 128; i++)
+          check(r.readUnsignedByte() == original.readUnsignedByte(),
+              "first 128 synthetic PCM bytes preserved");
+        r.seek(r.length() - PcmWave.TAIL_PADDING_BYTES);
+        for (int i = 0; i < PcmWave.TAIL_PADDING_BYTES; i++)
+          check(r.readUnsignedByte() == 0, "tail is zero PCM");
+      }
       String oldHash = FileIntegrity.sha256(out);
       boolean stopped = false;
       try {

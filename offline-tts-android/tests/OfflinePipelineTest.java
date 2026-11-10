@@ -25,6 +25,12 @@ public final class OfflinePipelineTest {
 
   public static void main(String[] args) throws Exception {
     String script = "ధర 3.14 రూపాయలు. Version 2.5 works! నమస్కారం ఫ్రెండ్స్!";
+    String marked = new String(new char[] {(char) 0xFEFF, (char) 0x200C})
+        + "నమస్కారం";
+    check(PronunciationLexicon.apply(marked, Collections.emptyMap(), false)
+        .equals("నమస్కారం"), "leading formatting marks stripped");
+    check(PronunciationLexicon.apply("నమస్కారం", Collections.emptyMap(), false)
+        .equals("నమస్కారం"), "normal greeting preserved");
     List<NarrationDirector.Segment> plan =
         NarrationDirector.planExact(script, NarrationDirector.Style.AUTO);
     check(plan.size() == 3, "decimal and version boundaries");

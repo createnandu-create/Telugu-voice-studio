@@ -105,6 +105,17 @@ public final class PcmWave {
       File destination,
       AtomicBoolean cancel)
       throws IOException {
+    merge(chunks, plan, destination, cancel, false);
+  }
+
+  /** Optional WAV-only tonal A/B preset. Never changes cached source PCM chunks. */
+  public static void merge(
+      List<File> chunks,
+      List<NarrationDirector.Segment> plan,
+      File destination,
+      AtomicBoolean cancel,
+      boolean applyWarmthEq)
+      throws IOException {
     if (chunks.size() != plan.size() || chunks.isEmpty())
       throw new IOException("Missing render chunks.");
     File part = new File(destination.getPath() + ".part");
@@ -118,13 +129,19 @@ public final class PcmWave {
       writeZeroPcm(out, silence, HEAD_PADDING_BYTES);
       for (int i = 0; i < chunks.size(); i++) {
         if (cancel.get()) throw new CancellationException();
-        bytes += validate(chunks.get(i));
-        try (FileInputStream in = new FileInputStream(chunks.get(i))) {
-          if (in.skip(44) != 44) throw new EOFException();
-          int n;
-          while ((n = in.read(buffer)) != -1) {
+        long pcmBytes = validate(chunks.get(i));
+        bytes += pcmBytes;
+        try (RandomAccessFile in = new RandomAccessFile(chunks.get(i), "r")) {
+          in.seek(44);
+          WarmthEq warmth = applyWarmthEq ? new WarmthEq(RATE) : null;
+          long remaining = pcmBytes;
+          while (remaining > 0) {
             if (cancel.get()) throw new CancellationException();
+            int n = (int) Math.min(remaining, buffer.length);
+            in.readFully(buffer, 0, n);
+            if (warmth != null) warmth.process(buffer, n);
             out.write(buffer, 0, n);
+            remaining -= n;
           }
         }
         long quiet =

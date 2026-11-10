@@ -2,7 +2,7 @@
 
 **Android 15 · Nothing Phone (1) · 8 GB RAM · Snapdragon 778G+**
 
-An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a native English Android Studio and resumable local WAV rendering**. It does **not** yet include human-like neural expressive voice cloning or an on-device LLM.
+An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. It does **not** yet include human-like neural expressive voice cloning or an on-device LLM.
 
 ## Downloads
 
@@ -16,6 +16,10 @@ An actively developed offline Telugu YouTube voice narrator prototype. The testi
 | All Releases | [Releases page](https://github.com/createnandu-create/Telugu-voice-studio/releases) | APK appears here after CI succeeds |
 
 **If the APK link returns 404, the release has not been published yet; check Actions. Do not treat a source ZIP as an installable APK.** The debug APK is for testing, not Google Play Store distribution.
+
+## Version 0.4 testing changes
+
+Compact horizontal controls, animated navigation, persistent named reference recordings, pause/resume timer, verified model reuse and resumable downloads. Speech-only dictionary leaves the displayed script intact. See [implementation evidence and remaining blockers](docs/evaluation/COMPOSE_V04.md) and [16 raw pronunciation comparisons](docs/evaluation/pronunciation-v04). These changes do **not** establish corrected pronunciation, expressive cloning or Nothing Phone acceptance.
 
 ## Astra/AI instructions
 
@@ -32,7 +36,7 @@ Build command:
 gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug
 ```
 
-Use the `telugu-voice-testing` branch. A successful CI run uploads an APK and source ZIP and publishes the same as downloadable GitHub Release assets. To test offline mode, install a voice from **Models** in the app, turn off Wi-Fi and mobile data, reopen Studio, generate, preview and export WAV. Physical-phone acceptance is still pending.
+Use the `telugu-voice-testing` branch. A successful CI run uploads an APK and source ZIP and publishes the same as downloadable GitHub Release assets. To test offline mode, install a voice from **Settings → Offline models** in the app, turn off Wi-Fi and mobile data, reopen Studio, generate, preview and export WAV. Physical-phone acceptance is still pending.
 
 The requested roadmap is **real Telugu human-like neural expressiveness, topic-aware pacing and consented voice cloning for 10–20 minute YouTube narration**. Those AI engines remain research/integration tasks, not existing production features.
 

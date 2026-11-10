@@ -6,3 +6,5 @@ dist/
 *.jks
 *.keystore
 !offline-tts-android/signing/public-debug.keystore
+.kotlin/
+__pycache__/

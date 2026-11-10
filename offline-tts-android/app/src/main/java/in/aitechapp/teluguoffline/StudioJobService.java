@@ -17,6 +17,7 @@ import org.json.JSONObject;
  */
 public final class StudioJobService extends Service {
   public static volatile boolean busy = false;
+  public static volatile int downloadingVoice = -1;
   public static volatile String status = "Ready · all generation is local";
   public static volatile File result;
   public static final AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -43,6 +44,7 @@ public final class StudioJobService extends Service {
     cancelled.set(false);
     status = "Preparing…";
     boolean install = "install".equals(intent.getAction());
+    downloadingVoice = install ? intent.getIntExtra("voice", 0) : -1;
     NotificationManager nm = getSystemService(NotificationManager.class);
     nm.createNotificationChannel(
         new NotificationChannel(
@@ -83,7 +85,10 @@ public final class StudioJobService extends Service {
               status = ModelCatalog.VOICES[voice].name + " installed · ready offline";
             } else render(store);
           } catch (CancellationException e) {
-            status = "Stopped · completed chunks saved. Tap Generate / Resume to continue.";
+            status =
+                install
+                    ? "Download paused · partial bytes saved. Tap Resume download in Settings."
+                    : "Stopped · completed chunks saved. Tap Generate / Resume to continue.";
           } catch (Exception | LinkageError e) {
             status =
                 "Could not complete: "
@@ -95,6 +100,7 @@ public final class StudioJobService extends Service {
                       if (wake != null && wake.isHeld()) wake.release();
                       running.set(false);
                       busy = false;
+                      downloadingVoice = -1;
                       stopForeground(STOP_FOREGROUND_REMOVE);
                       stopSelf(startId);
                     });
@@ -116,8 +122,22 @@ public final class StudioJobService extends Service {
       throw new IOException("Install " + voice.name + " in Offline Models first.");
     store.prepareAssets(cancelled);
     check();
+    SpeechSettings speech = SpeechSettings.load(this);
+    StringBuilder spokenIdentity = new StringBuilder();
+    org.json.JSONArray inputAudit = new org.json.JSONArray();
+    for (NarrationDirector.Segment segment : plan.segments) {
+      String spoken = speech.spoken(segment.text);
+      spokenIdentity.append(spoken.length()).append(':').append(spoken);
+      inputAudit.put(new JSONObject().put("original", segment.text).put("spoken", spoken));
+    }
     RenderJournal journal =
-        new RenderJournal(new File(getFilesDir(), "renders"), voice, plan.segments);
+        new RenderJournal(
+            new File(getFilesDir(), "renders"),
+            voice,
+            plan.segments,
+            FileIntegrity.sha256(spokenIdentity.toString()));
+    FileIntegrity.write(new File(journal.directory, "speech-inputs.json"), inputAudit.toString(2));
+    FileIntegrity.write(new File(journal.directory, "plan.json"), plan.json());
     long need = 0;
     for (NarrationDirector.Segment s : plan.segments) need += s.text.length() * 7000L + 100000;
     if (getFilesDir().getUsableSpace() < need + 30_000_000)
@@ -157,7 +177,7 @@ public final class StudioJobService extends Service {
                         .setMaxNumSentences(1)
                         .build());
           }
-          GeneratedAudio audio = tts.generate(s.text, 0, s.rate);
+          GeneratedAudio audio = tts.generate(speech.spoken(s.text), 0, s.rate);
           check();
           PcmWave.write(journal.chunk(i), audio.getSamples(), audio.getSampleRate());
           journal.complete(i);

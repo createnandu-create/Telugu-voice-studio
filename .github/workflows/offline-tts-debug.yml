@@ -13,7 +13,7 @@ on:
 
 concurrency:
   group: telugu-voice-testing-release
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -57,8 +57,16 @@ jobs:
       - name: Build Android 15 debug APK
         run: gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug
 
-      - name: Android lint
-        run: gradle --no-daemon --project-dir offline-tts-android :app:lintDebug
+      - name: Compose navigation, persistence tests and Android lint
+        run: gradle --no-daemon --project-dir offline-tts-android :app:testDebugUnitTest :app:lintDebug
+
+      - name: Upload test reports and native UI captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Studio-test-reports
+          path: offline-tts-android/app/build/reports/
+          if-no-files-found: warn
 
       - name: Verify APK signature and 16 KB alignment
         run: |
@@ -71,7 +79,8 @@ jobs:
           mkdir -p dist
           cp offline-tts-android/app/build/outputs/apk/debug/app-debug.apk dist/TeluguVoiceStudio-debug.apk
           git archive --format=zip --output=dist/TeluguVoiceStudio-source.zip HEAD
-          (cd dist && sha256sum TeluguVoiceStudio-debug.apk TeluguVoiceStudio-source.zip > SHA256SUMS.txt)
+          python3 -m zipfile -c dist/TeluguVoiceStudio-pronunciation-AB.zip docs/evaluation/pronunciation-v04
+          (cd dist && sha256sum TeluguVoiceStudio-debug.apk TeluguVoiceStudio-source.zip TeluguVoiceStudio-pronunciation-AB.zip > SHA256SUMS.txt)
           test -s dist/TeluguVoiceStudio-debug.apk
           test -s dist/TeluguVoiceStudio-source.zip
 
@@ -93,18 +102,18 @@ jobs:
           Native ARM64 Android test build from commit $GITHUB_SHA.
           Build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
 
-          Download the APK below. Install one 63.5 MB Telugu voice in Models, then generate locally. Includes English native UI, editable heuristic rate/pause plans, chunk cancellation/resume, WAV export and consented reference recording.
+          Version 0.4: Kotlin Compose + Material 3, compact horizontal audio controls, animated bottom navigation, Settings → Offline models, resumable verified downloads, foreground microphone recording with pause/timer and multiple named references, speech-only pronunciation dictionary. Existing models and recordings are preserved. Install one 63.5 MB Telugu voice once, then generate locally.
 
-          Piper is a basic neural voice: no semantic LLM, emotional voice cloning or proven 90% human naturalness. Linux host WAVs were generated; Nothing Phone flight-mode playback and performance remain unverified. See source docs/evaluation and docs/research.
+          Piper is a basic neural voice: no semantic LLM, emotional voice cloning or proven 90% human naturalness. 16 raw Piper/Indic Tiny Linux A/B WAVs are included. Indic Tiny is a comparison sample, not an installed Android engine. Telugu pronunciation complaints are NOT resolved by evidence yet. Nothing Phone microphone/flight-mode playback and performance remain unverified. See source docs/evaluation and docs/research.
 
-          The source ZIP includes application source, licenses and upstream corresponding-source archives. This is a publicly debug-signed test APK, not a production release. All three files below belong to this commit; SHA256SUMS.txt can be checked after download.
+          The source ZIP includes application source, licenses and upstream corresponding-source archives. This is a publicly debug-signed test APK, not a production release. All files below belong to this commit; SHA256SUMS.txt can be checked after download.
           EOF
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
             gh release edit "$TAG" --notes-file /tmp/release-notes.md
           else
             gh release create "$TAG" dist/* --target "$GITHUB_SHA" --prerelease \
-              --title "Telugu Voice Studio 0.3 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
+              --title "Telugu Voice Studio 0.4 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
           fi
           if gh release view debug-latest >/dev/null 2>&1; then
             gh release upload debug-latest dist/* --clobber

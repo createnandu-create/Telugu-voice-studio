@@ -1,8 +1,12 @@
-plugins { id 'com.android.application' }
+plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android'; id 'org.jetbrains.kotlin.plugin.compose' }
 android {
     namespace 'in.aitechapp.teluguoffline'
     compileSdk 35
-    defaultConfig { applicationId 'in.aitechapp.teluguoffline'; minSdk 26; targetSdk 35; versionCode 3; versionName '0.3.0-neural-test'; ndk { abiFilters 'arm64-v8a' } }
+    defaultConfig { applicationId 'in.aitechapp.teluguoffline'; minSdk 26; targetSdk 35; versionCode 4; versionName '0.4.0-studio-test'; ndk { abiFilters 'arm64-v8a' } }
+    buildFeatures { compose true }
+    kotlinOptions { jvmTarget = '17' }
+    testOptions { unitTests.includeAndroidResources = true }
+    defaultConfig { testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
     signingConfigs {
         debug {
             storeFile file('../signing/public-debug.keystore')
@@ -13,4 +17,25 @@ android {
     }
     packaging { jniLibs { useLegacyPackaging = false } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+
+dependencies {
+    implementation platform('androidx.compose:compose-bom:2024.09.03')
+    implementation 'androidx.activity:activity-compose:1.9.3'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-core'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.14.1'
+    testImplementation 'androidx.compose.ui:ui-test-junit4'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}
+tasks.withType(Test).configureEach {
+    systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
+    ['https.proxyHost','https.proxyPort','http.proxyHost','http.proxyPort'].each { key ->
+        if (System.getProperty(key) != null) systemProperty key, System.getProperty(key)
+    }
+    maxHeapSize = '1536m'
 }

@@ -1,3 +1,7 @@
+## Current 0.4 implementation checkpoint (2026-11-10)
+
+Read [Compose/recording/models/pronunciation evidence](evaluation/COMPOSE_V04.md) first. The primary UI is now `StudioActivity.kt`, not the deleted Java screen. Microphone foreground service, named references, model receipts/resume and dictionary are implemented. Piper remains the actual renderer; Indic Tiny has host A/B samples only. Pronunciation and expressive cloning are unresolved. Release evidence belongs to the exact immutable release commit and Actions run.
+
 # Copy-paste handoff for GPT-6 Astra — Telugu Voice Studio
 
 You are the lead Android AI speech engineer and editor for **my** repository: `createnandu-create/Telugu-voice-studio`. Work on **`telugu-voice-testing` only**. Before touching anything, read `AGENTS.md`, `.agents/skills/telugu-youtube-narrator/SKILL.md`, `offline-tts-android/README.md`, `offline-tts-android/MODEL_SELECTION.md` and the entire Java/Gradle/build workflow source. Connect to my GitHub using the authorized integration; verify that you have write access. Do not start a new unrelated repo, replace my project, or edit main without permission.

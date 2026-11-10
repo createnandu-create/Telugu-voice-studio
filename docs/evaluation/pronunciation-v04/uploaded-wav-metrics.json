@@ -1,0 +1,22 @@
+[
+  {
+    "file": "Telugu-narration-1794248150507.wav",
+    "rate": 22050,
+    "channels": 1,
+    "seconds": 7.806303854875283,
+    "peak": 0.622222900390625,
+    "first_50ms_rms": 0.0004559072524528092,
+    "clipped": 0,
+    "sha256": "bdf7dd340a528c3ac408ad3e410a1a21dc3ce36c3a8ab146b41e7605058c4a9b"
+  },
+  {
+    "file": "Telugu-narration-1794248025735.wav",
+    "rate": 22050,
+    "channels": 1,
+    "seconds": 6.293197278911564,
+    "peak": 0.5418701171875,
+    "first_50ms_rms": 0.00011690716637797571,
+    "clipped": 0,
+    "sha256": "dc7d64123e9f55f338e9a9b053c43a244205687787d556f1129e3b4a61290dd3"
+  }
+]

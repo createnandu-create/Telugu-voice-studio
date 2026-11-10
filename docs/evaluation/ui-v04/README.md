@@ -1,0 +1,1 @@
+These are captures of the actual Kotlin Compose UI under Robolectric native graphics, Android 14 API 34, 393×873 dp. They are not Figma mockups or screenshots from a Nothing Phone. Fixtures use the default script and no private recordings. System status bars / keyboard and real microphone/audio rendering still need physical-device testing.

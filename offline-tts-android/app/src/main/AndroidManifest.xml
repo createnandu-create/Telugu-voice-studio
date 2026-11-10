@@ -6,10 +6,13 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING"/>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
   <uses-feature android:name="android.hardware.microphone" android:required="false"/>
   <queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
   <application android:icon="@drawable/studio_icon" android:dataExtractionRules="@xml/data_extraction_rules" android:allowBackup="false" android:fullBackupContent="false" android:label="Telugu Voice Studio" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
     <activity android:name=".MainActivity" android:exported="false"/>
+    <service android:name=".VoiceRecordingService" android:exported="false" android:foregroundServiceType="microphone"/>
     <service android:name=".StudioJobService" android:exported="false" android:foregroundServiceType="dataSync|mediaProcessing"/>
     <activity android:name=".StudioActivity" android:exported="true">
       <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>

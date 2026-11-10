@@ -1,3 +1,7 @@
+## DSP follow-up (2026-11-10)
+
+Version 0.5 adds `StudioMastering.java`, raw/master selection and leading-format-character normalization. Read [DSP measurements and unresolved /n/ diagnosis](evaluation/dsp-v05/README.md). Piper is VITS, not Griffin-Lim; no separate INT8 HiFi-GAN swap or cloning was integrated.
+
 ## Current 0.4 implementation checkpoint (2026-11-10)
 
 Read [Compose/recording/models/pronunciation evidence](evaluation/COMPOSE_V04.md) first. The primary UI is now `StudioActivity.kt`, not the deleted Java screen. Microphone foreground service, named references, model receipts/resume and dictionary are implemented. Piper remains the actual renderer; Indic Tiny has host A/B samples only. Pronunciation and expressive cloning are unresolved. Release evidence belongs to the exact immutable release commit and Actions run.

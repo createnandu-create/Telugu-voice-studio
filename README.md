@@ -17,6 +17,10 @@ An actively developed offline Telugu YouTube voice narrator prototype. The testi
 
 **If the APK link returns 404, the release has not been published yet; check Actions. Do not treat a source ZIP as an installable APK.** The debug APK is for testing, not Google Play Store distribution.
 
+## Version 0.5 DSP update
+
+New **Studio master / Raw voice** preview/export: local 150/100 ms padding, sinc 44.1 kHz stereo resampling, warmth EQ, measured −14 LUFS normalization and ≤ −1 dBTP limiting. Original WAVs remain available. [Independent measurements and limitations](docs/evaluation/dsp-v05). **Generate / Resume again** to master an earlier narration; models do not need another download. DSP does not establish correct pronunciation or voice cloning.
+
 ## Version 0.4 testing changes
 
 Compact horizontal controls, animated navigation, persistent named reference recordings, pause/resume timer, verified model reuse and resumable downloads. Speech-only dictionary leaves the displayed script intact. See [implementation evidence and remaining blockers](docs/evaluation/COMPOSE_V04.md) and [16 raw pronunciation comparisons](docs/evaluation/pronunciation-v04). These changes do **not** establish corrected pronunciation, expressive cloning or Nothing Phone acceptance.

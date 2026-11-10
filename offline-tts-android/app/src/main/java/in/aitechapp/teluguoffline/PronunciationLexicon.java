@@ -12,7 +12,17 @@ public final class PronunciationLexicon {
 
   public static String apply(String original, Map<String, String> dictionary, boolean readDigits) {
     String text = Normalizer.normalize(original, Normalizer.Form.NFC);
-    if (text.startsWith("\uFEFF")) text = text.substring(1);
+    // Remove invisible format characters only in the leading prefix. Keep interior Telugu joiners.
+    int prefix = 0;
+    StringBuilder spaces = new StringBuilder();
+    while (prefix < text.length()) {
+      char c = text.charAt(prefix);
+      if (Character.isWhitespace(c)) spaces.append(c);
+      else if (c != '\uFEFF' && c != '\u200B' && c != '\u200C' && c != '\u200D' && c != '\u2060')
+        break;
+      prefix++;
+    }
+    text = spaces + text.substring(prefix);
     List<String> keys = new ArrayList<>(dictionary.keySet());
     keys.sort(Comparator.comparingInt(String::length).reversed());
     if (!keys.isEmpty()) {

@@ -148,6 +148,18 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         persist()
     }
 
+    fun selectOutput(master: Boolean) {
+        val folder = latest?.parentFile ?: return
+        val file = File(folder, if (master) "narration-studio.wav" else "narration.wav")
+        if (file.isFile) latest = file
+        else notice = "This output is not available yet. Generate to create it."
+    }
+
+    fun projectAudio(folder: File): File {
+        val master = File(folder, "narration-studio.wav")
+        return if (master.isFile) master else File(folder, "narration.wav")
+    }
+
     fun direct() {
         if (script.isBlank()) {
             notice = "Paste your Telugu script first."

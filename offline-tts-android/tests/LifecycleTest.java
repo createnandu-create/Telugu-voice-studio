@@ -39,6 +39,15 @@ public final class LifecycleTest {
     check(
         PronunciationLexicon.apply("నమస్కారం 15", words, false).equals("నమస్కారం 15"),
         "numbers not silently rewritten");
+    check(
+        PronunciationLexicon.apply(
+                "\uFEFF\u200C\u200D\u200Bనమస్కారం", Collections.emptyMap(), false)
+            .equals("నమస్కారం"),
+        "leading invisible format characters removed");
+    check(
+        PronunciationLexicon.apply("న\u200Cమస్కారం", Collections.emptyMap(), false)
+            .equals("న\u200Cమస్కారం"),
+        "interior Telugu joiner preserved");
     RecordingClock clock = new RecordingClock();
     clock.start(100);
     check(clock.elapsed(10100) == 10000, "record ten seconds");

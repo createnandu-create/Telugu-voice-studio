@@ -684,6 +684,25 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                             "${String.format(Locale.US,"%.1f",file.length()/1_000_000.0)} MB · lossless WAV",
                             color = Muted,
                         )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = file.name == "narration-studio.wav",
+                                onClick = { vm.selectOutput(true) },
+                                label = { Text("Studio master") },
+                            )
+                            FilterChip(
+                                selected = file.name == "narration.wav",
+                                onClick = { vm.selectOutput(false) },
+                                label = { Text("Raw voice") },
+                            )
+                        }
+                        Text(
+                            if (file.name == "narration-studio.wav")
+                                "44.1 kHz stereo · warmth EQ · −14 LUFS target · ≤ −1 dBTP (4× measured)"
+                            else "Original 22.05 kHz mono · no mastering",
+                            fontSize = 12.sp,
+                            color = Muted,
+                        )
                     }
                 }
                     ?: Panel {
@@ -991,6 +1010,8 @@ private fun ProfileDialog(
     var description by remember { mutableStateOf(initialDescription) }
     var allowed by remember { mutableStateOf(!consent) }
     AlertDialog(
+        modifier = Modifier.widthIn(min = 280.dp, max = 360.dp).fillMaxWidth(),
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
         onDismissRequest = close,
         title = { Text(title) },
         text = {
@@ -1081,10 +1102,10 @@ private fun ProjectsScreen(vm: StudioViewModel, play: (File) -> Unit, export: (F
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (p.ready) {
                         Secondary("Play", Icons.Outlined.PlayArrow) {
-                            play(File(p.folder, "narration.wav"))
+                            play(vm.projectAudio(p.folder))
                         }
                         Secondary("Export", Icons.Outlined.FileDownload) {
-                            export(File(p.folder, "narration.wav"))
+                            export(vm.projectAudio(p.folder))
                         }
                     } else Secondary("Open / Resume", Icons.Outlined.Restore) { vm.openProject(p) }
                 }
@@ -1191,7 +1212,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
                     "Your scripts and recordings remain on this device. Model files download only when requested. Voice references are not uploaded or trained automatically.",
                     color = Muted,
                 )
-                Text("Version 0.4 · testing build", fontSize = 12.sp)
+                Text("Version 0.5 · DSP testing build", fontSize = 12.sp)
                 Text(
                     "GPL-3.0-or-later · sherpa Apache-2.0 · ONNX Runtime MIT · eSpeak GPL · Piper voices CC BY 4.0 (PravalX / AI4Bharat). Manrope & DM Serif Display: OFL.",
                     fontSize = 11.sp,

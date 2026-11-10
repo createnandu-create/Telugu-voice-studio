@@ -2,7 +2,7 @@ plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android'; id 'o
 android {
     namespace 'in.aitechapp.teluguoffline'
     compileSdk 35
-    defaultConfig { applicationId 'in.aitechapp.teluguoffline'; minSdk 26; targetSdk 35; versionCode 4; versionName '0.4.0-studio-test'; ndk { abiFilters 'arm64-v8a' } }
+    defaultConfig { applicationId 'in.aitechapp.teluguoffline'; minSdk 26; targetSdk 35; versionCode 5; versionName '0.5.0-dsp-test'; ndk { abiFilters 'arm64-v8a' } }
     buildFeatures { compose true }
     kotlinOptions { jvmTarget = '17' }
     testOptions { unitTests.includeAndroidResources = true }

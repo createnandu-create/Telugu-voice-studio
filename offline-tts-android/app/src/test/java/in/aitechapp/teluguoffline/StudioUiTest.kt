@@ -17,6 +17,36 @@ import org.robolectric.annotation.GraphicsMode
 class StudioUiTest {
     @get:Rule val compose = createAndroidComposeRule<StudioActivity>()
 
+    @Test
+    fun rawAndMasterSelectionKeepsOriginalAudio() {
+        val directory = File(compose.activity.filesDir, "fixture-master").apply { mkdirs() }
+        val raw = File(directory, "narration.wav")
+        compose.activity.assets.open("comparison/piper-venkatesh-2.wav").use { input ->
+            raw.outputStream().use { input.copyTo(it) }
+        }
+        val hash = FileIntegrity.sha256(raw)
+        val master = File(directory, "narration-studio.wav")
+        StudioMastering.process(raw, master, java.util.concurrent.atomic.AtomicBoolean(), {})
+        try {
+            compose.runOnIdle {
+                val vm =
+                    androidx.lifecycle
+                        .ViewModelProvider(compose.activity)[StudioViewModel::class.java]
+                StudioJobService.result = master
+                vm.navigate("Studio")
+                vm.step = 3
+                vm.latest = master
+            }
+            compose.onNodeWithText("Raw voice").performScrollTo().performClick()
+            compose.onNodeWithText("Original 22.05 kHz mono · no mastering").assertExists()
+            compose.onNodeWithText("Studio master").performClick()
+            compose.onNodeWithText("44.1 kHz stereo", substring = true).assertExists()
+            org.junit.Assert.assertEquals(hash, FileIntegrity.sha256(raw))
+        } finally {
+            StudioJobService.result = null
+        }
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val folder = File("build/reports/studio-screenshots").apply { mkdirs() }
@@ -66,6 +96,7 @@ class StudioUiTest {
     }
 
     @Test
+    @Config(sdk = [34], qualifiers = "w393dp-h873dp-xhdpi")
     fun voicesExposeConsentAndNoCloneClaim() {
         compose.onNodeWithContentDescription("Voices tab").performClick()
         compose.onNodeWithText("New voice recording").performClick()

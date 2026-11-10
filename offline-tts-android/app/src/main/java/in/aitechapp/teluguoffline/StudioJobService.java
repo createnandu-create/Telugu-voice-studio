@@ -209,6 +209,15 @@ public final class StudioJobService extends Service {
     File output = new File(journal.directory, "narration.wav");
     PcmWave.merge(chunks, plan.segments, output, cancelled);
     double seconds = PcmWave.validate(output) / (PcmWave.RATE * 2.0);
+    // Publish the untouched raw render first. A failed/cancelled master never loses the narration.
+    result = output;
+    FileIntegrity.write(new File(getFilesDir(), "last-result.txt"), output.getPath());
+    File master = new File(journal.directory, "narration-studio.wav");
+    StudioMastering.Report mastered =
+        StudioMastering.process(output, master, cancelled, message -> status = message);
+    FileIntegrity.write(new File(journal.directory, "mastering.json"), mastered.json());
+    output = master;
+    seconds = mastered.frames / (double) StudioMastering.RATE;
     long elapsed = SystemClock.elapsedRealtime() - start;
     JSONObject stats =
         new JSONObject()
@@ -217,6 +226,7 @@ public final class StudioJobService extends Service {
             .put("voice", voice.id)
             .put("elapsed_ms", elapsed)
             .put("audio_seconds", seconds)
+            .put("mastering", new JSONObject(mastered.json()))
             .put("reused_chunks", reused)
             .put("total_chunks", chunks.size())
             .put("sampled_peak_pss_kib", peakPss)

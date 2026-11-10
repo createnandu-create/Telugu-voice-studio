@@ -1,0 +1,135 @@
+[
+  {
+    "input": "piper-venkatesh-1.wav",
+    "input_sha256": "8a93410e57b3372b09017e149b9d48aa4ff0f4bd6424bb6bb942882106d894d9",
+    "output": "piper-venkatesh-1-studio.wav",
+    "java": {
+      "preset": "warm-v1",
+      "sample_rate": 44100,
+      "channels": 2,
+      "head_frames": 6615,
+      "tail_frames": 4410,
+      "pre_limit_lufs": -22.8256,
+      "output_lufs": -14.0,
+      "true_peak_dbtp_4x": -1.3537,
+      "drive_db": 9.4501,
+      "iterations": 2,
+      "frames": 44305
+    },
+    "ffmpeg_lufs": -14.0,
+    "ffmpeg_true_peak_dbtp": -1.4,
+    "exact_padding": true,
+    "output_sha256": "b25f8bcf1a0bf72fd3b1b5195f1017b9123893578da549323327d998f9b56699"
+  },
+  {
+    "input": "piper-venkatesh-2.wav",
+    "input_sha256": "141f6ad329ba898d0147a4c8f981ffcafc93334d7108bf026e6590b2df3c45b8",
+    "output": "piper-venkatesh-2-studio.wav",
+    "java": {
+      "preset": "warm-v1",
+      "sample_rate": 44100,
+      "channels": 2,
+      "head_frames": 6615,
+      "tail_frames": 4410,
+      "pre_limit_lufs": -20.9379,
+      "output_lufs": -14.0,
+      "true_peak_dbtp_4x": -1.8121,
+      "drive_db": 7.2976,
+      "iterations": 2,
+      "frames": 62737
+    },
+    "ffmpeg_lufs": -14.0,
+    "ffmpeg_true_peak_dbtp": -1.8,
+    "exact_padding": true,
+    "output_sha256": "2d78d63f728b66b11d495147ff93c380e4769aa1d81da41efc6aed74c223fad4"
+  },
+  {
+    "input": "piper-padmavathi-1.wav",
+    "input_sha256": "8e7fd0df165e3f4726b175f76f35a2012a1515bd76fdba95cd19b1897f624449",
+    "output": "piper-padmavathi-1-studio.wav",
+    "java": {
+      "preset": "warm-v1",
+      "sample_rate": 44100,
+      "channels": 2,
+      "head_frames": 6615,
+      "tail_frames": 4410,
+      "pre_limit_lufs": -16.3623,
+      "output_lufs": -14.0,
+      "true_peak_dbtp_4x": -2.5786,
+      "drive_db": 2.0021,
+      "iterations": 2,
+      "frames": 57105
+    },
+    "ffmpeg_lufs": -14.0,
+    "ffmpeg_true_peak_dbtp": -2.6,
+    "exact_padding": true,
+    "output_sha256": "dd610ba2021c4f43d11a03287fbc785d611a2823f988f7f97cab4f2c62e9b076"
+  },
+  {
+    "input": "piper-padmavathi-2.wav",
+    "input_sha256": "0e0cdbfd31e9af501b34cd8b7694aba8728e82a52689556eb64b8506fdf2ec98",
+    "output": "piper-padmavathi-2-studio.wav",
+    "java": {
+      "preset": "warm-v1",
+      "sample_rate": 44100,
+      "channels": 2,
+      "head_frames": 6615,
+      "tail_frames": 4410,
+      "pre_limit_lufs": -15.658,
+      "output_lufs": -13.9921,
+      "true_peak_dbtp_4x": -3.856,
+      "drive_db": 1.658,
+      "iterations": 1,
+      "frames": 72465
+    },
+    "ffmpeg_lufs": -14.0,
+    "ffmpeg_true_peak_dbtp": -3.9,
+    "exact_padding": true,
+    "output_sha256": "f2f620fcf0d4ed76f406dbe0bd9f713a01f69e3a2c9996f04453e837f9d6b8fa"
+  },
+  {
+    "input": "Telugu-narration-1794294847532.wav",
+    "input_sha256": "d84925b501383582beb89ef7faa1ad1b2caddb5c906dde38781518483e3865ec",
+    "output": "private user master (not uploaded)",
+    "java": {
+      "preset": "warm-v1",
+      "sample_rate": 44100,
+      "channels": 2,
+      "head_frames": 6615,
+      "tail_frames": 4410,
+      "pre_limit_lufs": -17.1429,
+      "output_lufs": -13.9951,
+      "true_peak_dbtp_4x": -1.1003,
+      "drive_db": 3.0417,
+      "iterations": 2,
+      "frames": 337139
+    },
+    "ffmpeg_lufs": -14.0,
+    "ffmpeg_true_peak_dbtp": -1.1,
+    "exact_padding": true,
+    "output_sha256": "d7aad1cec735713c2cb94f4d2b0d48ed2edaa10c51931dc744ed57b9616596eb"
+  },
+  {
+    "input": "transient-tone.wav",
+    "input_sha256": "de21da7df992228ec2c362353c724d8e2be6304cbbdeae8267b41c19c30c4a62",
+    "output": "transient fixture (generated for validation; not bundled)",
+    "java": {
+      "preset": "warm-v1",
+      "sample_rate": 44100,
+      "channels": 2,
+      "head_frames": 6615,
+      "tail_frames": 4410,
+      "pre_limit_lufs": -27.4964,
+      "output_lufs": -14.0013,
+      "true_peak_dbtp_4x": -1.1002,
+      "drive_db": 13.8024,
+      "iterations": 2,
+      "frames": 187425
+    },
+    "ffmpeg_lufs": -14.0,
+    "ffmpeg_true_peak_dbtp": -1.1,
+    "exact_padding": true,
+    "output_sha256": "b3e353e9cabf68dab347bbce62396bac43103abdad27b641e375537619eba05a",
+    "resampling_image_db_relative": -101.48776713722657
+  }
+]

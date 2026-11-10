@@ -57,6 +57,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var recordingStatus by mutableStateOf("Your voice stays on this device")
     var entries by mutableStateOf<Map<String, String>>(emptyMap())
     var readDigits by mutableStateOf(false)
+    var warmthEq by mutableStateOf(false)
     var latest by mutableStateOf<File?>(null)
     var comparisons by mutableStateOf<List<Pair<String, File>>>(emptyList())
     private var persistJob: Job? = null
@@ -80,6 +81,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             val speech = withContext(Dispatchers.IO) { SpeechSettings.load(app) }
             entries = speech.dictionary.toMap()
             readDigits = speech.readDigits
+            warmthEq = speech.warmthEq
             withContext(Dispatchers.IO) {
                 val library = VoiceProfiles(app)
                 runCatching { library.migrateLegacy(app) }
@@ -210,12 +212,17 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         direct()
         if (plan.isEmpty()) return
         val snapshot = PlanStorage(script, voice, plan).json()
+        val desiredWarmth = warmthEq
         work {
             withContext(Dispatchers.IO) {
                 FileIntegrity.write(
                     File(getApplication<Application>().filesDir, "render-plan.json"),
                     snapshot,
                 )
+                // Persist the A/B choice before the render service loads SpeechSettings.
+                val settings = SpeechSettings.load(getApplication())
+                settings.warmthEq = desiredWarmth
+                settings.save(getApplication())
             }
             startJob("render")
             step = 3
@@ -379,14 +386,21 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         saveSpeech()
     }
 
+    fun setWarmthEq(enabled: Boolean) {
+        warmthEq = enabled
+        saveSpeech()
+    }
+
     private fun saveSpeech() {
         val copy = entries.toMap()
         val digits = readDigits
+        val warmth = warmthEq
         work {
             withContext(Dispatchers.IO) {
                 val s = SpeechSettings()
                 s.dictionary.putAll(copy)
                 s.readDigits = digits
+                s.warmthEq = warmth
                 s.save(getApplication())
             }
         }

@@ -8,6 +8,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Bounded memory PCM16 mono WAV. Only canonical WAVs written by this pipeline are accepted. */
 public final class PcmWave {
   public static final int RATE = 22050;
+  // Experimental playback guard: padding cannot reconstruct a missing synthesized consonant.
+  public static final int HEAD_PADDING_MS = 150;
+  public static final int TAIL_PADDING_MS = 100;
+  public static final long HEAD_PADDING_BYTES = Math.round(RATE * HEAD_PADDING_MS / 1000.0) * 2L;
+  public static final long TAIL_PADDING_BYTES = Math.round(RATE * TAIL_PADDING_MS / 1000.0) * 2L;
 
   private static void le(RandomAccessFile f, long v, int n) throws IOException {
     for (int i = 0; i < n; i++) f.write((int) (v >> (8 * i)) & 255);
@@ -84,11 +89,53 @@ public final class PcmWave {
     FileIntegrity.promote(part, file);
   }
 
+  private static void writeZeroPcm(RandomAccessFile out, byte[] zeros, long count)
+      throws IOException {
+    if ((count & 1L) != 0L) throw new IOException("PCM16 padding not sample-aligned");
+    while (count > 0) {
+      int n = (int) Math.min(count, zeros.length);
+      out.write(zeros, 0, n);
+      count -= n;
+    }
+  }
+
   public static void merge(
       List<File> chunks,
       List<NarrationDirector.Segment> plan,
       File destination,
       AtomicBoolean cancel)
+      throws IOException {
+    merge(chunks, plan, destination, cancel, false);
+  }
+
+  /** Optional WAV-only tonal A/B preset. Never changes cached source PCM chunks. */
+  public static void merge(
+      List<File> chunks,
+      List<NarrationDirector.Segment> plan,
+      File destination,
+      AtomicBoolean cancel,
+      boolean applyWarmthEq)
+      throws IOException {
+    mergeInternal(chunks, plan, destination, cancel, applyWarmthEq, true);
+  }
+
+  /** Source for studio mastering: no EQ or padding, so those effects are never applied twice. */
+  public static void mergeRaw(
+      List<File> chunks,
+      List<NarrationDirector.Segment> plan,
+      File destination,
+      AtomicBoolean cancel)
+      throws IOException {
+    mergeInternal(chunks, plan, destination, cancel, false, false);
+  }
+
+  private static void mergeInternal(
+      List<File> chunks,
+      List<NarrationDirector.Segment> plan,
+      File destination,
+      AtomicBoolean cancel,
+      boolean applyWarmthEq,
+      boolean padded)
       throws IOException {
     if (chunks.size() != plan.size() || chunks.isEmpty())
       throw new IOException("Missing render chunks.");
@@ -97,28 +144,36 @@ public final class PcmWave {
       out.setLength(0);
       header(out, 0);
       byte[] buffer = new byte[65536], silence = new byte[8192];
-      long bytes = 0;
+      // Only final WAV gets the head/tail guard; never shift each sentence or cached chunk.
+      // Every generated native-rate PCM sample stays byte-for-byte unchanged.
+      long bytes = padded ? HEAD_PADDING_BYTES : 0;
+      writeZeroPcm(out, silence, bytes);
       for (int i = 0; i < chunks.size(); i++) {
         if (cancel.get()) throw new CancellationException();
-        bytes += validate(chunks.get(i));
-        try (FileInputStream in = new FileInputStream(chunks.get(i))) {
-          if (in.skip(44) != 44) throw new EOFException();
-          int n;
-          while ((n = in.read(buffer)) != -1) {
+        long pcmBytes = validate(chunks.get(i));
+        bytes += pcmBytes;
+        try (RandomAccessFile in = new RandomAccessFile(chunks.get(i), "r")) {
+          in.seek(44);
+          WarmthEq warmth = applyWarmthEq ? new WarmthEq(RATE) : null;
+          long remaining = pcmBytes;
+          while (remaining > 0) {
             if (cancel.get()) throw new CancellationException();
+            int n = (int) Math.min(remaining, buffer.length);
+            in.readFully(buffer, 0, n);
+            if (warmth != null) warmth.process(buffer, n);
             out.write(buffer, 0, n);
+            remaining -= n;
           }
         }
         long quiet =
             (i == chunks.size() - 1) ? 0 : (long) RATE * plan.get(i).pauseAfterMs / 1000 * 2;
         bytes += quiet;
         if (bytes > 0xffffffffL - 36) throw new IOException("WAV too large.");
-        while (quiet > 0) {
-          int n = (int) Math.min(quiet, silence.length);
-          out.write(silence, 0, n);
-          quiet -= n;
-        }
+        writeZeroPcm(out, silence, quiet);
       }
+      bytes += padded ? TAIL_PADDING_BYTES : 0;
+      if (bytes > 0xffffffffL - 36) throw new IOException("WAV too large.");
+      writeZeroPcm(out, silence, padded ? TAIL_PADDING_BYTES : 0);
       header(out, bytes);
       out.getFD().sync();
     } catch (IOException | RuntimeException e) {

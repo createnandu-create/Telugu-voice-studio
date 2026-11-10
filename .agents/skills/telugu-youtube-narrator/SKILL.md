@@ -67,3 +67,8 @@ Audio exports should be WAV PCM 48 kHz/24 bit (when needed by a video editor), l
 
 ## Current targeted execution handoff (2026-11-09)
 Read and execute [`docs/ASTRA6_FIX_UI_PRONUNCIATION_MODELS.md`](../../../docs/ASTRA6_FIX_UI_PRONUNCIATION_MODELS.md) for the user's current screenshot-10 UI reference, one-minute recording failure, model-cache re-download bug, and `నమస్కారం` pronunciation loss. This is the current highest-priority fix plan; avoid re-auditing unrelated model experiments before completing P0–P3. User's screenshots and WAVs are attachments, not available through plain text alone.
+
+## P0 actual waveform pipeline patch (2026-11-10)
+Read `docs/evaluation/CRITICAL_AUDIO_FIX_2026_11_10.md` before changing DSP, phonemizer, Kotlin playback or vocoders. Fixed model is Piper VITS with its own neural waveform generator, **not Griffin-Lim**; first /n/ loss has NOT been proven to be AudioTrack startup. Test branch now includes experimental 150ms head/100ms tail PCM guard for the FINAL WAV, optional user-controlled 180Hz/6kHz WarmthEq (default OFF), and stripping only *leading* Unicode formatting marks. These cannot reconstruct an absent consonant or create realistic expressions. New test classes exist but real Android CI/device success must be confirmed before declaring a successful build.
+
+Version 0.5 integration: see `docs/evaluation/dsp-v05/README.md`. Native-rate optional WarmthEq is retained as an extra comparison. The default Studio master is a separately verified 44.1 kHz stereo DSP output sourced through `PcmWave.mergeRaw()`, so neither padding nor shelves are doubled. Raw export remains selectable. These DSP measurements still do not establish corrected /n/, human timbre or voice cloning.

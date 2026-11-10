@@ -207,7 +207,7 @@ public final class StudioJobService extends Service {
     check();
     status = "Joining audio…";
     File output = new File(journal.directory, "narration.wav");
-    PcmWave.merge(chunks, plan.segments, output, cancelled);
+    PcmWave.mergeRaw(chunks, plan.segments, output, cancelled);
     double seconds = PcmWave.validate(output) / (PcmWave.RATE * 2.0);
     // Publish the untouched raw render first. A failed/cancelled master never loses the narration.
     result = output;
@@ -216,6 +216,15 @@ public final class StudioJobService extends Service {
     StudioMastering.Report mastered =
         StudioMastering.process(output, master, cancelled, message -> status = message);
     FileIntegrity.write(new File(journal.directory, "mastering.json"), mastered.json());
+    if (speech.warmthEq) {
+      status = "Creating optional native-rate EQ comparison…";
+      PcmWave.merge(
+          chunks,
+          plan.segments,
+          new File(journal.directory, "narration-native-warmth.wav"),
+          cancelled,
+          true);
+    }
     output = master;
     seconds = mastered.frames / (double) StudioMastering.RATE;
     long elapsed = SystemClock.elapsedRealtime() - start;
@@ -224,6 +233,10 @@ public final class StudioJobService extends Service {
             .put("device", Build.MODEL)
             .put("engine", "sherpa-onnx 1.12.26 / Piper")
             .put("voice", voice.id)
+            .put("warmth_eq", true)
+            .put("native_warmth_comparison", speech.warmthEq)
+            .put("head_padding_ms", PcmWave.HEAD_PADDING_MS)
+            .put("tail_padding_ms", PcmWave.TAIL_PADDING_MS)
             .put("elapsed_ms", elapsed)
             .put("audio_seconds", seconds)
             .put("mastering", new JSONObject(mastered.json()))

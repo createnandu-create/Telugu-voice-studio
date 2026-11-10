@@ -696,9 +696,15 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                                 label = { Text("Raw voice") },
                             )
                         }
+                        if (File(file.parentFile, "narration-native-warmth.wav").isFile)
+                            TextButton(onClick = vm::selectNativeWarmth) {
+                                Text("Native EQ comparison")
+                            }
                         Text(
                             if (file.name == "narration-studio.wav")
                                 "44.1 kHz stereo · warmth EQ · −14 LUFS target · ≤ −1 dBTP (4× measured)"
+                            else if (file.name == "narration-native-warmth.wav")
+                                "22.05 kHz mono · warmth EQ + playback guard · not loudness mastered"
                             else "Original 22.05 kHz mono · no mastering",
                             fontSize = 12.sp,
                             color = Muted,
@@ -1187,6 +1193,34 @@ private fun SettingsScreen(vm: StudioViewModel) {
                 Icons.Outlined.Translate,
             ) {
                 vm.page = "dictionary"
+            }
+        }
+        item {
+            Panel {
+                SectionLabel("AUDIO QUALITY · EXPERIMENTAL")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Also create native EQ comparison",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            "Optional 22.05 kHz warmth-only copy. OFF by default. Compare with Raw voice; this does not repair missing phonemes.",
+                            fontSize = 12.sp,
+                            color = Muted,
+                        )
+                    }
+                    Switch(
+                        checked = vm.warmthEq,
+                        onCheckedChange = vm::toggleWarmthEq,
+                        enabled = !vm.busy,
+                    )
+                }
+                Text(
+                    "The separate Studio master always uses the requested 44.1 kHz warmth/loudness preset. This switch adds a third native-rate comparison; it never processes the master twice.",
+                    fontSize = 11.sp,
+                    color = Muted,
+                )
             }
         }
         item {

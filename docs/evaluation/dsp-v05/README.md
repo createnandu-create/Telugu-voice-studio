@@ -50,3 +50,5 @@ The current engine is **Piper VITS through sherpa-onnx**, with an integrated lea
 Attribution: Piper Venkatesh/Padmavathi model cards and CC BY 4.0 credits remain in `app/src/main/assets/licenses`; raw comparison samples are in `../pronunciation-v04`. Biquad equations follow the RBJ Audio EQ Cookbook; loudness weighting/gating follow ITU-R BS.1770 / EBU R128. FFmpeg is used for independent host validation, not bundled as an Android inference service.
 
 Local build validation: requested `:app:assembleDebug` passed; 7/7 Robolectric Android/UI tests and lint passed (0 errors). Java suites include 26 lifecycle checks plus mastering tests. APK signature and 16 KB ZIP alignment passed. Physical-phone testing remains outstanding.
+
+Parallel native-rate changes were merged without overwriting their code/tests/preferences. `PcmWave.merge()` retains the legacy padded/EQ comparison path; `mergeRaw()` provides byte-identical source PCM to StudioMastering. The Settings switch now explicitly creates an additional **native EQ comparison**, OFF by default. It does not apply EQ twice to the Studio master. A byte-for-byte single-chunk merge test guards this boundary.

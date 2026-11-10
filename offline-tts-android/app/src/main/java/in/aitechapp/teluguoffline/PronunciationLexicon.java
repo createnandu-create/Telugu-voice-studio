@@ -18,8 +18,7 @@ public final class PronunciationLexicon {
     while (prefix < text.length()) {
       char c = text.charAt(prefix);
       if (Character.isWhitespace(c)) spaces.append(c);
-      else if (c != '\uFEFF' && c != '\u200B' && c != '\u200C' && c != '\u200D' && c != '\u2060')
-        break;
+      else if (c != 0xFEFF && c != 0x200B && c != 0x200C && c != 0x200D && c != 0x2060) break;
       prefix++;
     }
     text = spaces + text.substring(prefix);

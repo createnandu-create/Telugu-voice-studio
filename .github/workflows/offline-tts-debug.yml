@@ -47,7 +47,16 @@ jobs:
           fi
           SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)
           test -x "$SDKMANAGER"
-          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+          # Hosted runners commonly have both packages. Avoid a remote repository refresh
+          # (and its network timeouts) when the required tools are already installed.
+          if [ -f "$SDK_ROOT/platforms/android-35/android.jar" ] && \
+             [ -x "$SDK_ROOT/build-tools/35.0.0/aapt2" ] && \
+             [ -x "$SDK_ROOT/build-tools/35.0.0/apksigner" ] && \
+             [ -x "$SDK_ROOT/build-tools/35.0.0/zipalign" ]; then
+            echo "Required Android 35 SDK and build-tools 35.0.0 already installed"
+          else
+            "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+          fi
 
       - name: Verify offline bundles and run Java tests
         run: |

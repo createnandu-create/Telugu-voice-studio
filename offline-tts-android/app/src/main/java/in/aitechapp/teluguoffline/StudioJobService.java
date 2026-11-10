@@ -207,7 +207,7 @@ public final class StudioJobService extends Service {
     check();
     status = "Joining audio…";
     File output = new File(journal.directory, "narration.wav");
-    PcmWave.merge(chunks, plan.segments, output, cancelled);
+    PcmWave.merge(chunks, plan.segments, output, cancelled, speech.warmthEq);
     double seconds = PcmWave.validate(output) / (PcmWave.RATE * 2.0);
     long elapsed = SystemClock.elapsedRealtime() - start;
     JSONObject stats =
@@ -215,6 +215,9 @@ public final class StudioJobService extends Service {
             .put("device", Build.MODEL)
             .put("engine", "sherpa-onnx 1.12.26 / Piper")
             .put("voice", voice.id)
+            .put("warmth_eq", speech.warmthEq)
+            .put("head_padding_ms", PcmWave.HEAD_PADDING_MS)
+            .put("tail_padding_ms", PcmWave.TAIL_PADDING_MS)
             .put("elapsed_ms", elapsed)
             .put("audio_seconds", seconds)
             .put("reused_chunks", reused)

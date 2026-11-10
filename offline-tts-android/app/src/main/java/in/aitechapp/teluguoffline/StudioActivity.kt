@@ -1170,6 +1170,34 @@ private fun SettingsScreen(vm: StudioViewModel) {
         }
         item {
             Panel {
+                SectionLabel("AUDIO QUALITY · EXPERIMENTAL")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Warmth EQ for new WAV exports",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            "+3 dB at 180 Hz · -2.5 dB at 6 kHz. OFF by default. A/B test against raw; this does not repair missing phonemes.",
+                            fontSize = 12.sp,
+                            color = Muted,
+                        )
+                    }
+                    Switch(
+                        checked = vm.warmthEq,
+                        onCheckedChange = vm::setWarmthEq,
+                        enabled = !vm.busy,
+                    )
+                }
+                Text(
+                    "Newly generated narration only. 150 ms head and 100 ms tail protection are added to final WAV. Native 22.05 kHz PCM is kept.",
+                    fontSize = 11.sp,
+                    color = Muted,
+                )
+            }
+        }
+        item {
+            Panel {
                 SectionLabel("ON THIS DEVICE")
                 Text("Piper · sherpa-onnx 1.12.26", style = MaterialTheme.typography.titleMedium)
                 Text(

@@ -220,9 +220,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     snapshot,
                 )
                 // Persist the A/B choice before the render service loads SpeechSettings.
-                val settings = SpeechSettings.load(getApplication())
+                val app = getApplication<Application>()
+                val settings = SpeechSettings.load(app)
                 settings.warmthEq = desiredWarmth
-                settings.save(getApplication())
+                settings.save(app)
             }
             startJob("render")
             step = 3

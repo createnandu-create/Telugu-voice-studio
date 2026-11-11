@@ -14,6 +14,7 @@ public final class VoiceModelStore {
     void update(String message);
   }
 
+  private static final Object MIGRATION_LOCK = new Object();
   private final Context context;
   public final File root;
 
@@ -24,6 +25,7 @@ public final class VoiceModelStore {
   }
 
   public File model(ModelCatalog.Voice voice) {
+    if (voice.tiny()) return new File(new TinyModelStore(root).root, "text_encoder.onnx");
     return new File(root, voice.id + ".onnx");
   }
 
@@ -32,25 +34,55 @@ public final class VoiceModelStore {
   }
 
   public boolean ready(ModelCatalog.Voice voice) throws IOException {
+    if (voice.tiny()) return new TinyModelStore(root).ready();
     return InstallReceipt.ready(
         model(voice), receipt(voice), voice.installedSha, ModelCatalog.REVISION);
   }
 
   /** Legacy migration happens once, locally. A damaged receipt never triggers a network request. */
   public boolean verified(ModelCatalog.Voice voice) throws IOException {
+    synchronized (MIGRATION_LOCK) {
+      return verifyAndMigrate(voice);
+    }
+  }
+
+  private boolean verifyAndMigrate(ModelCatalog.Voice voice) throws IOException {
+    if (voice.tiny()) return ready(voice);
     if (ready(voice)) return true;
+    if (!voice.legacySha.equals(voice.installedSha)
+        && FileIntegrity.matches(model(voice), voice.legacySha)) {
+      File backup = new File(root, voice.id + ".pre-bos-pad.onnx");
+      if (!backup.exists()) {
+        File temporary = new File(backup + ".part");
+        java.nio.file.Files.copy(
+            model(voice).toPath(),
+            temporary.toPath(),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        if (!FileIntegrity.matches(temporary, voice.legacySha))
+          throw new IOException("Could not preserve the previous voice.");
+        FileIntegrity.promote(temporary, backup);
+      }
+      PiperInputRepair.install(model(voice), model(voice), voice.legacySha, voice.installedSha);
+      return verify(voice);
+    }
     if (model(voice).isFile() && !receipt(voice).exists()) return verify(voice);
     return false;
   }
 
   public boolean verify(ModelCatalog.Voice voice) throws IOException {
+    if (voice.tiny()) return new TinyModelStore(root).verify();
     return InstallReceipt.verify(
         model(voice), receipt(voice), voice.installedSha, ModelCatalog.REVISION);
   }
 
   public void remove(ModelCatalog.Voice voice) throws IOException {
+    if (voice.tiny()) {
+      new TinyModelStore(root).remove();
+      return;
+    }
     java.nio.file.Files.deleteIfExists(model(voice).toPath());
     java.nio.file.Files.deleteIfExists(receipt(voice).toPath());
+    java.nio.file.Files.deleteIfExists(new File(root, voice.id + ".pre-bos-pad.onnx").toPath());
   }
 
   private void check(AtomicBoolean cancelled) {
@@ -60,6 +92,10 @@ public final class VoiceModelStore {
 
   public void install(ModelCatalog.Voice voice, AtomicBoolean cancel, Progress progress)
       throws Exception {
+    if (voice.tiny()) {
+      new TinyModelStore(root).install(cancel, progress);
+      return;
+    }
     if (verified(voice) || (model(voice).isFile() && verify(voice))) {
       progress.update(voice.name + " · READY OFFLINE · no download needed");
       return;
@@ -97,11 +133,16 @@ public final class VoiceModelStore {
       while ((n = in.read(b)) != -1) out.write(b, 0, n);
       out.getFD().sync();
     }
-    if (!FileIntegrity.matches(staged, voice.installedSha))
+    if (!FileIntegrity.matches(staged, voice.legacySha))
       throw new IOException("Installed checksum mismatch; previous model kept.");
     prepareAssets(cancel);
     check(cancel);
-    FileIntegrity.promote(staged, model(voice));
+    if (voice.legacySha.equals(voice.installedSha)) FileIntegrity.promote(staged, model(voice));
+    else {
+      progress.update("Restoring Piper start-token padding…");
+      PiperInputRepair.install(staged, model(voice), voice.legacySha, voice.installedSha);
+      staged.delete();
+    }
     InstallReceipt.verify(model(voice), receipt(voice), voice.installedSha, ModelCatalog.REVISION);
     part.delete();
     new File(part.getPath() + ".properties").delete();
@@ -129,7 +170,7 @@ public final class VoiceModelStore {
             ModelCatalog.REVISION.equals(revision)
                 ? "Pinned release is current."
                 : "Upstream revision changed. Installed voices remain ready. A reviewed app update"
-                      + " is required before installing new weights.";
+                    + " is required before installing new weights.";
         FileIntegrity.write(new File(root, "last-update-check.txt"), message);
         return message;
       }
@@ -185,6 +226,7 @@ public final class VoiceModelStore {
         }
       }
     for (ModelCatalog.Voice voice : ModelCatalog.VOICES) {
+      if (voice.tiny()) continue;
       File tmp = new File(root, voice.id + "-tokens.txt.tmp");
       try (InputStream in = context.getAssets().open(voice.id + "-tokens.txt");
           FileOutputStream out = new FileOutputStream(tmp)) {

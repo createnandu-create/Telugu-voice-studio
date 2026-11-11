@@ -32,12 +32,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
-import androidx.lifecycle.lifecycleScope
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.*
@@ -63,24 +63,12 @@ class StudioActivity : ComponentActivity() {
     private var pendingName = "My voice"
     private var pendingLabel = "Custom"
     private val exportLauncher =
-        registerForActivityResult(ActivityResultContracts.CreateDocument("audio/*")) { uri ->
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val uri = result.data?.data
             val file = exportFile
-            if (uri != null && file != null)
-                lifecycleScope.launch {
-                    try {
-                        withContext(Dispatchers.IO) {
-                            file.inputStream().use { input ->
-                                contentResolver.openOutputStream(uri, "wt").use { out ->
-                                    requireNotNull(out) { "Cannot open export destination" }
-                                    input.copyTo(out)
-                                }
-                            }
-                        }
-                        model.notice = "Audio exported"
-                    } catch (e: Exception) {
-                        model.notice = e.message ?: "Export failed"
-                    }
-                }
+            if (result.resultCode == RESULT_OK && uri != null && file != null)
+                model.saveExport(file, uri)
+            else model.exportMessage = "Save cancelled. Your narration is kept."
         }
     private val micPermission =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -146,9 +134,21 @@ class StudioActivity : ComponentActivity() {
             return
         }
         exportFile = file
+        val mime =
+            when (file.extension) {
+                "mp3" -> "audio/mpeg"
+                "wav" -> "audio/wav"
+                else -> "audio/mp4"
+            }
         exportLauncher.launch(
-            if (file.extension == "wav") "Telugu-narration-${System.currentTimeMillis()}.wav"
-            else "My-voice-${System.currentTimeMillis()}.m4a"
+            android.content.Intent(android.content.Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(android.content.Intent.CATEGORY_OPENABLE)
+                type = mime
+                putExtra(
+                    android.content.Intent.EXTRA_TITLE,
+                    "Telugu-narration-${System.currentTimeMillis()}.${file.extension}",
+                )
+            }
         )
     }
 
@@ -189,6 +189,11 @@ fun StudioTheme(content: @Composable () -> Unit) {
                 primaryContainer = Sun,
                 onPrimaryContainer = Ink,
                 secondary = Vermilion,
+                secondaryContainer = Sun.copy(alpha = .35f),
+                onSecondaryContainer = Ink,
+                surfaceContainerHigh = Color.White,
+                surfaceContainerHighest = Paper,
+                surfaceTint = Color.Transparent,
                 background = Paper,
                 surface = Color.White,
                 onSurface = Ink,
@@ -246,7 +251,30 @@ fun StudioApp(
             else -> vm.step--
         }
     }
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(vm.notice) {
+        if (vm.notice.isNotEmpty()) {
+            val message = vm.notice
+            snackbar.showSnackbar(
+                message,
+                actionLabel = "Dismiss",
+                duration = SnackbarDuration.Long,
+            )
+            if (vm.notice == message) vm.notice = ""
+        }
+    }
+    LaunchedEffect(vm.exportReady) {
+        vm.exportReady?.let {
+            vm.exportReady = null
+            export(it)
+        }
+    }
+    val requestExport: (File) -> Unit = {
+        vm.exportSource = it
+        vm.exportMessage = ""
+    }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         containerColor = Paper,
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
@@ -269,7 +297,7 @@ fun StudioApp(
                         Text("Voice Studio", style = MaterialTheme.typography.titleMedium)
                     }
                     StatusPill(
-                        if (vm.busy) "WORKING" else "LOCAL",
+                        if (vm.loading) "CHECKING" else if (vm.busy) "WORKING" else "LOCAL",
                         if (vm.busy) Sun else Color(0xFFE9F0E4),
                     )
                 }
@@ -281,21 +309,14 @@ fun StudioApp(
             when {
                 vm.page == "models" -> ModelsScreen(vm, play)
                 vm.page == "dictionary" -> DictionaryScreen(vm)
-                vm.tab == "Studio" -> StudioScreen(vm, play, export)
-                vm.tab == "Voices" -> VoicesScreen(vm, play, export, record)
-                vm.tab == "Projects" -> ProjectsScreen(vm, play, export)
+                vm.tab == "Studio" -> StudioScreen(vm, play, requestExport)
+                vm.tab == "Voices" -> VoicesScreen(vm, play, requestExport, record)
+                vm.tab == "Projects" -> ProjectsScreen(vm, play, requestExport)
                 else -> SettingsScreen(vm)
             }
         }
     }
-    if (vm.notice.isNotEmpty())
-        AlertDialog(
-            onDismissRequest = { vm.notice = "" },
-            icon = { Icon(Icons.Outlined.Info, null) },
-            title = { Text("Studio update") },
-            text = { Text(vm.notice) },
-            confirmButton = { TextButton(onClick = { vm.notice = "" }) { Text("Got it") } },
-        )
+    ExportDialogs(vm)
 }
 
 @Composable
@@ -492,7 +513,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
             "Preview & export",
         )
     LazyColumn(
-        Modifier.fillMaxSize(),
+        Modifier.fillMaxSize().testTag("studio-list"),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -581,8 +602,22 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
             }
             item {
                 Text(
-                    "Piper voices support pace and pauses. Expressive narration and personal voice cloning are not installed.",
+                    "Piper and Indic Tiny are fixed-speaker voices. Indic Tiny is an experimental alternative for Telugu pronunciation; it does not clone your voice.",
                     style = MaterialTheme.typography.bodyMedium,
+                    color = Muted,
+                )
+            }
+            item {
+                OutlinedButton(
+                    onClick = vm::pronunciationCheck,
+                    enabled = !vm.busy && vm.models.any { it.index == vm.voice && it.ready },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Check నమస్కారం pronunciation")
+                }
+                Text(
+                    "Creates new audio with this voice: one word, greeting, then the word inside a sentence. Your script stays unchanged.",
+                    style = MaterialTheme.typography.bodySmall,
                     color = Muted,
                 )
             }
@@ -656,7 +691,9 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                         )
                     }
                     Text(
-                        vm.status,
+                        if (vm.status.startsWith("Ready ·"))
+                            "Narration complete. Listen, then save your audio."
+                        else vm.status,
                         color = Muted,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
@@ -684,29 +721,42 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                             "${String.format(Locale.US,"%.1f",file.length()/1_000_000.0)} MB · lossless WAV",
                             color = Muted,
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = file.name == "narration-studio.wav",
-                                onClick = { vm.selectOutput(true) },
-                                label = { Text("Studio master") },
+                        var details by rememberSaveable { mutableStateOf(false) }
+                        TextButton(onClick = { details = !details }) {
+                            Text(if (details) "Hide audio options" else "Audio options")
+                        }
+                        if (details) {
+                            Text(
+                                "Choose the version to play and save. Processing changes tone and loudness, not pronunciation.",
+                                color = Muted,
                             )
+                            if (File(file.parentFile, "narration-studio.wav").isFile) {
+                                FilterChip(
+                                    selected = file.name == "narration-studio.wav",
+                                    onClick = { vm.selectOutput(true) },
+                                    label = { Text("Processed · balanced volume") },
+                                )
+                            }
+                            if (File(file.parentFile, "narration-playback.wav").isFile)
+                                FilterChip(
+                                    selected = file.name == "narration-playback.wav",
+                                    onClick = vm::selectPlayback,
+                                    label = { Text("Original · playback padding") },
+                                )
                             FilterChip(
                                 selected = file.name == "narration.wav",
                                 onClick = { vm.selectOutput(false) },
-                                label = { Text("Raw voice") },
+                                label = { Text("Original · no sound processing") },
                             )
+                            if (File(file.parentFile, "narration-native-warmth.wav").isFile)
+                                TextButton(onClick = vm::selectNativeWarmth) {
+                                    Text("Optional warmth comparison")
+                                }
                         }
-                        if (File(file.parentFile, "narration-native-warmth.wav").isFile)
-                            TextButton(onClick = vm::selectNativeWarmth) {
-                                Text("Native EQ comparison")
-                            }
                         Text(
-                            if (file.name == "narration-studio.wav")
-                                "44.1 kHz stereo · warmth EQ · −14 LUFS target · ≤ −1 dBTP (4× measured)"
-                            else if (file.name == "narration-native-warmth.wav")
-                                "22.05 kHz mono · warmth EQ + playback guard · not loudness mastered"
-                            else "Original 22.05 kHz mono · no mastering",
-                            fontSize = 12.sp,
+                            if (file.name == "narration-studio.wav") "Processed audio selected"
+                            else "Original engine audio selected",
+                            style = MaterialTheme.typography.bodySmall,
                             color = Muted,
                         )
                     }
@@ -717,19 +767,44 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                     }
             }
             item {
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Primary("Generate", !vm.busy && !vm.recording, action = vm::generate)
-                    Secondary("Play", Icons.Outlined.PlayArrow, vm.latest != null) {
-                        vm.latest?.let(play)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = vm::generate,
+                        enabled = !vm.busy && !vm.recording,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        colors =
+                            ButtonDefaults.buttonColors(containerColor = Sun, contentColor = Ink),
+                    ) {
+                        Text(if (vm.latest == null) "Generate narration" else "Generate again")
                     }
-                    Secondary("Export", Icons.Outlined.FileDownload, vm.latest != null) {
-                        vm.latest?.let(export)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { vm.latest?.let(play) },
+                            enabled = vm.latest != null,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        ) {
+                            Text("Play / Pause")
+                        }
+                        OutlinedButton(
+                            onClick = { vm.latest?.let(export) },
+                            enabled = vm.latest != null && !vm.exportBusy,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        ) {
+                            Text("Save audio")
+                        }
                     }
+                    if (vm.exportMessage.isNotEmpty())
+                        Text(
+                            vm.exportMessage,
+                            color = Muted,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
                 }
             }
+
             item { TextButton(onClick = { vm.step = 2 }) { Text("← Review direction") } }
         }
     }
@@ -800,7 +875,11 @@ private fun VoiceChoice(m: ModelRow, selected: Boolean, choose: () -> Unit, inst
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(m.name, style = MaterialTheme.typography.titleMedium)
-                Text("${m.gender} · Piper Telugu", fontSize = 12.sp, color = Muted)
+                Text(
+                    "${m.gender} · ${if(ModelCatalog.VOICES[m.index].tiny()) "Indic Tiny · experimental" else "Piper Telugu"}",
+                    fontSize = 12.sp,
+                    color = Muted,
+                )
                 Text(
                     if (m.ready) "Ready offline" else "Download needed",
                     fontSize = 11.sp,
@@ -1226,7 +1305,16 @@ private fun SettingsScreen(vm: StudioViewModel) {
         item {
             Panel {
                 SectionLabel("ON THIS DEVICE")
-                Text("Piper · sherpa-onnx 1.12.26", style = MaterialTheme.typography.titleMedium)
+                Text("Piper + Indic Tiny Telugu", style = MaterialTheme.typography.titleMedium)
+                val context = LocalContext.current
+                val version = remember {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                }
+                Text(
+                    "App version $version",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Muted,
+                )
                 Text(
                     "Telugu neural voices · ARM64 CPU\n2 inference threads · no cloud generation",
                     color = Muted,
@@ -1248,7 +1336,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
                 )
                 Text("Version 0.5 · DSP testing build", fontSize = 12.sp)
                 Text(
-                    "GPL-3.0-or-later · sherpa Apache-2.0 · ONNX Runtime MIT · eSpeak GPL · Piper voices CC BY 4.0 (PravalX / AI4Bharat). Manrope & DM Serif Display: OFL.",
+                    "GPL-3.0-or-later · sherpa Apache-2.0 · ONNX Runtime 1.31 MIT · Indic Tiny / Rasa CC BY 4.0 · Vocos MIT · Jump3r LGPL · eSpeak GPL · Piper voices CC BY 4.0 (PravalX / AI4Bharat). Manrope & DM Serif Display: OFL.",
                     fontSize = 11.sp,
                     color = Muted,
                 )
@@ -1328,7 +1416,7 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            "Choose a Telugu narration voice. Each voice needs 63.5 MB once.",
+                            "Piper: 63.5 MB per voice. Indic Tiny: 91 MB shared male/female pack.",
                             color = Muted,
                         )
                         Primary("Browse Telugu voices") { category = "Telugu Narration" }
@@ -1339,7 +1427,11 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(m.name, style = MaterialTheme.typography.titleMedium)
-                            Text("${m.gender} · Piper / VITS", fontSize = 12.sp, color = Muted)
+                            Text(
+                                "${m.gender} · ${if(ModelCatalog.VOICES[m.index].tiny()) "Indic Tiny / Vocos" else "Piper / VITS"}",
+                                fontSize = 12.sp,
+                                color = Muted,
+                            )
                         }
                         StatusPill(
                             if (vm.downloadingVoice == m.index) "DOWNLOADING"
@@ -1350,10 +1442,22 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                         )
                     }
                     Text(
-                        "ID: te_IN-${ModelCatalog.VOICES[m.index].id}-medium\n63.5 MB · 22.05 kHz · CC BY 4.0\nRevision ${ModelCatalog.REVISION.take(12)}",
+                        if (ModelCatalog.VOICES[m.index].tiny())
+                            "Indic Tiny Telugu · experimental\n91 MB shared pack · 24 kHz · CC BY 4.0 + MIT\nRevision ${TinyModelStore.REVISION.take(12)}\nTelugu script only. Android phone validation pending."
+                        else
+                            "ID: te_IN-${ModelCatalog.VOICES[m.index].id}-medium\n63.5 MB · 22.05 kHz · CC BY 4.0\nStart-token repair v1 · Revision ${ModelCatalog.REVISION.take(12)}\nUpgraded installs keep a 63.5 MB backup.",
                         fontSize = 12.sp,
                         color = Muted,
                     )
+                    if (vm.verifying == m.index)
+                        LinearProgressIndicator(Modifier.fillMaxWidth(), color = Vermilion)
+                    vm.verification[m.index]?.let {
+                        Text(
+                            it,
+                            color = Muted,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
                     if (m.ready) {
                         Primary("Use ${m.name}", !vm.busy) {
                             vm.choose(m.index)
@@ -1361,10 +1465,18 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                             vm.step = 1
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Secondary("Verify", Icons.Outlined.VerifiedUser, !vm.busy) {
+                            Secondary(
+                                if (vm.verifying == m.index) "Verifying…" else "Verify files",
+                                Icons.Outlined.VerifiedUser,
+                                !vm.busy && vm.verifying < 0,
+                            ) {
                                 vm.verify(m.index)
                             }
-                            Secondary("Delete", Icons.Outlined.DeleteOutline, !vm.busy) {
+                            Secondary(
+                                "Delete",
+                                Icons.Outlined.DeleteOutline,
+                                !vm.busy && vm.verifying < 0,
+                            ) {
                                 deleting = m.index
                             }
                         }
@@ -1400,7 +1512,9 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                 item {
                     Panel {
                         Text(
-                            vm.status,
+                            if (vm.status.startsWith("Ready ·"))
+                                "Narration complete. Listen, then save your audio."
+                            else vm.status,
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
                         LinearProgressIndicator(Modifier.fillMaxWidth(), color = Vermilion)
@@ -1418,7 +1532,7 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                     )
                     Text("నమస్కారం ఫ్రెండ్స్!")
                     Text(
-                        "These unprocessed reference samples were generated locally on Linux. They are not new speech generated on this phone. Indic Tiny is not installed as an Android engine.",
+                        "These unprocessed reference samples were generated locally on Linux. They are not new speech generated on this phone. You can install the experimental Indic Tiny engine under Telugu Narration to generate your own text. Phone validation remains pending.",
                         color = Muted,
                     )
                 }
@@ -1475,7 +1589,7 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
     if (deleting >= 0)
         ConfirmDelete(
             "Remove ${ModelCatalog.VOICES[deleting].name}?",
-            "This removes the voice weights. Recordings, scripts and exported audio are kept.",
+            "This removes the voice weights. Indic Tiny male and female share one pack, so removing it removes both. Recordings, scripts and exports are kept.",
             { deleting = -1 },
         ) {
             vm.deleteModel(deleting)
@@ -1569,4 +1683,141 @@ private fun DictionaryScreen(vm: StudioViewModel) {
             },
             confirmButton = { TextButton(onClick = { preview = false }) { Text("Close") } },
         )
+}
+
+@Composable
+private fun ExportDialogs(vm: StudioViewModel) {
+    val context = LocalContext.current
+    if (vm.exportSource != null && !vm.exportBusy) {
+        val source = vm.exportSource!!
+        AlertDialog(
+            onDismissRequest = { vm.exportSource = null },
+            title = { Text("Save your audio") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Choose a format, then select a folder on your phone.")
+                    if (source.extension == "wav") {
+                        Button(
+                            onClick = { vm.prepareExport(false) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Save WAV · full quality")
+                        }
+                        OutlinedButton(
+                            onClick = { vm.prepareExport(true) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Save MP3 · 320 kbps")
+                        }
+                        Text(
+                            "MP3 is created offline. Your original WAV is always kept.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else
+                        Button(
+                            onClick = { vm.prepareExport(false) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Save voice recording")
+                        }
+                    if (vm.exportMessage.startsWith("Could not"))
+                        Text(vm.exportMessage, color = Vermilion)
+                }
+            },
+            confirmButton = { TextButton(onClick = { vm.exportSource = null }) { Text("Cancel") } },
+        )
+    }
+    if (vm.exportBusy)
+        AlertDialog(
+            onDismissRequest = {},
+            title = {
+                Text(
+                    if (vm.exportMessage.startsWith("Saving")) "Saving audio" else "Preparing audio"
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(vm.exportMessage)
+                    LinearProgressIndicator(
+                        progress = { vm.exportProgress },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Vermilion,
+                    )
+                    Text(
+                        "${(vm.exportProgress*100).toInt()}%",
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = vm::cancelExport) { Text("Cancel save") } },
+        )
+    vm.exportedUri?.let { uri ->
+        val mime =
+            if (vm.exportedName.endsWith(".mp3")) "audio/mpeg"
+            else if (vm.exportedName.endsWith(".wav")) "audio/wav" else "audio/mp4"
+        AlertDialog(
+            onDismissRequest = { vm.exportedUri = null },
+            icon = { Icon(Icons.Outlined.CheckCircle, null, tint = Color(0xFF366638)) },
+            title = { Text("Audio saved") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(vm.exportedName, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Saved to the folder you selected. Open it now or share it with your video editor."
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                runCatching {
+                                        context.startActivity(
+                                            android.content
+                                                .Intent(android.content.Intent.ACTION_VIEW)
+                                                .setDataAndType(uri, mime)
+                                                .addFlags(
+                                                    android.content.Intent
+                                                        .FLAG_GRANT_READ_URI_PERMISSION
+                                                )
+                                        )
+                                    }
+                                    .onFailure {
+                                        vm.notice =
+                                            "No audio player is available. Use Share to open it in your editor."
+                                    }
+                            }
+                        ) {
+                            Text("Open")
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                runCatching {
+                                        val intent =
+                                            android.content
+                                                .Intent(android.content.Intent.ACTION_SEND)
+                                                .setType(mime)
+                                                .putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                                .addFlags(
+                                                    android.content.Intent
+                                                        .FLAG_GRANT_READ_URI_PERMISSION
+                                                )
+                                        context.startActivity(
+                                            android.content.Intent.createChooser(
+                                                intent,
+                                                "Share narration",
+                                            )
+                                        )
+                                    }
+                                    .onFailure {
+                                        vm.notice =
+                                            "Could not open sharing. Your saved file is kept."
+                                    }
+                            }
+                        ) {
+                            Text("Share")
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { vm.exportedUri = null }) { Text("Done") } },
+        )
+    }
 }

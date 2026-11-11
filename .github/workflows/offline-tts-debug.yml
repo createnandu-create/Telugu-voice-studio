@@ -88,8 +88,9 @@ jobs:
           mkdir -p dist
           cp offline-tts-android/app/build/outputs/apk/debug/app-debug.apk dist/TeluguVoiceStudio-debug.apk
           git archive --format=zip --output=dist/TeluguVoiceStudio-source.zip HEAD
-          python3 -m zipfile -c dist/TeluguVoiceStudio-pronunciation-AB.zip docs/evaluation/pronunciation-v04 docs/evaluation/dsp-v05
-          (cd dist && sha256sum TeluguVoiceStudio-debug.apk TeluguVoiceStudio-source.zip TeluguVoiceStudio-pronunciation-AB.zip > SHA256SUMS.txt)
+          python3 -m zipfile -c dist/TeluguVoiceStudio-pronunciation-AB.zip docs/evaluation/pronunciation-v04 docs/evaluation/dsp-v05 docs/evaluation/pronunciation-v06
+          cp docs/evaluation/pronunciation-v06/Namaskaram-Piper-*.wav dist/
+          (cd dist && sha256sum TeluguVoiceStudio-debug.apk TeluguVoiceStudio-source.zip TeluguVoiceStudio-pronunciation-AB.zip Namaskaram-Piper-Male.wav Namaskaram-Piper-Female.wav > SHA256SUMS.txt)
           test -s dist/TeluguVoiceStudio-debug.apk
           test -s dist/TeluguVoiceStudio-source.zip
 
@@ -111,11 +112,13 @@ jobs:
           Native ARM64 Android test build from commit $GITHUB_SHA.
           Build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
 
-          Version 0.5 adds a local studio master: exact 150/100 ms silence, 44.1 kHz stereo sinc resampling, +3 dB / 180 Hz low shelf, -2.5 dB / 6 kHz high shelf, gated -14 LUFS normalization and <= -1 dBTP 4x verification. Original WAV is retained; choose Studio master / Raw voice. Host FFmpeg independently measured the private user fixture at -14.0 LUFS / -1.1 dBTP. Generate / Resume again to process an older render. This does not prove corrected phonemes or human timbre; no separate HiFi-GAN replacement or MP3 encoder is integrated.
+          Version 0.6 repairs a confirmed Piper input-contract mismatch: sherpa 1.12.26 omitted the blank immediately after BOS. Pinned ONNX input adapters restore that token without changing learned weights or the user's script. Existing models migrate locally without downloading; a rollback copy is retained. Generate again to avoid old cached audio. The repaired graphs exactly matched original Piper graphs receiving the correct IDs in deterministic host tests. This does not prove all pronunciation complaints are solved.
 
-          Includes the 0.4 improvements: Kotlin Compose + Material 3, compact horizontal audio controls, animated bottom navigation, Settings → Offline models, resumable verified downloads, foreground microphone recording with pause/timer and multiple named references, speech-only pronunciation dictionary. Existing models and recordings are preserved. Install one 63.5 MB Telugu voice once, then generate locally.
+          Indic Tiny Telugu is now a second, experimental Java/ARM64 engine: character encoder, flow decoder and Vocos, with one verified 91 MB pack shared by male/female. Actual Java host audio was generated; Nothing Phone inference, native pronunciation and performance remain unverified. Models are under Settings → Offline models → Telugu Narration. No semantic LLM, emotional clone or 90% naturalness claim is made.
 
-          Piper is a basic neural voice: no semantic LLM, emotional voice cloning or proven 90% human naturalness. 16 raw Piper/Indic Tiny Linux A/B WAVs are included. Indic Tiny is a comparison sample, not an installed Android engine. Telugu pronunciation complaints are NOT resolved by evidence yet. Nothing Phone microphone/flight-mode playback and performance remain unverified. See source docs/evaluation and docs/research.
+          Check నమస్కారం pronunciation generates three contexts using the selected installed voice without replacing your script. Save audio offers WAV or genuine offline 320 kbps MP3, visible progress/cancel, saved filename and Open/Share. Model verification shows an active state and a timestamped result. Save remains visible at 360 dp. Previous recording, model-resume and original-audio features are retained.
+
+          Public pretrained-model pronunciation samples are included, including two direct నమస్కారం WAVs. They are not personal recordings or cloned voices. Read docs/evaluation/pronunciation-v06 for reproducible tests, runtime isolation, licensing and outstanding phone/listening checks.
 
           The source ZIP includes application source, licenses and upstream corresponding-source archives. This is a publicly debug-signed test APK, not a production release. All files below belong to this commit; SHA256SUMS.txt can be checked after download.
           EOF
@@ -124,7 +127,7 @@ jobs:
             gh release edit "$TAG" --notes-file /tmp/release-notes.md
           else
             gh release create "$TAG" dist/* --target "$GITHUB_SHA" --prerelease \
-              --title "Telugu Voice Studio 0.5 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
+              --title "Telugu Voice Studio 0.6 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
           fi
           if gh release view debug-latest >/dev/null 2>&1; then
             gh release upload debug-latest dist/* --clobber

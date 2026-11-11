@@ -120,13 +120,14 @@ public final class StudioJobService extends Service {
     status = "Checking voice integrity…";
     if (!store.verified(voice))
       throw new IOException("Install " + voice.name + " in Offline Models first.");
-    store.prepareAssets(cancelled);
+    if (!voice.tiny()) store.prepareAssets(cancelled);
     check();
     SpeechSettings speech = SpeechSettings.load(this);
     StringBuilder spokenIdentity = new StringBuilder();
     org.json.JSONArray inputAudit = new org.json.JSONArray();
     for (NarrationDirector.Segment segment : plan.segments) {
       String spoken = speech.spoken(segment.text);
+      if (voice.tiny()) TinyVoice.tokens(spoken);
       spokenIdentity.append(spoken.length()).append(':').append(spoken);
       inputAudit.put(new JSONObject().put("original", segment.text).put("spoken", spoken));
     }
@@ -146,6 +147,7 @@ public final class StudioJobService extends Service {
               + (need / 1_000_000)
               + " MB.");
     OfflineTts tts = null;
+    TinyVoice tiny = null;
     long start = SystemClock.elapsedRealtime();
     int peakPss = 0, maxThermal = 0;
     float maxBattery = Float.NaN;
@@ -157,29 +159,42 @@ public final class StudioJobService extends Service {
         NarrationDirector.Segment s = plan.segments.get(i);
         status = "Rendering " + (i + 1) + " / " + plan.segments.size() + " · " + voice.name;
         if (!journal.reusable(i)) {
-          if (tts == null) {
-            status = "Loading local neural voice…";
-            OfflineTtsVitsModelConfig vits =
-                OfflineTtsVitsModelConfig.builder()
-                    .setModel(store.model(voice).getPath())
-                    .setTokens(new File(store.root, voice.id + "-tokens.txt").getPath())
-                    .setDataDir(new File(store.root, "espeak-ng-data").getPath())
-                    .build();
-            tts =
-                new OfflineTts(
-                    OfflineTtsConfig.builder()
-                        .setModel(
-                            OfflineTtsModelConfig.builder()
-                                .setVits(vits)
-                                .setNumThreads(2)
-                                .setDebug(false)
-                                .build())
-                        .setMaxNumSentences(1)
-                        .build());
+          if (voice.tiny()) {
+            if (tiny == null) tiny = new TinyVoice(new TinyModelStore(store.root).root, cancelled);
+            float[] samples =
+                tiny.generate(
+                    speech.spoken(s.text),
+                    voice.gender.equals("Male"),
+                    s.rate,
+                    s.text.hashCode(),
+                    false);
+            check();
+            PcmWave.write(journal.chunk(i), samples, 24000);
+          } else {
+            if (tts == null) {
+              status = "Loading local neural voice…";
+              OfflineTtsVitsModelConfig vits =
+                  OfflineTtsVitsModelConfig.builder()
+                      .setModel(store.model(voice).getPath())
+                      .setTokens(new File(store.root, voice.id + "-tokens.txt").getPath())
+                      .setDataDir(new File(store.root, "espeak-ng-data").getPath())
+                      .build();
+              tts =
+                  new OfflineTts(
+                      OfflineTtsConfig.builder()
+                          .setModel(
+                              OfflineTtsModelConfig.builder()
+                                  .setVits(vits)
+                                  .setNumThreads(2)
+                                  .setDebug(false)
+                                  .build())
+                          .setMaxNumSentences(1)
+                          .build());
+            }
+            GeneratedAudio audio = tts.generate(speech.spoken(s.text), 0, s.rate);
+            check();
+            PcmWave.write(journal.chunk(i), audio.getSamples(), audio.getSampleRate());
           }
-          GeneratedAudio audio = tts.generate(speech.spoken(s.text), 0, s.rate);
-          check();
-          PcmWave.write(journal.chunk(i), audio.getSamples(), audio.getSampleRate());
           journal.complete(i);
         } else reused++;
         chunks.add(journal.chunk(i));
@@ -203,20 +218,24 @@ public final class StudioJobService extends Service {
       }
     } finally {
       if (tts != null) tts.release();
+      if (tiny != null) tiny.close();
     }
     check();
     status = "Joining audio…";
     File output = new File(journal.directory, "narration.wav");
     PcmWave.mergeRaw(chunks, plan.segments, output, cancelled);
-    double seconds = PcmWave.validate(output) / (PcmWave.RATE * 2.0);
+    double seconds = PcmWave.validate(output) / (PcmWave.sampleRate(output) * 2.0);
     // Publish the untouched raw render first. A failed/cancelled master never loses the narration.
     result = output;
     FileIntegrity.write(new File(getFilesDir(), "last-result.txt"), output.getPath());
     File master = new File(journal.directory, "narration-studio.wav");
     StudioMastering.Report mastered =
-        StudioMastering.process(output, master, cancelled, message -> status = message);
-    FileIntegrity.write(new File(journal.directory, "mastering.json"), mastered.json());
-    if (speech.warmthEq) {
+        voice.tiny()
+            ? null
+            : StudioMastering.process(output, master, cancelled, message -> status = message);
+    if (mastered != null)
+      FileIntegrity.write(new File(journal.directory, "mastering.json"), mastered.json());
+    if (speech.warmthEq && !voice.tiny()) {
       status = "Creating optional native-rate EQ comparison…";
       PcmWave.merge(
           chunks,
@@ -225,21 +244,33 @@ public final class StudioJobService extends Service {
           cancelled,
           true);
     }
-    output = master;
-    seconds = mastered.frames / (double) StudioMastering.RATE;
+    if (voice.tiny()) {
+      status = "Preparing native-rate playback audio…";
+      output = new File(journal.directory, "narration-playback.wav");
+      PcmWave.merge(chunks, plan.segments, output, cancelled);
+      seconds = PcmWave.validate(output) / (24000.0 * 2);
+    }
+    if (mastered != null) {
+      output = master;
+      seconds = mastered.frames / (double) StudioMastering.RATE;
+    }
     long elapsed = SystemClock.elapsedRealtime() - start;
     JSONObject stats =
         new JSONObject()
             .put("device", Build.MODEL)
-            .put("engine", "sherpa-onnx 1.12.26 / Piper")
+            .put(
+                "engine",
+                voice.tiny()
+                    ? "Indic Tiny / ONNX Runtime 1.31 / Vocos"
+                    : "sherpa-onnx 1.12.26 / Piper")
             .put("voice", voice.id)
-            .put("warmth_eq", true)
+            .put("warmth_eq", !voice.tiny())
             .put("native_warmth_comparison", speech.warmthEq)
             .put("head_padding_ms", PcmWave.HEAD_PADDING_MS)
             .put("tail_padding_ms", PcmWave.TAIL_PADDING_MS)
             .put("elapsed_ms", elapsed)
             .put("audio_seconds", seconds)
-            .put("mastering", new JSONObject(mastered.json()))
+            .put("mastering", mastered == null ? JSONObject.NULL : new JSONObject(mastered.json()))
             .put("reused_chunks", reused)
             .put("total_chunks", chunks.size())
             .put("sampled_peak_pss_kib", peakPss)

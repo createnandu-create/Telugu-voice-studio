@@ -1,0 +1,42 @@
+{
+  "java_suites": "6 passed",
+  "android_unit_tests": [
+    {
+      "name": "in.aitechapp.teluguoffline.OfflineDataTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "in.aitechapp.teluguoffline.RecordingServiceTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "in.aitechapp.teluguoffline.OfflineAudioTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "in.aitechapp.teluguoffline.StudioUiTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "lint": {
+    "Warning": 14
+  },
+  "local_apk_bytes": 92145428,
+  "local_apk_sha256": "867f6589a51760aed59875ecdf615c3f5a46e53dce965cab99559ff5711fa2eb",
+  "signature": "Verified v2; stable certificate 478ca2acfd4843fb456396219c8fae18270110134e230c7bf9451f247a3498d9",
+  "alignment": "zipalign -c -P 16 4 passed",
+  "phone_test": "Not performed; no connected Nothing Phone",
+  "note": "Local APK checksum; CI release file checksum is in release SHA256SUMS.txt"
+}

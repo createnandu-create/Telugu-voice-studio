@@ -320,6 +320,9 @@ public final class StudioMastering {
 
   public static Report process(File raw, File destination, AtomicBoolean cancel, Progress progress)
       throws IOException {
+    if (PcmWave.sampleRate(raw) != 22050)
+      throw new IOException(
+          "Studio preset supports Piper 22.05 kHz only; keep native audio for this voice.");
     long samples = PcmWave.validate(raw) / 2;
     long frames = samples * 2;
     File floats = new File(destination.getPath() + ".float-work"),

@@ -24,7 +24,7 @@ public final class PcmWave {
     return v;
   }
 
-  private static void header(RandomAccessFile f, long bytes) throws IOException {
+  private static void header(RandomAccessFile f, long bytes, int rate) throws IOException {
     if (bytes < 0 || bytes > 0xffffffffL - 36)
       throw new IOException("WAV exceeds 4 GB. Split the script.");
     f.seek(0);
@@ -34,15 +34,25 @@ public final class PcmWave {
     le(f, 16, 4);
     le(f, 1, 2);
     le(f, 1, 2);
-    le(f, RATE, 4);
-    le(f, RATE * 2, 4);
+    le(f, rate, 4);
+    le(f, rate * 2, 4);
     le(f, 2, 2);
     le(f, 16, 2);
     f.writeBytes("data");
     le(f, bytes, 4);
   }
 
+  public static int sampleRate(File file) throws IOException {
+    try (RandomAccessFile f = new RandomAccessFile(file, "r")) {
+      f.seek(24);
+      int rate = (int) readLe(f, 4);
+      if (rate != 22050 && rate != 24000) throw new IOException("Unsupported native WAV rate.");
+      return rate;
+    }
+  }
+
   public static long validate(File file) throws IOException {
+    int rate = sampleRate(file);
     try (RandomAccessFile f = new RandomAccessFile(file, "r")) {
       if (f.length() < 44) throw new IOException("Incomplete WAV.");
       if (f.readInt() != 0x52494646) throw new IOException("Invalid WAV RIFF.");
@@ -52,8 +62,8 @@ public final class PcmWave {
           || readLe(f, 4) != 16
           || readLe(f, 2) != 1
           || readLe(f, 2) != 1
-          || readLe(f, 4) != RATE
-          || readLe(f, 4) != RATE * 2
+          || readLe(f, 4) != rate
+          || readLe(f, 4) != rate * 2
           || readLe(f, 2) != 2
           || readLe(f, 2) != 16
           || f.readInt() != 0x64617461) throw new IOException("Unexpected WAV format.");
@@ -65,12 +75,12 @@ public final class PcmWave {
   }
 
   public static void write(File file, float[] samples, int sampleRate) throws IOException {
-    if (sampleRate != RATE || samples.length == 0)
+    if ((sampleRate != RATE && sampleRate != 24000) || samples.length == 0)
       throw new IOException("Voice produced no supported audio.");
     File part = new File(file.getPath() + ".part");
     try (RandomAccessFile out = new RandomAccessFile(part, "rw")) {
       out.setLength(0);
-      header(out, 2L * samples.length);
+      header(out, 2L * samples.length, sampleRate);
       byte[] b = new byte[16384];
       int used = 0;
       for (float sample : samples) {
@@ -139,22 +149,25 @@ public final class PcmWave {
       throws IOException {
     if (chunks.size() != plan.size() || chunks.isEmpty())
       throw new IOException("Missing render chunks.");
+    int rate = sampleRate(chunks.get(0));
     File part = new File(destination.getPath() + ".part");
     try (RandomAccessFile out = new RandomAccessFile(part, "rw")) {
       out.setLength(0);
-      header(out, 0);
+      header(out, 0, rate);
       byte[] buffer = new byte[65536], silence = new byte[8192];
       // Only final WAV gets the head/tail guard; never shift each sentence or cached chunk.
       // Every generated native-rate PCM sample stays byte-for-byte unchanged.
-      long bytes = padded ? HEAD_PADDING_BYTES : 0;
+      long bytes = padded ? Math.round(rate * HEAD_PADDING_MS / 1000.0) * 2L : 0;
       writeZeroPcm(out, silence, bytes);
       for (int i = 0; i < chunks.size(); i++) {
         if (cancel.get()) throw new CancellationException();
         long pcmBytes = validate(chunks.get(i));
+        if (sampleRate(chunks.get(i)) != rate)
+          throw new IOException("Mixed sample rates in render chunks.");
         bytes += pcmBytes;
         try (RandomAccessFile in = new RandomAccessFile(chunks.get(i), "r")) {
           in.seek(44);
-          WarmthEq warmth = applyWarmthEq ? new WarmthEq(RATE) : null;
+          WarmthEq warmth = applyWarmthEq ? new WarmthEq(rate) : null;
           long remaining = pcmBytes;
           while (remaining > 0) {
             if (cancel.get()) throw new CancellationException();
@@ -166,15 +179,15 @@ public final class PcmWave {
           }
         }
         long quiet =
-            (i == chunks.size() - 1) ? 0 : (long) RATE * plan.get(i).pauseAfterMs / 1000 * 2;
+            (i == chunks.size() - 1) ? 0 : (long) rate * plan.get(i).pauseAfterMs / 1000 * 2;
         bytes += quiet;
         if (bytes > 0xffffffffL - 36) throw new IOException("WAV too large.");
         writeZeroPcm(out, silence, quiet);
       }
-      bytes += padded ? TAIL_PADDING_BYTES : 0;
+      bytes += padded ? Math.round(rate * TAIL_PADDING_MS / 1000.0) * 2L : 0;
       if (bytes > 0xffffffffL - 36) throw new IOException("WAV too large.");
-      writeZeroPcm(out, silence, padded ? TAIL_PADDING_BYTES : 0);
-      header(out, bytes);
+      writeZeroPcm(out, silence, padded ? Math.round(rate * TAIL_PADDING_MS / 1000.0) * 2L : 0);
+      header(out, bytes, rate);
       out.getFD().sync();
     } catch (IOException | RuntimeException e) {
       part.delete();

@@ -1,0 +1,50 @@
+[
+  {
+    "file": "piper-repaired-venkatesh-0.wav",
+    "text": "నమస్కారం",
+    "seconds": 0.6733786848072563,
+    "render_seconds": 0.06572612300806213,
+    "sha256": "9ae1d5735ce6fdf4405cf712747d6e1ac4ed0fa10b7231237e86c5415b915ea1",
+    "device": "Linux x86_64 host, not Android"
+  },
+  {
+    "file": "piper-repaired-venkatesh-1.wav",
+    "text": "నమస్కారం ఫ్రెండ్స్!",
+    "seconds": 1.079546485260771,
+    "render_seconds": 0.1047365439881105,
+    "sha256": "7c266286cfaa21be1670486c56c10f4fc7299fa14b8b6338e062f5525e52d3b4",
+    "device": "Linux x86_64 host, not Android"
+  },
+  {
+    "file": "piper-repaired-venkatesh-2.wav",
+    "text": "మీ అందరికీ నమస్కారం.",
+    "seconds": 1.4796371882086168,
+    "render_seconds": 0.1200487809983315,
+    "sha256": "f15400cbab1500f2eab70500ea9cbcd523fcb1020a1a9c6fe7d9369a921c77e3",
+    "device": "Linux x86_64 host, not Android"
+  },
+  {
+    "file": "piper-repaired-padmavathi-0.wav",
+    "text": "నమస్కారం",
+    "seconds": 0.9984580498866213,
+    "render_seconds": 0.06924258499930147,
+    "sha256": "36961cbe8dabf0bdae8cf9e874d7178250be25774fc5c7294844630c001ddbdf",
+    "device": "Linux x86_64 host, not Android"
+  },
+  {
+    "file": "piper-repaired-padmavathi-1.wav",
+    "text": "నమస్కారం ఫ్రెండ్స్!",
+    "seconds": 1.5673469387755101,
+    "render_seconds": 0.11017670799628831,
+    "sha256": "8d8101598102266d4f82a8b1d76201fc536a935edd6440c4e31e99912bfe60c6",
+    "device": "Linux x86_64 host, not Android"
+  },
+  {
+    "file": "piper-repaired-padmavathi-2.wav",
+    "text": "మీ అందరికీ నమస్కారం.",
+    "seconds": 1.9040362811791383,
+    "render_seconds": 0.10243408298993018,
+    "sha256": "c05cd1dad75c5cdbf00643a1ba26f8bb3c242c497c57e727ebf67e943eaad8bb",
+    "device": "Linux x86_64 host, not Android"
+  }
+]

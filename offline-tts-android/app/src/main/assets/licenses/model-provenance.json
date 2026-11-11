@@ -6,7 +6,9 @@
       "noise_scale": 0.667,
       "length_scale": 1,
       "noise_w": 0.8
-    }
+    },
+    "bos_pad_repair_sha256": "b5b6d65767a882fc1ceba28dbe1d0387ba9d52da9d082df114dc7718dc571d59",
+    "repair": "Insert PAD ID 0 after BOS ID 1 to match Piper training tokenizer; weights unchanged."
   },
   "padmavathi": {
     "original_sha256": "414aa5960d91ceb6e45bbdf8c27fdc71af09f205130d7be4e99470f3c2cfa57d",
@@ -15,6 +17,8 @@
       "noise_scale": 0.667,
       "length_scale": 1,
       "noise_w": 0.8
-    }
+    },
+    "bos_pad_repair_sha256": "8461a931a8759001165fd4b83fd8b46978cfde171d630f8e75a4e981f3482102",
+    "repair": "Insert PAD ID 0 after BOS ID 1 to match Piper training tokenizer; weights unchanged."
   }
 }

@@ -12,12 +12,19 @@ public final class RenderJournal {
 
   public RenderJournal(File parent, ModelCatalog.Voice voice, List<NarrationDirector.Segment> plan)
       throws IOException {
-    this(parent,voice,plan,"");
+    this(parent, voice, plan, "");
   }
 
-  public RenderJournal(File parent,ModelCatalog.Voice voice,List<NarrationDirector.Segment> plan,String speechIdentity) throws IOException {
-    StringBuilder identity = new StringBuilder("sherpa-1.12.26/pcm-v1/").append(voice.installedSha);
-    if(!speechIdentity.isEmpty()) identity.append("/speech-v2/").append(speechIdentity);
+  public RenderJournal(
+      File parent,
+      ModelCatalog.Voice voice,
+      List<NarrationDirector.Segment> plan,
+      String speechIdentity)
+      throws IOException {
+    StringBuilder identity =
+        new StringBuilder(voice.tiny() ? "tiny-java-v1-ort1.31/" : "sherpa-1.12.26/pcm-v1/")
+            .append(voice.installedSha);
+    if (!speechIdentity.isEmpty()) identity.append("/speech-v2/").append(speechIdentity);
     for (NarrationDirector.Segment s : plan)
       identity
           .append('\n')

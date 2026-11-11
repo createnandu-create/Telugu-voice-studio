@@ -2,7 +2,7 @@ plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android'; id 'o
 android {
     namespace 'in.aitechapp.teluguoffline'
     compileSdk 35
-    defaultConfig { applicationId 'in.aitechapp.teluguoffline'; minSdk 26; targetSdk 35; versionCode 5; versionName '0.5.0-dsp-test'; ndk { abiFilters 'arm64-v8a' } }
+    defaultConfig { applicationId 'in.aitechapp.teluguoffline'; minSdk 26; targetSdk 35; versionCode 6; versionName '0.6.0-pronunciation-test'; ndk { abiFilters 'arm64-v8a' } }
     buildFeatures { compose true }
     kotlinOptions { jvmTarget = '17' }
     testOptions { unitTests.includeAndroidResources = true }
@@ -20,6 +20,8 @@ android {
 }
 
 dependencies {
+    implementation files("libs/onnxruntime-1.31.0.jar")
+    implementation "de.sciss:jump3r:1.0.5"
     implementation platform('androidx.compose:compose-bom:2024.09.03')
     implementation 'androidx.activity:activity-compose:1.9.3'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'

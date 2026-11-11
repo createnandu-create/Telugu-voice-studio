@@ -38,7 +38,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         mutableStateOf(
             prefs.getString("script", "నమస్కారం ఫ్రెండ్స్! ఇప్పుడు ఇక్కడ క్లిక్ చేయండి.") ?: ""
         )
-    var voice by mutableIntStateOf(prefs.getInt("voice", 0).coerceIn(0, 1))
+    var voice by
+        mutableIntStateOf(prefs.getInt("voice", 0).coerceIn(0, ModelCatalog.VOICES.lastIndex))
     var step by mutableIntStateOf(0)
     var plan by mutableStateOf<List<NarrationDirector.Segment>>(emptyList())
     private var plannedScript = ""
@@ -46,6 +47,17 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var downloadingVoice by mutableIntStateOf(-1)
     var status by mutableStateOf("Everything happens on your phone")
     var notice by mutableStateOf("")
+    var verifying by mutableIntStateOf(-1)
+    var verification by mutableStateOf<Map<Int, String>>(emptyMap())
+    var exportSource by mutableStateOf<File?>(null)
+    var exportReady by mutableStateOf<File?>(null)
+    var exportBusy by mutableStateOf(false)
+    var exportProgress by mutableFloatStateOf(0f)
+    var exportMessage by mutableStateOf("")
+    var exportedUri by mutableStateOf<android.net.Uri?>(null)
+    var exportedName by mutableStateOf("")
+    private val exportCancel = java.util.concurrent.atomic.AtomicBoolean()
+
     var loading by mutableStateOf(false)
     var models by mutableStateOf<List<ModelRow>>(emptyList())
     var profiles by mutableStateOf<List<ProfileRow>>(emptyList())
@@ -157,6 +169,12 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         else notice = "This output is not available yet. Generate to create it."
     }
 
+    fun selectPlayback() {
+        File(latest?.parentFile ?: return, "narration-playback.wav")
+            .takeIf { it.isFile }
+            ?.let { latest = it }
+    }
+
     fun selectNativeWarmth() {
         val file = File(latest?.parentFile ?: return, "narration-native-warmth.wav")
         if (file.isFile) latest = file
@@ -164,7 +182,9 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun projectAudio(folder: File): File {
         val master = File(folder, "narration-studio.wav")
-        return if (master.isFile) master else File(folder, "narration.wav")
+        val padded = File(folder, "narration-playback.wav")
+        return if (master.isFile) master
+        else if (padded.isFile) padded else File(folder, "narration.wav")
     }
 
     fun direct() {
@@ -217,7 +237,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun generate() {
-        if (busy || recording) {
+        if (busy || recording || verifying >= 0 || loading) {
             notice = "Finish the current task first."
             return
         }
@@ -270,7 +290,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun install(index: Int) {
-        if (busy || recording) {
+        if (busy || recording || verifying >= 0 || loading) {
             notice = "Finish the current task first."
             return
         }
@@ -282,21 +302,149 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun verify(index: Int) {
-        if (busy) return
+        if (busy || verifying >= 0 || loading) return
+        verifying = index
+        verification = verification + (index to "Checking every model file…")
         work {
-            val ok =
+            try {
+                val ok =
+                    withContext(Dispatchers.IO) {
+                        VoiceModelStore(getApplication()).verify(ModelCatalog.VOICES[index])
+                    }
+                verification =
+                    verification +
+                        (index to
+                            if (ok)
+                                "Verified at ${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())} · SHA-256 matches · Ready offline"
+                            else "Verification failed. Repair this model before using it.")
+            } catch (e: Exception) {
+                verification = verification + (index to "Verification failed: ${e.message}")
+            } finally {
+                verifying = -1
+                refresh()
+            }
+        }
+    }
+
+    fun pronunciationCheck() {
+        if (busy || recording || verifying >= 0 || loading) return
+        val text = "నమస్కారం. నమస్కారం ఫ్రెండ్స్! మీ అందరికీ నమస్కారం."
+        val segments =
+            NarrationDirector.planExact(text, NarrationDirector.Style.AUTO).map {
+                NarrationDirector.Segment(it.text, NarrationDirector.Emotion.NEUTRAL, 1f, 1f, 500)
+            }
+        val snapshot = PlanStorage(text, voice, segments).json()
+        work {
+            withContext(Dispatchers.IO) {
+                FileIntegrity.write(
+                    File(getApplication<Application>().filesDir, "render-plan.json"),
+                    snapshot,
+                )
+            }
+            startJob("render")
+            step = 3
+        }
+    }
+
+    fun prepareExport(mp3: Boolean) {
+        val source = exportSource ?: return
+        if (exportBusy) return
+        exportBusy = true
+        exportProgress = 0f
+        exportCancel.set(false)
+        exportMessage = if (mp3) "Creating MP3 on your phone…" else "Preparing WAV…"
+        work {
+            try {
+                val file =
+                    withContext(Dispatchers.IO) {
+                        if (!mp3) source
+                        else {
+                            val out =
+                                File(getApplication<Application>().cacheDir, "narration-share.mp3")
+                            Mp3Export.encode(source, out, exportCancel) { done, total ->
+                                viewModelScope.launch { exportProgress = done.toFloat() / total }
+                            }
+                            out
+                        }
+                    }
+                if (!exportCancel.get()) exportReady = file
+                exportSource = null
+            } catch (e: Exception) {
+                exportMessage =
+                    if (exportCancel.get()) "Save cancelled. Your narration is kept."
+                    else "Could not prepare audio: ${e.message}"
+            } finally {
+                exportBusy = false
+            }
+        }
+    }
+
+    fun cancelExport() {
+        exportCancel.set(true)
+    }
+
+    fun saveExport(file: File, uri: android.net.Uri) {
+        if (exportBusy) return
+        exportBusy = true
+        exportProgress = 0f
+        exportCancel.set(false)
+        exportMessage = "Saving ${file.extension.uppercase()}…"
+        work {
+            try {
+                val name =
+                    withContext(Dispatchers.IO) {
+                        val resolver = getApplication<Application>().contentResolver
+                        file.inputStream().use { input ->
+                            requireNotNull(resolver.openOutputStream(uri, "wt")).use { output ->
+                                val buffer = ByteArray(65536)
+                                var done = 0L
+                                while (true) {
+                                    if (exportCancel.get())
+                                        throw java.util.concurrent.CancellationException()
+                                    val count = input.read(buffer)
+                                    if (count < 0) break
+                                    output.write(buffer, 0, count)
+                                    done += count
+                                    val fraction = done.toFloat() / file.length()
+                                    viewModelScope.launch { exportProgress = fraction }
+                                }
+                                output.flush()
+                            }
+                        }
+                        resolver
+                            .query(
+                                uri,
+                                arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+                                null,
+                                null,
+                                null,
+                            )
+                            ?.use { if (it.moveToFirst()) it.getString(0) else null } ?: file.name
+                    }
+                exportedName = name
+                exportedUri = uri
+                exportMessage = "Saved to your selected folder"
+            } catch (e: Exception) {
+                // Only this newly created destination is removed; the source always remains.
                 withContext(Dispatchers.IO) {
-                    VoiceModelStore(getApplication()).verify(ModelCatalog.VOICES[index])
+                    runCatching {
+                        android.provider.DocumentsContract.deleteDocument(
+                            getApplication<Application>().contentResolver,
+                            uri,
+                        )
+                    }
                 }
-            notice =
-                if (ok) "Integrity verified · READY OFFLINE"
-                else "Model is damaged. Tap Repair to replace only this voice."
-            refresh()
+                exportMessage =
+                    if (exportCancel.get()) "Save cancelled. Your narration is kept."
+                    else "Save failed: ${e.message}"
+            } finally {
+                exportBusy = false
+            }
         }
     }
 
     fun deleteModel(index: Int) {
-        if (busy) return
+        if (busy || verifying >= 0 || loading) return
         work {
             withContext(Dispatchers.IO) {
                 VoiceModelStore(getApplication()).remove(ModelCatalog.VOICES[index])
@@ -317,6 +465,13 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         work {
             withContext(Dispatchers.IO) {
                 val root = VoiceModelStore(getApplication()).root
+                if (ModelCatalog.VOICES[index].tiny()) {
+                    val tiny = TinyModelStore(root)
+                    TinyModelStore.ASSETS.forEach { a ->
+                        File(tiny.root, a.name + ".download").delete()
+                        File(tiny.root, a.name + ".download.properties").delete()
+                    }
+                }
                 val f = File(root, ModelCatalog.VOICES[index].id + ".download")
                 f.delete()
                 File(f.path + ".properties").delete()
@@ -326,7 +481,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startRecording(name: String, label: String) {
-        if (busy || recording) {
+        if (busy || recording || verifying >= 0 || loading) {
             notice = "Finish the current task first."
             return
         }
@@ -469,73 +624,80 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun refresh() {
+        if (loading) return
+        loading = true
         work {
-            val app = getApplication<Application>()
-            val loadedModels =
-                withContext(Dispatchers.IO) {
-                    val store = VoiceModelStore(app)
-                    ModelCatalog.VOICES.mapIndexed { i, v ->
-                        val ready = store.verified(v)
-                        ModelRow(
-                            i,
-                            v.name,
-                            v.gender,
-                            ready,
-                            File(store.root, v.id + ".download").length(),
-                            store.model(v).exists() && !ready,
-                        )
-                    }
-                }
-            val loadedProfiles =
-                withContext(Dispatchers.IO) {
-                    VoiceProfiles(app).list().map {
-                        ProfileRow(
-                            it.getString("id"),
-                            it.getString("name"),
-                            it.optString("label", "Custom"),
-                            it.optString("description"),
-                            it.optLong("durationMs"),
-                            it.optString("status"),
-                            VoiceProfiles(app).audio(it.getString("id")),
-                        )
-                    }
-                }
-            val loadedProjects =
-                withContext(Dispatchers.IO) {
-                    File(app.filesDir, "renders")
-                        .listFiles()
-                        ?.filter { it.isDirectory }
-                        ?.sortedByDescending { it.lastModified() }
-                        ?.map { f ->
-                            val metric =
-                                runCatching {
-                                        JSONObject(FileIntegrity.read(File(f, "metrics.json")))
-                                    }
-                                    .getOrNull()
-                            val name =
-                                runCatching { FileIntegrity.read(File(f, "project-name.txt")) }
-                                    .getOrDefault("Narration · " + f.name.take(6))
-                            ProjectRow(
-                                f,
-                                name,
-                                File(f, "narration.wav").isFile,
-                                metric?.optDouble("audio_seconds", 0.0) ?: 0.0,
+            try {
+                val app = getApplication<Application>()
+                val loadedModels =
+                    withContext(Dispatchers.IO) {
+                        val store = VoiceModelStore(app)
+                        ModelCatalog.VOICES.mapIndexed { i, v ->
+                            val ready = store.verified(v)
+                            ModelRow(
+                                i,
+                                v.name,
+                                v.gender,
+                                ready,
+                                if (v.tiny()) TinyModelStore(store.root).partial()
+                                else File(store.root, v.id + ".download").length(),
+                                store.model(v).exists() && !ready,
                             )
-                        } ?: emptyList()
-                }
-            models = loadedModels
-            profiles = loadedProfiles
-            projects = loadedProjects
-            selectedReference = VoiceProfiles(app).selected()
-            latest =
-                StudioJobService.result?.takeIf { it.isFile }
-                    ?: withContext(Dispatchers.IO) {
-                        runCatching {
-                                File(FileIntegrity.read(File(app.filesDir, "last-result.txt")))
-                                    .takeIf { it.isFile }
-                            }
-                            .getOrNull()
+                        }
                     }
+                val loadedProfiles =
+                    withContext(Dispatchers.IO) {
+                        VoiceProfiles(app).list().map {
+                            ProfileRow(
+                                it.getString("id"),
+                                it.getString("name"),
+                                it.optString("label", "Custom"),
+                                it.optString("description"),
+                                it.optLong("durationMs"),
+                                it.optString("status"),
+                                VoiceProfiles(app).audio(it.getString("id")),
+                            )
+                        }
+                    }
+                val loadedProjects =
+                    withContext(Dispatchers.IO) {
+                        File(app.filesDir, "renders")
+                            .listFiles()
+                            ?.filter { it.isDirectory }
+                            ?.sortedByDescending { it.lastModified() }
+                            ?.map { f ->
+                                val metric =
+                                    runCatching {
+                                            JSONObject(FileIntegrity.read(File(f, "metrics.json")))
+                                        }
+                                        .getOrNull()
+                                val name =
+                                    runCatching { FileIntegrity.read(File(f, "project-name.txt")) }
+                                        .getOrDefault("Narration · " + f.name.take(6))
+                                ProjectRow(
+                                    f,
+                                    name,
+                                    File(f, "narration.wav").isFile,
+                                    metric?.optDouble("audio_seconds", 0.0) ?: 0.0,
+                                )
+                            } ?: emptyList()
+                    }
+                models = loadedModels
+                profiles = loadedProfiles
+                projects = loadedProjects
+                selectedReference = VoiceProfiles(app).selected()
+                latest =
+                    StudioJobService.result?.takeIf { it.isFile }
+                        ?: withContext(Dispatchers.IO) {
+                            runCatching {
+                                    File(FileIntegrity.read(File(app.filesDir, "last-result.txt")))
+                                        .takeIf { it.isFile }
+                                }
+                                .getOrNull()
+                        }
+            } finally {
+                loading = false
+            }
         }
     }
 

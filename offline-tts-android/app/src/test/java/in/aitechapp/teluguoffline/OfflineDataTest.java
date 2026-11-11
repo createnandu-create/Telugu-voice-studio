@@ -17,6 +17,32 @@ import org.robolectric.annotation.Config;
 @Config(sdk = 34)
 public class OfflineDataTest {
   @Test
+  public void legacyPiperMigratesLocallyOnceAndKeepsRollbackCopy() throws Exception {
+    Context c = ApplicationProvider.getApplicationContext();
+    VoiceModelStore store = new VoiceModelStore(c);
+    File file = new File(store.root, "migration-fixture.onnx");
+    try (InputStream in = getClass().getResourceAsStream("/piper-input.onnx")) {
+      Files.copy(in, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    }
+    String before = FileIntegrity.sha256(file),
+        after = "8a281191e3ddf1f702e6af781de058a54eda0d512b57fb515579fd544caac0f6";
+    ModelCatalog.Voice voice =
+        new ModelCatalog.Voice("migration-fixture", "Fixture", "Custom", before, before, after);
+    assertTrue(store.verified(voice));
+    assertEquals(after, FileIntegrity.sha256(file));
+    assertEquals(
+        before, FileIntegrity.sha256(new File(store.root, "migration-fixture.pre-bos-pad.onnx")));
+    long modified = file.lastModified();
+    new VoiceModelStore(c).install(voice, new AtomicBoolean(), m -> {});
+    assertEquals(modified, file.lastModified());
+    File out = new File(store.root, "keep-existing.onnx");
+    Files.write(out.toPath(), new byte[] {4, 2});
+    String kept = FileIntegrity.sha256(out);
+    assertThrows(IOException.class, () -> PiperInputRepair.install(file, out, before, after));
+    assertEquals(kept, FileIntegrity.sha256(out));
+  }
+
+  @Test
   public void verifiedInstallReturnsWithoutNetworkOrAssetPreparation() throws Exception {
     Context c = ApplicationProvider.getApplicationContext();
     VoiceModelStore store = new VoiceModelStore(c);

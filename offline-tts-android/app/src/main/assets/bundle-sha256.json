@@ -1,4 +1,5 @@
 {
+  "../../libs/onnxruntime-1.31.0.jar": "644d12630c02e5550ee6f18b0a33b78d73e7aff72e22d2843fe713e35e523e5e",
   "assets/comparison/indic-tiny-female-2.wav": "6fe4fad971412fb1d187a34fb785f104ac297aede0f3d2d539ac264cabf683b0",
   "assets/comparison/indic-tiny-male-2.wav": "63bbccd3d78f2b40dd965b0f5af004b906be455d9f3563538d77949a52d21c43",
   "assets/comparison/piper-padmavathi-2.wav": "0e0cdbfd31e9af501b34cd8b7694aba8728e82a52689556eb64b8506fdf2ec98",
@@ -6,10 +7,11 @@
   "assets/licenses/Comparison-CREDITS.txt": "6638fa7b8e72ef9813713f922f91a3b4ad654f7f1b677ecfc80ee0c6426532e5",
   "assets/licenses/DMSerifDisplay-OFL.txt": "a3e5cdd67d4571dd0a24fcc968de0efde7ae97ef752daf0906e4767619dd7231",
   "assets/licenses/IndicTiny-LICENSE.md": "2e840a66bc2671deac72f5aff077e2385390ea2ef6de704c26aa0389372ee380",
+  "assets/licenses/Jump3r-LGPL-2.1.txt": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
   "assets/licenses/Manrope-OFL.txt": "58172e0c0fac2cda8a37b348164bb55e44b0e69051e557e92b1d3f6910141f7b",
   "assets/licenses/ONNX-Runtime-MIT.txt": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
   "assets/licenses/eSpeak-NG-GPL.txt": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
-  "assets/licenses/model-provenance.json": "6a439350c8e25ff14fea3527f9ee7e311299231169c9b14ed422cf03542ec538",
+  "assets/licenses/model-provenance.json": "d2730990ac175998fec9d2fa3da56f2f4a413da42e884e6388e22130067355c7",
   "assets/licenses/padmavathi-MODEL_CARD.txt": "8cdccd0ca4c26d1e949431f03180bcf9eaeb3c013f627087c6a806a3f7487b07",
   "assets/licenses/sherpa-onnx-LICENSE.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
   "assets/licenses/venkatesh-MODEL_CARD.txt": "1e72b79b6453653bd6c43722f80fb34f429dbeccaf18116480d6faa20b01e685",
@@ -18,7 +20,9 @@
   "assets/piper-metadata.bin": "e60ab8fa70c962eb9715ba37931db0cabb60ad45f52682222a5c5a220b58f6fa",
   "assets/venkatesh-tokens.txt": "ef3a7e4a8d1af0c9d4dc45aaae1a6242ebe24a7ed6f3d025a49eb29682784c6d",
   "jniLibs/arm64-v8a/libonnxruntime.so": "c7c0e6b0f9c364a4df4bfc9a3a3576b691899e96f4d9beb60f3b3a7ce4bf572c",
+  "jniLibs/arm64-v8a/libonnxruntime4j_jni.so": "10a57e58b5877cc9bdf79e83b584430b6555a48ab41d165ef240dc197826f79a",
   "jniLibs/arm64-v8a/libsherpa-onnx-jni.so": "2f8c220229c5e620e759cca974a2d2f2a3578141c92f8806767cca05fc213564",
+  "jniLibs/arm64-v8a/libtinyort.so": "552c5396efbc31fa1abd5b9fd6a2ccbd5371f8fcad87cc8429ab993515adfaf9",
   "res/font/display_serif.ttf": "8cc3643535edf039aa5d95440a8542735e9197e4f4b8d9303e980fefbf5ab616",
   "res/font/manrope.ttf": "9bc8d8251318dfcffe6b24800e1df65e26cae6e012b2f88064acf530b277f9d3",
   "res/font/manrope_semibold.ttf": "ffe518236f48fd342188388c942fa0ee2fd72455a106feefe0ebc6d1b3496b04"

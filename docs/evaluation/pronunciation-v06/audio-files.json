@@ -1,0 +1,114 @@
+[
+  {
+    "file": "piper-repaired-padmavathi-0.wav",
+    "channels": 1,
+    "sample_rate": 22050,
+    "frames": 22016,
+    "seconds": 0.9984580498866213,
+    "sha256": "36961cbe8dabf0bdae8cf9e874d7178250be25774fc5c7294844630c001ddbdf"
+  },
+  {
+    "file": "female-2.wav",
+    "channels": 1,
+    "sample_rate": 24000,
+    "frames": 40704,
+    "seconds": 1.696,
+    "sha256": "e6f2b83417b37a811322ca61eb9131d2a7d67a1415daa0f6fe6d0be84897428f"
+  },
+  {
+    "file": "piper-repaired-venkatesh-1.wav",
+    "channels": 1,
+    "sample_rate": 22050,
+    "frames": 23804,
+    "seconds": 1.079546485260771,
+    "sha256": "7c266286cfaa21be1670486c56c10f4fc7299fa14b8b6338e062f5525e52d3b4"
+  },
+  {
+    "file": "female-1.wav",
+    "channels": 1,
+    "sample_rate": 24000,
+    "frames": 38144,
+    "seconds": 1.5893333333333333,
+    "sha256": "d98659e934a27ce23dd6a6049e3ade0896cf6f42a9d9447a71387c4167702425"
+  },
+  {
+    "file": "piper-repaired-padmavathi-1.wav",
+    "channels": 1,
+    "sample_rate": 22050,
+    "frames": 34560,
+    "seconds": 1.5673469387755101,
+    "sha256": "8d8101598102266d4f82a8b1d76201fc536a935edd6440c4e31e99912bfe60c6"
+  },
+  {
+    "file": "Namaskaram-Piper-Female.wav",
+    "channels": 1,
+    "sample_rate": 22050,
+    "frames": 27529,
+    "seconds": 1.2484807256235828,
+    "sha256": "09148a15f5c047732719fea274633d9bb8ad666d1810e0aa5b789bcabb3d8e6d"
+  },
+  {
+    "file": "male-0.wav",
+    "channels": 1,
+    "sample_rate": 24000,
+    "frames": 17152,
+    "seconds": 0.7146666666666667,
+    "sha256": "a22ba8fc74797ed7befaaf724c1d358d53fecb9706f118b27e40e96ca7625a58"
+  },
+  {
+    "file": "piper-repaired-venkatesh-0.wav",
+    "channels": 1,
+    "sample_rate": 22050,
+    "frames": 14848,
+    "seconds": 0.6733786848072563,
+    "sha256": "9ae1d5735ce6fdf4405cf712747d6e1ac4ed0fa10b7231237e86c5415b915ea1"
+  },
+  {
+    "file": "female-0.wav",
+    "channels": 1,
+    "sample_rate": 24000,
+    "frames": 32512,
+    "seconds": 1.3546666666666667,
+    "sha256": "882ed27bf0367aca45ced0cb46a3f6783cfee0a48d354ddc2130ebeb0f570fda"
+  },
+  {
+    "file": "piper-repaired-padmavathi-2.wav",
+    "channels": 1,
+    "sample_rate": 22050,
+    "frames": 41984,
+    "seconds": 1.9040362811791383,
+    "sha256": "c05cd1dad75c5cdbf00643a1ba26f8bb3c242c497c57e727ebf67e943eaad8bb"
+  },
+  {
+    "file": "Namaskaram-Piper-Male.wav",
+    "channels": 1,
+    "sample_rate": 22050,
+    "frames": 20361,
+    "seconds": 0.9234013605442177,
+    "sha256": "e092ec51990d93e7b31a09134ab343b6f632db5c87a479821ed2ca5e13a15bf5"
+  },
+  {
+    "file": "male-2.wav",
+    "channels": 1,
+    "sample_rate": 24000,
+    "frames": 39168,
+    "seconds": 1.632,
+    "sha256": "f1cb2bd601d63397fd7fc31a35c3769000dcff1059216cf80c5ceb3f59961a44"
+  },
+  {
+    "file": "male-1.wav",
+    "channels": 1,
+    "sample_rate": 24000,
+    "frames": 31744,
+    "seconds": 1.3226666666666667,
+    "sha256": "3096ce3eacf952ff2cf08dfc0149498b60f222d0e8459b98e61b44bd66d55943"
+  },
+  {
+    "file": "piper-repaired-venkatesh-2.wav",
+    "channels": 1,
+    "sample_rate": 22050,
+    "frames": 32626,
+    "seconds": 1.4796371882086168,
+    "sha256": "f15400cbab1500f2eab70500ea9cbcd523fcb1020a1a9c6fe7d9369a921c77e3"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "file": "Telugu-narration-1794308142957.wav",
+    "sha256": "6d76e1a236a53c5c7d40102e2d8e64750c77116ffe5f5a388127643bfd1a8c2f",
+    "channels": 1,
+    "rate": 22050,
+    "frames": 168269,
+    "seconds": 7.63124716553288,
+    "onset_above_32_pcm_units": 0.004671201814058957,
+    "peak": 0.64593505859375,
+    "note": "Private user audio is not committed. No phonetic transcription or subjective quality result inferred."
+  },
+  {
+    "file": "Telugu-narration-1794308108422.wav",
+    "sha256": "d33b5e98fcdd843c84544a7c4e14147f68de6d9acb3eadb93c2a332465d6d3b7",
+    "channels": 2,
+    "rate": 44100,
+    "frames": 347563,
+    "seconds": 7.88124716553288,
+    "onset_above_32_pcm_units": 0.15027210884353742,
+    "peak": 0.878082275390625,
+    "note": "Private user audio is not committed. No phonetic transcription or subjective quality result inferred."
+  }
+]

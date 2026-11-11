@@ -1,3 +1,7 @@
+## Version 0.6 follow-up
+
+Read [Piper BOS/PAD repair, Indic Tiny Java engine and export evidence](evaluation/pronunciation-v06/README.md). The new Piper graph adapter is required only with the current sherpa frontend. Repaired model hashes must never be applied twice. Speech quality and physical-phone acceptance remain unverified.
+
 ## DSP follow-up (2026-11-10)
 
 Version 0.5 adds `StudioMastering.java`, raw/master selection and leading-format-character normalization. Read [DSP measurements and unresolved /n/ diagnosis](evaluation/dsp-v05/README.md). Piper is VITS, not Griffin-Lim; no separate INT8 HiFi-GAN swap or cloning was integrated.

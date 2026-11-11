@@ -2,7 +2,7 @@ plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android'; id 'o
 android {
     namespace 'in.aitechapp.teluguoffline'
     compileSdk 35
-    defaultConfig { applicationId 'in.aitechapp.teluguoffline'; minSdk 26; targetSdk 35; versionCode 6; versionName '0.6.0-pronunciation-test'; ndk { abiFilters 'arm64-v8a' } }
+    defaultConfig { applicationId 'in.aitechapp.teluguoffline'; minSdk 26; targetSdk 35; versionCode 7; versionName '0.7.0-install-compat-test'; ndk { abiFilters 'arm64-v8a' } }
     buildFeatures { compose true }
     kotlinOptions { jvmTarget = '17' }
     testOptions { unitTests.includeAndroidResources = true }
@@ -15,7 +15,21 @@ android {
             keyPassword 'android'
         }
     }
-    packaging { jniLibs { useLegacyPackaging = false } }
+    // Extract ARM64 JNI libraries at install time on devices that reject uncompressed native-lib layout.
+    packaging { jniLibs { useLegacyPackaging = true } }
+    buildTypes {
+        // Same package and pinned debug certificate: non-destructive update if signatures match.
+        debug { signingConfig signingConfigs.debug }
+        // Side-by-side diagnostic install: never uninstalls or overwrites existing v0.6/data.
+        fresh {
+            initWith debug
+            applicationIdSuffix '.fresh'
+            versionNameSuffix '-fresh'
+            debuggable true
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['debug']
+        }
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 

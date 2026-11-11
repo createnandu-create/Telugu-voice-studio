@@ -64,7 +64,7 @@ jobs:
           bash offline-tts-android/scripts/test-java.sh
 
       - name: Build Android 15 debug APK
-        run: gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug
+        run: gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug :app:assembleFresh
 
       - name: Compose navigation, persistence tests and Android lint
         run: gradle --no-daemon --project-dir offline-tts-android :app:testDebugUnitTest :app:lintDebug
@@ -77,21 +77,35 @@ jobs:
           path: offline-tts-android/app/build/reports/
           if-no-files-found: warn
 
-      - name: Verify APK signature and 16 KB alignment
+      - name: Validate both standalone install packages and signing
         run: |
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose offline-tts-android/app/build/outputs/apk/debug/app-debug.apk
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 4 offline-tts-android/app/build/outputs/apk/debug/app-debug.apk
+          set -euo pipefail
+          APK_DEBUG=offline-tts-android/app/build/outputs/apk/debug/app-debug.apk
+          APK_FRESH=offline-tts-android/app/build/outputs/apk/fresh/app-fresh.apk
+          for apk in "$APK_DEBUG" "$APK_FRESH"; do
+            test -s "$apk"
+            unzip -t "$apk" >/dev/null
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$apk"
+            "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 4 "$apk"
+            "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$apk"
+          done
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK_DEBUG" | grep -Fq "name='in.aitechapp.teluguoffline'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK_FRESH" | grep -Fq "name='in.aitechapp.teluguoffline.fresh'"
+          echo "APK ZIP structure, signatures, alignment and separate package IDs verified."
+
 
       - name: Prepare APK and source ZIP for direct download
         run: |
           set -euo pipefail
           mkdir -p dist
           cp offline-tts-android/app/build/outputs/apk/debug/app-debug.apk dist/TeluguVoiceStudio-debug.apk
+          cp offline-tts-android/app/build/outputs/apk/fresh/app-fresh.apk dist/TeluguVoiceStudio-fresh-install.apk
           git archive --format=zip --output=dist/TeluguVoiceStudio-source.zip HEAD
           python3 -m zipfile -c dist/TeluguVoiceStudio-pronunciation-AB.zip docs/evaluation/pronunciation-v04 docs/evaluation/dsp-v05 docs/evaluation/pronunciation-v06
           cp docs/evaluation/pronunciation-v06/Namaskaram-Piper-*.wav dist/
-          (cd dist && sha256sum TeluguVoiceStudio-debug.apk TeluguVoiceStudio-source.zip TeluguVoiceStudio-pronunciation-AB.zip Namaskaram-Piper-Male.wav Namaskaram-Piper-Female.wav > SHA256SUMS.txt)
+          (cd dist && sha256sum TeluguVoiceStudio-debug.apk TeluguVoiceStudio-fresh-install.apk TeluguVoiceStudio-source.zip TeluguVoiceStudio-pronunciation-AB.zip Namaskaram-Piper-Male.wav Namaskaram-Piper-Female.wav > SHA256SUMS.txt)
           test -s dist/TeluguVoiceStudio-debug.apk
+          test -s dist/TeluguVoiceStudio-fresh-install.apk
           test -s dist/TeluguVoiceStudio-source.zip
 
       - name: Upload files to GitHub Actions
@@ -111,6 +125,8 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           Native ARM64 Android test build from commit $GITHUB_SHA.
           Build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+          Version 0.7 INSTALL COMPATIBILITY TEST: Native ARM64 shared libraries are packaged for extraction during installation. Two separately signed, verifiable stand-alone APKs are offered: TeluguVoiceStudio-debug.apk keeps the original package ID for normal updates, while TeluguVoiceStudio-fresh-install.apk uses .fresh so it can install beside an existing old test application without uninstalling it. They use the same pinned public debug signing key. The fresh variant stores NEW data separately; it does not automatically import old recordings/models. These changes are a compatibility hypothesis, not a guaranteed repair of the user's Android Package Installer error. Inspect the actual on-device failure if both packages fail.
 
           Version 0.6 repairs a confirmed Piper input-contract mismatch: sherpa 1.12.26 omitted the blank immediately after BOS. Pinned ONNX input adapters restore that token without changing learned weights or the user's script. Existing models migrate locally without downloading; a rollback copy is retained. Generate again to avoid old cached audio. The repaired graphs exactly matched original Piper graphs receiving the correct IDs in deterministic host tests. This does not prove all pronunciation complaints are solved.
 
@@ -136,3 +152,12 @@ jobs:
             gh release create debug-latest dist/* --target "$GITHUB_SHA" --prerelease \
               --title "Telugu Voice Studio — latest debug APK" --notes-file /tmp/release-notes.md
           fi
+          # Verify release binary round-trip, not only the CI workspace APK.
+          mkdir -p /tmp/check-immutable /tmp/check-rolling
+          gh release download "$TAG" --pattern TeluguVoiceStudio-debug.apk --pattern TeluguVoiceStudio-fresh-install.apk --dir /tmp/check-immutable
+          gh release download debug-latest --pattern TeluguVoiceStudio-debug.apk --pattern TeluguVoiceStudio-fresh-install.apk --dir /tmp/check-rolling
+          for apk in TeluguVoiceStudio-debug.apk TeluguVoiceStudio-fresh-install.apk; do
+            cmp "dist/$apk" "/tmp/check-immutable/$apk"
+            cmp "dist/$apk" "/tmp/check-rolling/$apk"
+          done
+          echo "Immutable and rolling release APK downloads byte-for-byte verified"

@@ -9,6 +9,7 @@ An actively developed offline Telugu YouTube voice narrator prototype. The testi
 | File | Direct link | Availability |
 |---|---|---|
 | Android Debug APK | [TeluguVoiceStudio-debug.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-debug.apk) | Created by GitHub Actions **only after a successful build** |
+| **Fresh Install / Side-by-side APK** | [TeluguVoiceStudio-fresh-install.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-fresh-install.apk) | Created only after successful 0.7 CI build; separate package preserves older app/data untouched |
 | Android Source ZIP + project skill | [TeluguVoiceStudio-source.zip](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-source.zip) | Created by successful build |
 | Branch Source ZIP (works without build) | [Download current source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/archive/refs/heads/telugu-voice-testing.zip) | Always reflects the branch |
 | Source in browser | [offline-tts-android/](https://github.com/createnandu-create/Telugu-voice-studio/tree/telugu-voice-testing/offline-tts-android) | Browse files |
@@ -60,3 +61,5 @@ The requested roadmap is **real Telugu human-like neural expressiveness, topic-a
 - [GPL application license, voice attribution and corresponding native source](offline-tts-android/NOTICE.md)
 
 Piper applies speed and pauses; it does not synthesize the displayed emotion notes or clone voices. The APK is ARM64, approximately 30 MB; each model downloads separately. No paid inference or cloud API is required. The app is still a test build, with no proven human-naturalness score.
+
+**Installation troubleshooting:** If Android says “App not installed as package appears to be invalid”, try the **Fresh Install APK** after GitHub Actions publishes version 0.7. It installs alongside the older app with a separate `.fresh` ID; do not uninstall your old app just to test. Old voice recordings/models stay in the old app and are not automatically shared with the new install. This is a compatibility experiment; if both fail, preserve the downloaded APK and capture the exact Android installer error rather than clearing old app data.

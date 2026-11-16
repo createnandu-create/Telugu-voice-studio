@@ -3,7 +3,8 @@ package in.aitechapp.teluguoffline;
 import android.app.*;
 import android.content.*;
 import android.content.pm.ServiceInfo;
-import android.media.MediaRecorder;
+import android.media.*;
+import android.media.audiofx.*;
 import android.os.*;
 import java.io.*;
 import java.util.UUID;
@@ -15,7 +16,15 @@ public final class VoiceRecordingService extends Service {
   public static volatile boolean active = false;
   public static volatile String status = "Ready to record", profileId = "";
   public static volatile long elapsedMs = 0;
-  private MediaRecorder recorder;
+  private AudioRecord recorder;
+  private NoiseSuppressor noise;
+  private AcousticEchoCanceler echo;
+  private Thread capture;
+  private volatile boolean stopping;
+  private volatile boolean discard;
+  private boolean finishing;
+  private String effects = "";
+  private File raw;
   private Handler handler;
   private VoiceProfiles profiles;
   private String name, label;
@@ -56,13 +65,13 @@ public final class VoiceRecordingService extends Service {
       } else if ("pause".equals(action)
           && active
           && clock.state() == RecordingClock.State.RECORDING) {
-        recorder.pause();
+        discard = true;
         clock.pause(SystemClock.elapsedRealtime());
         status = "Paused · tap Resume";
       } else if ("resume".equals(action)
           && active
           && clock.state() == RecordingClock.State.PAUSED) {
-        recorder.resume();
+        discard = false;
         clock.resume(SystemClock.elapsedRealtime());
         status = "Recording · microphone active";
       } else if ("stop".equals(action) && active) finish(false);
@@ -74,6 +83,9 @@ public final class VoiceRecordingService extends Service {
   }
 
   private void start() throws Exception {
+    if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+        != android.content.pm.PackageManager.PERMISSION_GRANTED)
+      throw new SecurityException("Allow microphone access to record your voice.");
     NotificationManager manager = getSystemService(NotificationManager.class);
     manager.createNotificationChannel(
         new NotificationChannel(
@@ -109,68 +121,155 @@ public final class VoiceRecordingService extends Service {
             .put("name", name == null ? "My voice" : name)
             .put("label", label == null ? "Custom" : label)
             .toString());
-    recorder = new MediaRecorder();
-    recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-    recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-    recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-    recorder.setAudioSamplingRate(44100);
-    recorder.setAudioEncodingBitRate(128000);
-    recorder.setOutputFile(profiles.audio(profileId).getPath());
-    recorder.setMaxDuration(60000);
-    recorder.setOnInfoListener(
-        (r, what, extra) -> {
-          if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) finish(false);
-        });
-    recorder.setOnErrorListener(
-        (r, what, extra) -> {
-          status = "Microphone interrupted (" + what + ")";
-          finish(true);
-        });
-    recorder.prepare();
-    recorder.start();
+    int buffer =
+        Math.max(
+            4800,
+            AudioRecord.getMinBufferSize(
+                24000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT));
+    recorder =
+        new AudioRecord(
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            24000,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            buffer);
+    if (recorder.getState() != AudioRecord.STATE_INITIALIZED)
+      throw new IOException("Microphone does not support 24 kHz PCM recording.");
+    boolean ns = false, aec = false;
+    try {
+      if (NoiseSuppressor.isAvailable()) {
+        noise = NoiseSuppressor.create(recorder.getAudioSessionId());
+        if (noise != null) ns = noise.setEnabled(true) == AudioEffect.SUCCESS && noise.getEnabled();
+      }
+    } catch (RuntimeException ignored) {
+      /* Hardware effect is optional. */
+    }
+    try {
+      if (AcousticEchoCanceler.isAvailable()) {
+        echo = AcousticEchoCanceler.create(recorder.getAudioSessionId());
+        if (echo != null) aec = echo.setEnabled(true) == AudioEffect.SUCCESS && echo.getEnabled();
+      }
+    } catch (RuntimeException ignored) {
+      /* Hardware effect is optional. */
+    }
+    effects =
+        "Noise suppression: "
+            + (ns ? "enabled" : "unavailable")
+            + " · Echo cancellation: "
+            + (aec ? "enabled" : "unavailable");
+    raw = new File(profiles.root(), profileId + "-capture.wav");
+    stopping = false;
+    discard = false;
+    finishing = false;
+    recorder.startRecording();
     clock.start(SystemClock.elapsedRealtime());
     elapsedMs = 0;
     active = true;
-    status = "Recording · microphone active";
+    status = "Recording · " + effects;
+    capture = new Thread(this::capturePcm, "voice-reference-capture");
+    capture.start();
     handler.post(tick);
   }
 
+  private void capturePcm() {
+    try (RandomAccessFile output = new RandomAccessFile(raw, "rw")) {
+      output.setLength(0);
+      PcmWave.header(output, 0, 24000);
+      output.seek(44);
+      byte[] buffer = new byte[2400];
+      long count = 0;
+      while (!stopping && count < 24000 * 2 * 60L) {
+        int n = recorder.read(buffer, 0, buffer.length, AudioRecord.READ_BLOCKING);
+        if (n < 0) {
+          if (!stopping) throw new IOException("Microphone read error " + n);
+          break;
+        }
+        if (n == 0 || discard || stopping) continue;
+        n = (int) Math.min(n & ~1, 24000 * 2 * 60L - count);
+        output.seek(44 + count);
+        output.write(buffer, 0, n);
+        count += n;
+        // A recoverable WAV even if the OS interrupts this service.
+        PcmWave.header(output, count, 24000);
+      }
+      output.getFD().sync();
+      if (!stopping) handler.post(() -> finish(false));
+    } catch (Exception e) {
+      status = "Microphone interrupted: " + e.getMessage();
+      if (!stopping) handler.post(() -> finish(true));
+    }
+  }
+
   private void finish(boolean interrupted) {
-    handler.removeCallbacks(tick);
+    if (finishing) return;
     if (recorder == null) {
+      active = false;
+      handler.removeCallbacks(tick);
       stopForeground(STOP_FOREGROUND_REMOVE);
       stopSelf();
       return;
     }
+    final String failure = interrupted ? status : "";
+    finishing = true;
+    handler.removeCallbacks(tick);
+    stopping = true;
     clock.stop(SystemClock.elapsedRealtime());
     elapsedMs = clock.elapsed(SystemClock.elapsedRealtime());
-    try {
-      recorder.stop();
-      profiles.save(
-          profileId,
-          name == null ? "My voice" : name,
-          label == null ? "Custom" : label,
-          "",
-          interrupted);
-      status =
-          interrupted
-              ? "Interrupted recording saved; check duration and playback."
-              : "Reference saved · cloning not installed";
-      new File(profiles.root(), "pending-recording.json").delete();
-    } catch (Exception e) {
-      status = "Incomplete recording retained: " + e.getMessage();
-    } finally {
-      recorder.release();
-      recorder = null;
-      active = false;
-      stopForeground(STOP_FOREGROUND_REMOVE);
-      stopSelf();
-    }
+    status = "Saving and cleaning reference…";
+    new Thread(
+            () -> {
+              try {
+                if (recorder != null) {
+                  try {
+                    recorder.stop();
+                  } catch (RuntimeException ignored) {
+                  }
+                }
+                if (capture != null) capture.join(5000);
+                if (capture != null && capture.isAlive())
+                  throw new IOException("Microphone did not stop. Capture retained for recovery.");
+                if (raw != null && raw.length() > 44) {
+                  RecordingCleanup.Result cleaned =
+                      RecordingCleanup.file(raw, profiles.wave(profileId));
+                  profiles.save(
+                      profileId,
+                      name == null ? "My voice" : name,
+                      label == null ? "Custom" : label,
+                      "80 Hz high-pass · silence trimmed · " + effects + ". Original capture kept.",
+                      interrupted);
+                  new File(profiles.root(), "pending-recording.json").delete();
+                  status =
+                      "Reference saved · "
+                          + String.format(
+                              java.util.Locale.US,
+                              "%02d:%02d",
+                              cleaned.samples.length / 24000 / 60,
+                              cleaned.samples.length / 24000 % 60)
+                          + " · Audio cleaned · cloning not installed";
+                } else
+                  status = failure.isEmpty() ? "No audio captured. Try recording again." : failure;
+              } catch (Exception e) {
+                status = "Capture kept for recovery: " + e.getMessage();
+              } finally {
+                if (noise != null) noise.release();
+                if (echo != null) echo.release();
+                if (recorder != null) recorder.release();
+                recorder = null;
+                active = false;
+                handler.post(
+                    () -> {
+                      stopForeground(STOP_FOREGROUND_REMOVE);
+                      stopSelf();
+                    });
+              }
+            },
+            "voice-reference-save")
+        .start();
   }
 
   @Override
   public void onDestroy() {
-    if (recorder != null) finish(true);
+    if (recorder != null && !finishing) finish(true);
     if (handler != null) handler.removeCallbacks(tick);
     super.onDestroy();
   }

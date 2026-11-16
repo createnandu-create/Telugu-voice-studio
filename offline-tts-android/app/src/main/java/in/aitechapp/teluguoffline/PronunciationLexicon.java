@@ -53,7 +53,9 @@ public final class PronunciationLexicon {
       m.appendTail(out);
       text = out.toString();
     }
-    if (readDigits) {
+    boolean math = SpeechMarkup.math(text);
+    text = SpeechMarkup.clean(text);
+    if (readDigits || math) {
       StringBuilder out = new StringBuilder();
       text.codePoints()
           .forEach(

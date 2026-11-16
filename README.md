@@ -17,6 +17,12 @@ An actively developed offline Telugu YouTube voice narrator prototype. The testi
 
 **If the APK link returns 404, the release has not been published yet; check Actions. Do not treat a source ZIP as an installable APK.** The debug APK is for testing, not Google Play Store distribution.
 
+## Version 0.7 articulation and compact controls
+
+Four offline voices now share editable rule-based delivery controls, +13% gated question endings and 180 ms comma buffers. Indic Tiny adds an optional CV-duration guard; female softening is optional. Speech-only bracket/LaTeX cleanup keeps the original script intact. **These controls do not prove corrected pronunciation, neural emotions or cloning.** [Audit and 14 real host-generated comparison WAVs](docs/evaluation/delivery-v07).
+
+Compact 64 dp voice cards, fixed Back/Continue controls, a waveform mini player and one-tap **WAV / MP3 → Downloads** replace the oversized save flow on Android 10+. Completed audio names its actual voice. New PCM references support hardware noise effects when available, high-pass filtering, silence trim and original-capture retention. Existing models and personal files remain intact.
+
 ## Version 0.6 pronunciation and saving update
 
 **Piper start-token repair:** restore the missing blank after BOS without changing learned weights or your script. Existing models migrate locally, with a rollback copy; no re-download. Tap **Generate again** to avoid old audio. **Check నమస్కారం pronunciation** generates three word positions with your selected voice. [Reproducible evidence and listening limitations](docs/evaluation/pronunciation-v06).
@@ -59,4 +65,4 @@ The requested roadmap is **real Telugu human-like neural expressiveness, topic-a
 - [Android source and build instructions](offline-tts-android/README.md)
 - [GPL application license, voice attribution and corresponding native source](offline-tts-android/NOTICE.md)
 
-Piper applies speed and pauses; it does not synthesize the displayed emotion notes or clone voices. The APK is ARM64, approximately 30 MB; each model downloads separately. No paid inference or cloud API is required. The app is still a test build, with no proven human-naturalness score.
+Piper/Indic Tiny use fixed pretrained speakers. Optional rule-based DSP is separate from neural expressive synthesis and voice cloning. The APK is ARM64 (roughly 74 MB with both isolated runtimes); voice weights download separately. No paid inference or cloud API is required. The app is still a test build, with no proven human-naturalness score.

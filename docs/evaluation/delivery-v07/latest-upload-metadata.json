@@ -1,0 +1,34 @@
+[
+  {
+    "file": "2-Telugu-narration-1794364300888.wav",
+    "channels": 2,
+    "sample_rate": 44100,
+    "frames": 1810553,
+    "seconds": 41.05562358276644,
+    "sha256": "bd1141663e2947375d505819f340148152bee8a4b5c1d0e660ab858458cfb783"
+  },
+  {
+    "file": "1-Telugu-narration-1794361867477.wav",
+    "channels": 2,
+    "sample_rate": 44100,
+    "frames": 2173133,
+    "seconds": 49.27739229024943,
+    "sha256": "10a441b6ee09acf51ea0b5ff8edb5de0e74594103244af01fbf4b218d34cb5f7"
+  },
+  {
+    "file": "3-Telugu-narration-1794364203848.wav",
+    "channels": 1,
+    "sample_rate": 24000,
+    "frames": 1137152,
+    "seconds": 47.38133333333333,
+    "sha256": "0a5c24720c65c7491a615e73fe8e7e7c64e6a6a4a45b459357911b7908c4f368"
+  },
+  {
+    "file": "4-Telugu-narration-1794364098950.wav",
+    "channels": 1,
+    "sample_rate": 24000,
+    "frames": 1265152,
+    "seconds": 52.714666666666666,
+    "sha256": "71d1bca851cccd1080efc1fc4ff31424814e9b9182ff1b7a8a9716ff67a29946"
+  }
+]

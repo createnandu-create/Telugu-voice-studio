@@ -34,7 +34,7 @@ public final class WarmthEq {
     }
   }
 
-  private static final class Biquad {
+  static final class Biquad {
     private final double b0, b1, b2, a1, a2;
     private double x1, x2, y1, y2;
 

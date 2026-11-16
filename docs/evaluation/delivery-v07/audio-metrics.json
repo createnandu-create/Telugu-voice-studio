@@ -1,0 +1,142 @@
+[
+  {
+    "file": "padmavathi-benchmark.wav",
+    "rate": 22050,
+    "channels": 1,
+    "seconds": 22.66421768707483,
+    "peak": 0.626251220703125,
+    "clipped_samples": 0,
+    "sha256": "fbc6788f153b51fbe1e42a10710a12bda36ce772ab3ba9f2b7b62f8c037349d6",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "padmavathi-youtube-before-dsp.wav",
+    "rate": 22050,
+    "channels": 1,
+    "seconds": 16.22208616780045,
+    "peak": 0.616546630859375,
+    "clipped_samples": 0,
+    "sha256": "973006bdbe058faa86cf83b9ee99515092a054ed8ef3517b6b1bb69071f1ba4f",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "padmavathi-youtube-directed.wav",
+    "rate": 22050,
+    "channels": 1,
+    "seconds": 16.22208616780045,
+    "peak": 0.73974609375,
+    "clipped_samples": 0,
+    "sha256": "0309f58d3586259af09acdeacba358322b6324339f5b4604e00824af14cd9d22",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "tiny-female-baseline.wav",
+    "rate": 24000,
+    "channels": 1,
+    "seconds": 24.81,
+    "peak": 0.487091064453125,
+    "clipped_samples": 0,
+    "sha256": "962deee0e57a0d91dff19d8a0f05540c9b61ea6c54cf407fa5f4cf962381d211",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "tiny-female-duration-guard.wav",
+    "rate": 24000,
+    "channels": 1,
+    "seconds": 25.855333333333334,
+    "peak": 0.571258544921875,
+    "clipped_samples": 0,
+    "sha256": "ebe9b0f8adbda94dd1ad7e0bb6949804988b0a35230c481dda1c84bec625f9cb",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "tiny-female-youtube-before-dsp.wav",
+    "rate": 24000,
+    "channels": 1,
+    "seconds": 18.17866666666667,
+    "peak": 0.65313720703125,
+    "clipped_samples": 0,
+    "sha256": "6a4cb8ebaecdd365cc295f8077038d5723c10a4ccbb15876dde745680af854a9",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "tiny-female-youtube-directed.wav",
+    "rate": 24000,
+    "channels": 1,
+    "seconds": 18.17866666666667,
+    "peak": 0.653106689453125,
+    "clipped_samples": 0,
+    "sha256": "207b8f8206e382cb1a67f0d2338814378387a2d4010b8c1550e5d0c2f6799874",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "tiny-male-baseline.wav",
+    "rate": 24000,
+    "channels": 1,
+    "seconds": 21.52466666666667,
+    "peak": 0.4144287109375,
+    "clipped_samples": 0,
+    "sha256": "0a15ec962da80f7e5598d573486cffbafa9c0bf4f7f80577f22c50f7e68b3d60",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "tiny-male-duration-guard.wav",
+    "rate": 24000,
+    "channels": 1,
+    "seconds": 22.527333333333335,
+    "peak": 0.450164794921875,
+    "clipped_samples": 0,
+    "sha256": "16c44cbca922c3535b2e62f7d313209af2b268efce195c97c70d71a07cbc3ee9",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "tiny-male-youtube-before-dsp.wav",
+    "rate": 24000,
+    "channels": 1,
+    "seconds": 14.744,
+    "peak": 0.5986328125,
+    "clipped_samples": 0,
+    "sha256": "c3190c7b6b6040b230e5f9648e0ac25679577bb5d55b795a1fcd8248c6b36f35",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "tiny-male-youtube-directed.wav",
+    "rate": 24000,
+    "channels": 1,
+    "seconds": 14.744,
+    "peak": 0.576568603515625,
+    "clipped_samples": 0,
+    "sha256": "a0b215421042d597eeef2a26ca6b91f4365bc2e3e5604bbc9294c03c8b9b9ebe",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "venkatesh-benchmark.wav",
+    "rate": 22050,
+    "channels": 1,
+    "seconds": 18.991473922902493,
+    "peak": 0.54302978515625,
+    "clipped_samples": 0,
+    "sha256": "fc96635fbc490ff15650cc986e3d07a5bf6e31bd1c41527f55c55de282cff6eb",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "venkatesh-youtube-before-dsp.wav",
+    "rate": 22050,
+    "channels": 1,
+    "seconds": 13.401315192743764,
+    "peak": 0.489715576171875,
+    "clipped_samples": 0,
+    "sha256": "9dd9d5e944eccc0345d89e66cbb5b4b31a0616b6b0f0a4b016415de76246e714",
+    "execution": "Linux x86_64 host; not phone"
+  },
+  {
+    "file": "venkatesh-youtube-directed.wav",
+    "rate": 22050,
+    "channels": 1,
+    "seconds": 13.401315192743764,
+    "peak": 0.49871826171875,
+    "clipped_samples": 0,
+    "sha256": "0c6879997ca778f4fc04857b647a226d5e644ff498d2603433e6cb16ff7906bd",
+    "execution": "Linux x86_64 host; not phone"
+  }
+]

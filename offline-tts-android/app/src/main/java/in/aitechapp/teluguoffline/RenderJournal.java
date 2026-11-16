@@ -22,7 +22,8 @@ public final class RenderJournal {
       String speechIdentity)
       throws IOException {
     StringBuilder identity =
-        new StringBuilder(voice.tiny() ? "tiny-java-v1-ort1.31/" : "sherpa-1.12.26/pcm-v1/")
+        new StringBuilder(
+                voice.tiny() ? "tiny-java-v2-duration-ort1.31/" : "sherpa-1.12.26/pcm-v1/")
             .append(voice.installedSha);
     if (!speechIdentity.isEmpty()) identity.append("/speech-v2/").append(speechIdentity);
     for (NarrationDirector.Segment s : plan)
@@ -33,6 +34,10 @@ public final class RenderJournal {
           .append(s.text)
           .append('|')
           .append(s.rate)
+          .append("|")
+          .append(s.pitch)
+          .append("|")
+          .append(s.emotion)
           .append('|')
           .append(s.pauseAfterMs);
     directory = new File(parent, FileIntegrity.sha256(identity.toString()));

@@ -1,0 +1,4 @@
+female ({నమస్కారం}) => నమస్కారం identical PCM 32512 frames
+female $\frac{1}{2}$ => ఒకటి బై రెండు identical PCM 50176 frames
+male ({నమస్కారం}) => నమస్కారం identical PCM 17408 frames
+male $\frac{1}{2}$ => ఒకటి బై రెండు identical PCM 24576 frames

@@ -24,7 +24,7 @@ public final class PcmWave {
     return v;
   }
 
-  private static void header(RandomAccessFile f, long bytes, int rate) throws IOException {
+  static void header(RandomAccessFile f, long bytes, int rate) throws IOException {
     if (bytes < 0 || bytes > 0xffffffffL - 36)
       throw new IOException("WAV exceeds 4 GB. Split the script.");
     f.seek(0);

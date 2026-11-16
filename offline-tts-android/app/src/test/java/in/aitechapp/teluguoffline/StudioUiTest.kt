@@ -37,13 +37,39 @@ class StudioUiTest {
                 vm.step = 3
                 vm.latest = master
             }
-            compose.onNodeWithText("Audio options").performScrollTo().performClick()
+            compose.onNodeWithTag("studio-list").performScrollToNode(hasText("Audio options"))
+            compose.onNodeWithText("Audio options").performClick()
+            compose
+                .onNodeWithTag("studio-list")
+                .performScrollToNode(hasText("Original · no sound processing"))
             compose
                 .onNodeWithText("Original · no sound processing")
                 .performScrollTo()
+                .assertIsDisplayed()
                 .performClick()
+            compose.runOnIdle {
+                org.junit.Assert.assertEquals(
+                    raw,
+                    androidx.lifecycle
+                        .ViewModelProvider(compose.activity)[StudioViewModel::class.java]
+                        .latest,
+                )
+            }
+            compose
+                .onNodeWithTag("studio-list")
+                .performScrollToNode(hasText("Original engine audio selected"))
             compose.onNodeWithText("Original engine audio selected").assertExists()
-            compose.onNodeWithText("Processed · balanced volume").performScrollTo().performClick()
+            compose
+                .onNodeWithTag("studio-list")
+                .performScrollToNode(hasText("Processed · balanced volume"))
+            compose
+                .onNodeWithText("Processed · balanced volume")
+                .performScrollTo()
+                .assertIsDisplayed()
+                .performClick()
+            compose
+                .onNodeWithTag("studio-list")
+                .performScrollToNode(hasText("Processed audio selected"))
             compose.onNodeWithText("Processed audio selected", substring = true).assertExists()
             org.junit.Assert.assertEquals(hash, FileIntegrity.sha256(raw))
         } finally {
@@ -68,38 +94,39 @@ class StudioUiTest {
                 vm.latest = file
                 vm.step = 3
             }
-            compose.onNodeWithText("Save audio").performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText("Play / Pause").assertIsDisplayed()
-            capture("07-narrow-save")
-            compose.onNodeWithText("Save audio").performClick()
-            compose.onNodeWithText("Save WAV · full quality").assertIsDisplayed()
-            compose.onNodeWithText("Save MP3 · 320 kbps").assertIsDisplayed()
-            capture("08-save-formats")
-            compose.onNodeWithText("Cancel").performClick()
+            compose
+                .onNodeWithContentDescription("Download WAV")
+                .performScrollTo()
+                .assertIsDisplayed()
+            compose.onNodeWithContentDescription("Download MP3").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Play / Pause").assertIsDisplayed()
+            capture("07-narrow-inline-player")
             compose.runOnIdle {
                 val vm =
                     androidx.lifecycle
                         .ViewModelProvider(compose.activity)[StudioViewModel::class.java]
+                vm.inlineExport = true
                 vm.exportBusy = true
                 vm.exportProgress = .42f
-                vm.exportMessage = "Creating MP3 on your phone…"
+                vm.exportMessage = "Encoding MP3…"
             }
-            compose.onNodeWithText("42%").assertIsDisplayed()
-            compose.onNodeWithText("Cancel save").assertIsDisplayed()
-            capture("09-save-progress")
+            compose.onNodeWithText("Cancel download").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("42% · Encoding MP3…").assertIsDisplayed()
+            capture("08-inline-progress")
             compose.runOnIdle {
                 val vm =
                     androidx.lifecycle
                         .ViewModelProvider(compose.activity)[StudioViewModel::class.java]
                 vm.exportBusy = false
-                vm.exportedName = "My tutorial.mp3"
-                vm.exportedUri = android.net.Uri.parse("content://test/audio")
+                vm.savedFormats = setOf(file.path + ":" + file.lastModified() + ":MP3")
+                vm.exportMessage = "Completed · Downloads / Telugu Voice Studio"
             }
-            compose.onNodeWithText("My tutorial.mp3").assertIsDisplayed()
-            compose.onNodeWithText("Open").assertIsDisplayed()
-            compose.onNodeWithText("Share").assertIsDisplayed()
+            compose
+                .onNodeWithContentDescription("MP3 Downloaded")
+                .performScrollTo()
+                .assertIsDisplayed()
             compose.onNodeWithText("Got it").assertDoesNotExist()
-            capture("10-saved-file")
+            capture("09-inline-completed")
         } finally {
             StudioJobService.result = null
         }
@@ -110,7 +137,9 @@ class StudioUiTest {
         val folder = File("build/reports/studio-screenshots").apply { mkdirs() }
         compose.runOnIdle {
             val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog()
-            val view = if(dialog?.isShowing == true) dialog.window!!.decorView else compose.activity.window.decorView
+            val view =
+                if (dialog?.isShowing == true) dialog.window!!.decorView
+                else compose.activity.window.decorView
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
             view.draw(Canvas(bitmap))
             File(folder, "$name.png").outputStream().use {
@@ -127,7 +156,7 @@ class StudioUiTest {
         capture("01-studio")
         compose.onNodeWithText("Continue to voices →").performScrollTo().performClick()
         capture("02-narrators")
-        compose.onNodeWithTag("studio-list").performScrollToNode(hasText("Continue to direction →"))
+        compose.onNodeWithText("Continue to direction →").assertIsDisplayed()
         compose.onNodeWithText("Continue to direction →").performClick()
         capture("03-direction")
         compose.runOnIdle {
@@ -136,14 +165,8 @@ class StudioUiTest {
                 .step = 3
         }
         compose.onNodeWithText("Generate narration", substring = false).assertIsDisplayed()
-        compose
-            .onNodeWithText("Play / Pause", substring = false)
-            .assertIsDisplayed()
-            .assertIsNotEnabled()
-        compose
-            .onNodeWithText("Save audio", substring = false)
-            .assertIsDisplayed()
-            .assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Download WAV").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Play / Pause").assertDoesNotExist()
         capture("04-audio")
         compose.onNodeWithContentDescription("Voices tab").performClick()
         capture("05-voices")

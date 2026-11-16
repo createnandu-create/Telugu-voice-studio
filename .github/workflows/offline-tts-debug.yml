@@ -88,7 +88,7 @@ jobs:
           mkdir -p dist
           cp offline-tts-android/app/build/outputs/apk/debug/app-debug.apk dist/TeluguVoiceStudio-debug.apk
           git archive --format=zip --output=dist/TeluguVoiceStudio-source.zip HEAD
-          python3 -m zipfile -c dist/TeluguVoiceStudio-pronunciation-AB.zip docs/evaluation/pronunciation-v04 docs/evaluation/dsp-v05 docs/evaluation/pronunciation-v06
+          python3 -m zipfile -c dist/TeluguVoiceStudio-pronunciation-AB.zip docs/evaluation/pronunciation-v04 docs/evaluation/dsp-v05 docs/evaluation/pronunciation-v06 docs/evaluation/delivery-v07
           cp docs/evaluation/pronunciation-v06/Namaskaram-Piper-*.wav dist/
           (cd dist && sha256sum TeluguVoiceStudio-debug.apk TeluguVoiceStudio-source.zip TeluguVoiceStudio-pronunciation-AB.zip Namaskaram-Piper-Male.wav Namaskaram-Piper-Female.wav > SHA256SUMS.txt)
           test -s dist/TeluguVoiceStudio-debug.apk
@@ -112,13 +112,13 @@ jobs:
           Native ARM64 Android test build from commit $GITHUB_SHA.
           Build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
 
-          Version 0.6 repairs a confirmed Piper input-contract mismatch: sherpa 1.12.26 omitted the blank immediately after BOS. Pinned ONNX input adapters restore that token without changing learned weights or the user's script. Existing models migrate locally without downloading; a rollback copy is retained. Generate again to avoid old cached audio. The repaired graphs exactly matched original Piper graphs receiving the correct IDs in deterministic host tests. This does not prove all pronunciation complaints are solved.
+          Version 0.7 adds optional Indic Tiny syllable duration guards, editable rule-based YouTuber delivery, gated +13% question endings, 180 ms comma buffers and optional female EQ. Speech-only bracket/LaTeX cleanup preserves original scripts. No invented phoneme IDs, corrected-pronunciation guarantee, neural emotion or cloning claim is made.
 
-          Indic Tiny Telugu is now a second, experimental Java/ARM64 engine: character encoder, flow decoder and Vocos, with one verified 91 MB pack shared by male/female. Actual Java host audio was generated; Nothing Phone inference, native pronunciation and performance remain unverified. Models are under Settings → Offline models → Telugu Narration. No semantic LLM, emotional clone or 90% naturalness claim is made.
+          Compact 64 dp voice cards and fixed horizontal Back/Continue controls. The inline waveform player saves WAV/MP3 directly to Downloads on Android 10+, with progress, cancel and downloaded checks. Audio displays its actual voice identity. New PCM recording supports hardware noise suppression/AEC when available, 80 Hz high-pass filtering and endpoint trimming; original captures and existing AAC profiles are preserved. A recorded reference is not an active voice clone.
 
-          Check నమస్కారం pronunciation generates three contexts using the selected installed voice without replacing your script. Save audio offers WAV or genuine offline 320 kbps MP3, visible progress/cancel, saved filename and Open/Share. Model verification shows an active state and a timestamped result. Save remains visible at 360 dp. Previous recording, model-resume and original-audio features are retained.
+          Four-voice comparison audio is in TeluguVoiceStudio-pronunciation-AB.zip → delivery-v07. Fourteen real host-generated WAVs, metrics, phoneme audit and limitations are included. These are public pretrained voices, not personal recordings. Four of eight fixture question tails passed the conservative pitch gate; unvoiced/unstable tails stay unchanged. Nothing Phone listening, long-form thermal/RAM validation and genuine cloning remain outstanding.
 
-          Public pretrained-model pronunciation samples are included, including two direct నమస్కారం WAVs. They are not personal recordings or cloned voices. Read docs/evaluation/pronunciation-v06 for reproducible tests, runtime isolation, licensing and outstanding phone/listening checks.
+          Read docs/evaluation/delivery-v07. Existing verified models are reused; Generate again for the new controls. Fully offline after one-time model downloads; no paid API or hosted inference added.
 
           The source ZIP includes application source, licenses and upstream corresponding-source archives. This is a publicly debug-signed test APK, not a production release. All files below belong to this commit; SHA256SUMS.txt can be checked after download.
           EOF
@@ -127,7 +127,7 @@ jobs:
             gh release edit "$TAG" --notes-file /tmp/release-notes.md
           else
             gh release create "$TAG" dist/* --target "$GITHUB_SHA" --prerelease \
-              --title "Telugu Voice Studio 0.6 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
+              --title "Telugu Voice Studio 0.7 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
           fi
           if gh release view debug-latest >/dev/null 2>&1; then
             gh release upload debug-latest dist/* --clobber

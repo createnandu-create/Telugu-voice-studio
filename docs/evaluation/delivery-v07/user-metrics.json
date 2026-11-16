@@ -1,0 +1,53 @@
+[
+  {
+    "file": "4-Telugu-narration-1794361428663.wav",
+    "sha256": "c036a875c1d9b43fe7a9f7bfcb4df1961ff91298fbaf663efc584202d4c40c7b",
+    "seconds": 7.974897959183673,
+    "rate": 44100,
+    "channels": 2,
+    "peak": 0.881011962890625,
+    "band_energy_fractions": {
+      "100-300Hz": 0.626111466576269,
+      "300-1000Hz": 0.30136821817444115,
+      "1000-3000Hz": 0.06476100800374039,
+      "3000-5000Hz": 0.005038599737282134,
+      "5000-10000Hz": 0.00087837075213583
+    },
+    "user_identity": "Not confirmed",
+    "note": "Whole-recording spectral measurements do not transcribe phonemes or measure naturalness."
+  },
+  {
+    "file": "1-Telugu-narration-1794361867477.wav",
+    "sha256": "10a441b6ee09acf51ea0b5ff8edb5de0e74594103244af01fbf4b218d34cb5f7",
+    "seconds": 49.27739229024943,
+    "rate": 44100,
+    "channels": 2,
+    "peak": 0.881011962890625,
+    "band_energy_fractions": {
+      "100-300Hz": 0.6288897440921808,
+      "300-1000Hz": 0.29963996129615583,
+      "1000-3000Hz": 0.0621212948078323,
+      "3000-5000Hz": 0.0054019905180118484,
+      "5000-10000Hz": 0.0011063445460193426
+    },
+    "user_identity": "Padmavathi per user",
+    "note": "Whole-recording spectral measurements do not transcribe phonemes or measure naturalness."
+  },
+  {
+    "file": "2-Telugu-narration-1794361928077.wav",
+    "sha256": "bc3da6b633dd35bb57cc448644fc1f09c4aa0c1999f07874db5c000549164a7d",
+    "seconds": 47.69920634920635,
+    "rate": 44100,
+    "channels": 2,
+    "peak": 0.881011962890625,
+    "band_energy_fractions": {
+      "100-300Hz": 0.6183511687568799,
+      "300-1000Hz": 0.31429530593764454,
+      "1000-3000Hz": 0.05754976808755373,
+      "3000-5000Hz": 0.005646877780159371,
+      "5000-10000Hz": 0.0011591741131813142
+    },
+    "user_identity": "Not confirmed",
+    "note": "Whole-recording spectral measurements do not transcribe phonemes or measure naturalness."
+  }
+]

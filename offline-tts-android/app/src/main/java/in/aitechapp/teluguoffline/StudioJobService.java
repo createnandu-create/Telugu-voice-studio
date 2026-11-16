@@ -123,9 +123,24 @@ public final class StudioJobService extends Service {
     if (!voice.tiny()) store.prepareAssets(cancelled);
     check();
     SpeechSettings speech = SpeechSettings.load(this);
-    StringBuilder spokenIdentity = new StringBuilder();
+    List<NarrationDirector.Segment> renderSegments =
+        DeliveryControls.expand(plan.segments, speech.commaBuffer, speech.carefulDiction);
+    if (speech.youtuber) renderSegments = DeliveryControls.accents(renderSegments);
+    renderSegments = speech.audible(renderSegments);
+    boolean soft = speech.femaleSoftening && voice.gender.equals("Female");
+    StringBuilder spokenIdentity =
+        new StringBuilder("delivery-v3-markup-question13-tiny-cv65/")
+            .append(speech.youtuber)
+            .append(speech.durationGuard)
+            .append(speech.questionLift)
+            .append('/')
+            .append(soft)
+            .append('/')
+            .append(speech.commaBuffer)
+            .append('/')
+            .append(speech.carefulDiction);
     org.json.JSONArray inputAudit = new org.json.JSONArray();
-    for (NarrationDirector.Segment segment : plan.segments) {
+    for (NarrationDirector.Segment segment : renderSegments) {
       String spoken = speech.spoken(segment.text);
       if (voice.tiny()) TinyVoice.tokens(spoken);
       spokenIdentity.append(spoken.length()).append(':').append(spoken);
@@ -135,12 +150,25 @@ public final class StudioJobService extends Service {
         new RenderJournal(
             new File(getFilesDir(), "renders"),
             voice,
-            plan.segments,
+            renderSegments,
             FileIntegrity.sha256(spokenIdentity.toString()));
     FileIntegrity.write(new File(journal.directory, "speech-inputs.json"), inputAudit.toString(2));
     FileIntegrity.write(new File(journal.directory, "plan.json"), plan.json());
+    JSONObject identity =
+        new JSONObject()
+            .put("voice", voice.id)
+            .put("voice_name", voice.name)
+            .put("engine", voice.tiny() ? "Indic Tiny / Vocos" : "Piper / sherpa-onnx")
+            .put("model_sha", voice.installedSha)
+            .put("question_lift", speech.questionLift)
+            .put("youtuber_controls", speech.youtuber)
+            .put("tiny_duration_guard", speech.durationGuard)
+            .put("female_softening", soft)
+            .put("comma_buffer_ms", speech.commaBuffer ? 180 : 0)
+            .put("careful_diction", speech.carefulDiction);
+    FileIntegrity.write(new File(journal.directory, "render-identity.json"), identity.toString(2));
     long need = 0;
-    for (NarrationDirector.Segment s : plan.segments) need += s.text.length() * 7000L + 100000;
+    for (NarrationDirector.Segment s : renderSegments) need += s.text.length() * 7000L + 100000;
     if (getFilesDir().getUsableSpace() < need + 30_000_000)
       throw new IOException(
           "Not enough storage for chunks and WAV. Free approximately "
@@ -154,10 +182,10 @@ public final class StudioJobService extends Service {
     List<File> chunks = new ArrayList<>();
     int reused = 0;
     try {
-      for (int i = 0; i < plan.segments.size(); i++) {
+      for (int i = 0; i < renderSegments.size(); i++) {
         check();
-        NarrationDirector.Segment s = plan.segments.get(i);
-        status = "Rendering " + (i + 1) + " / " + plan.segments.size() + " · " + voice.name;
+        NarrationDirector.Segment s = renderSegments.get(i);
+        status = "Rendering " + (i + 1) + " / " + renderSegments.size() + " · " + voice.name;
         if (!journal.reusable(i)) {
           if (voice.tiny()) {
             if (tiny == null) tiny = new TinyVoice(new TinyModelStore(store.root).root, cancelled);
@@ -167,7 +195,8 @@ public final class StudioJobService extends Service {
                     voice.gender.equals("Male"),
                     s.rate,
                     s.text.hashCode(),
-                    false);
+                    false,
+                    speech.durationGuard);
             check();
             PcmWave.write(journal.chunk(i), samples, 24000);
           } else {
@@ -223,7 +252,7 @@ public final class StudioJobService extends Service {
     check();
     status = "Joining audio…";
     File output = new File(journal.directory, "narration.wav");
-    PcmWave.mergeRaw(chunks, plan.segments, output, cancelled);
+    PcmWave.mergeRaw(chunks, renderSegments, output, cancelled);
     double seconds = PcmWave.validate(output) / (PcmWave.sampleRate(output) * 2.0);
     // Publish the untouched raw render first. A failed/cancelled master never loses the narration.
     result = output;
@@ -239,7 +268,7 @@ public final class StudioJobService extends Service {
       status = "Creating optional native-rate EQ comparison…";
       PcmWave.merge(
           chunks,
-          plan.segments,
+          renderSegments,
           new File(journal.directory, "narration-native-warmth.wav"),
           cancelled,
           true);
@@ -247,13 +276,57 @@ public final class StudioJobService extends Service {
     if (voice.tiny()) {
       status = "Preparing native-rate playback audio…";
       output = new File(journal.directory, "narration-playback.wav");
-      PcmWave.merge(chunks, plan.segments, output, cancelled);
+      PcmWave.merge(chunks, renderSegments, output, cancelled);
       seconds = PcmWave.validate(output) / (24000.0 * 2);
     }
     if (mastered != null) {
       output = master;
       seconds = mastered.frames / (double) StudioMastering.RATE;
     }
+    int lifted = 0, requested = 0;
+    org.json.JSONArray controlAudit = new org.json.JSONArray();
+    if (speech.questionLift || soft || speech.youtuber) {
+      List<File> controlled = new ArrayList<>();
+      File controlledDir = new File(journal.directory, "delivery");
+      controlledDir.mkdirs();
+      for (int i = 0; i < chunks.size(); i++) {
+        check();
+        boolean question =
+            speech.questionLift && DeliveryControls.question(renderSegments.get(i).text);
+        if (question) requested++;
+        if (question || soft || speech.youtuber) {
+          status = "Applying offline voice controls · " + (i + 1) + " / " + chunks.size();
+          File f = new File(controlledDir, i + ".wav");
+          VoiceDeliveryDsp.Result applied =
+              VoiceDeliveryDsp.process(
+                  chunks.get(i),
+                  f,
+                  question,
+                  soft,
+                  speech.youtuber ? renderSegments.get(i) : null,
+                  cancelled);
+          if (question && applied.lifted) lifted++;
+          controlAudit.put(
+              new JSONObject()
+                  .put("segment", i)
+                  .put("question_requested", question)
+                  .put("pitch_applied", applied.lifted)
+                  .put("emotion", renderSegments.get(i).emotion.name())
+                  .put("voiced_start_frame", applied.start)
+                  .put("voiced_end_frame", applied.end));
+          controlled.add(f);
+        } else controlled.add(chunks.get(i));
+      }
+      if (requested > 0 || soft || speech.youtuber) {
+        File adjusted = new File(journal.directory, "narration-directed.wav");
+        PcmWave.merge(controlled, renderSegments, adjusted, cancelled);
+        output = adjusted;
+        seconds = PcmWave.validate(output) / (PcmWave.sampleRate(output) * 2.0);
+      }
+    }
+    FileIntegrity.write(
+        new File(journal.directory, "delivery-audit.json"), controlAudit.toString(2));
+    FileIntegrity.write(new File(journal.directory, "preferred-output.txt"), output.getName());
     long elapsed = SystemClock.elapsedRealtime() - start;
     JSONObject stats =
         new JSONObject()
@@ -277,6 +350,11 @@ public final class StudioJobService extends Service {
             .put("max_thermal_status", maxThermal)
             .put(
                 "max_battery_temperature_c", Float.isNaN(maxBattery) ? JSONObject.NULL : maxBattery)
+            .put("question_tails_requested", requested)
+            .put("question_tails_lifted", lifted)
+            .put("female_softening", soft)
+            .put("comma_buffer_ms", speech.commaBuffer ? 180 : 0)
+            .put("output_file", output.getName())
             .put("quality_score", JSONObject.NULL);
     FileIntegrity.write(new File(journal.directory, "metrics.json"), stats.toString(2));
     FileIntegrity.write(new File(getFilesDir(), "last-result.txt"), output.getPath());

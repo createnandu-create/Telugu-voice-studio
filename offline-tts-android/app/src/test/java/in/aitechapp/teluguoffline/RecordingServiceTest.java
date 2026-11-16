@@ -14,9 +14,23 @@ import org.robolectric.annotation.Config;
 @Config(sdk = 34)
 public class RecordingServiceTest {
   @Test
-  public void repeatedPauseResumeCommandsDoNotEndRecording() {
+  public void deniedMicrophoneDoesNotStartOrLoseActionableError() {
     VoiceRecordingService service =
         Robolectric.buildService(VoiceRecordingService.class).create().get();
+    org.robolectric.Shadows.shadowOf(service.getApplication())
+        .denyPermissions(android.Manifest.permission.RECORD_AUDIO);
+    service.onStartCommand(new Intent().setAction("start"), 0, 1);
+    assertFalse(VoiceRecordingService.active);
+    assertTrue(VoiceRecordingService.status.contains("Allow microphone access"));
+    service.onDestroy();
+  }
+
+  @Test
+  public void repeatedPauseResumeCommandsDoNotEndRecording() throws Exception {
+    VoiceRecordingService service =
+        Robolectric.buildService(VoiceRecordingService.class).create().get();
+    org.robolectric.Shadows.shadowOf((android.app.Application) service.getApplication())
+        .grantPermissions(android.Manifest.permission.RECORD_AUDIO);
     try {
       service.onStartCommand(
           new Intent()
@@ -37,7 +51,9 @@ public class RecordingServiceTest {
     } finally {
       service.onDestroy();
     }
-    assertFalse(VoiceRecordingService.active);
+    long deadline = System.nanoTime() + 6_000_000_000L;
+    while (VoiceRecordingService.active && System.nanoTime() < deadline) Thread.sleep(10);
+    assertFalse(VoiceRecordingService.status, VoiceRecordingService.active);
     assertEquals(RecordingClock.State.STOPPED, VoiceRecordingService.clock.state());
   }
 }

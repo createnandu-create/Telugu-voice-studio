@@ -21,7 +21,13 @@ public final class VoiceProfiles {
 
   public File audio(String id) {
     validateId(id);
-    return new File(root, id + ".m4a");
+    File wav = wave(id);
+    return wav.isFile() ? wav : new File(root, id + ".m4a");
+  }
+
+  public File wave(String id) {
+    validateId(id);
+    return new File(root, id + ".wav");
   }
 
   private void validateId(String id) {
@@ -108,12 +114,15 @@ public final class VoiceProfiles {
   public synchronized void delete(String id) throws Exception {
     get(id);
     java.nio.file.Files.deleteIfExists(audio(id).toPath());
+    java.nio.file.Files.deleteIfExists(new File(root, id + "-capture.wav").toPath());
     java.nio.file.Files.deleteIfExists(new File(root, id + ".json").toPath());
     if (selected().equals(id)) new File(root, "selected.txt").delete();
   }
 
   public static long duration(File f) throws Exception {
     if (!f.isFile() || f.length() < 100) throw new IOException("Recording file is empty.");
+    if (f.getName().endsWith(".wav"))
+      return PcmWave.validate(f) * 1000 / (PcmWave.sampleRate(f) * 2L);
     MediaMetadataRetriever r = new MediaMetadataRetriever();
     try {
       r.setDataSource(f.getPath());
@@ -134,6 +143,10 @@ public final class VoiceProfiles {
     }
   }
 
+  static String trimName(String name) {
+    return name.replaceAll("(?i)([ .·]+trimmed)+$", "").trim();
+  }
+
   /**
    * Lossless packet trim into a new profile, original kept. AAC boundaries are rounded to frames.
    */
@@ -142,6 +155,24 @@ public final class VoiceProfiles {
     if (fromMs < 0 || toMs <= fromMs || toMs > length)
       throw new IllegalArgumentException("Choose a valid start/end within the recording.");
     String next = UUID.randomUUID().toString();
+    if (audio(id).getName().endsWith(".wav")) {
+      int rate = PcmWave.sampleRate(audio(id));
+      int count = (int) ((toMs - fromMs) * rate / 1000);
+      float[] x = new float[count];
+      try (RandomAccessFile input = new RandomAccessFile(audio(id), "r")) {
+        input.seek(44 + fromMs * rate / 1000 * 2);
+        for (int i = 0; i < count; i++) x[i] = Short.reverseBytes(input.readShort()) / 32768f;
+      }
+      PcmWave.write(wave(next), x, rate);
+      JSONObject p = get(id);
+      save(
+          next,
+          trimName(p.getString("name")),
+          p.optString("label", "Custom"),
+          "Trimmed copy; original retained",
+          false);
+      return next;
+    }
     MediaExtractor e = new MediaExtractor();
     MediaMuxer mux = null;
     try {
@@ -186,7 +217,7 @@ public final class VoiceProfiles {
       JSONObject p = get(id);
       save(
           next,
-          p.getString("name") + " · trimmed",
+          trimName(p.getString("name")),
           p.optString("label", "Custom"),
           "Trimmed copy; original retained",
           false);

@@ -40,16 +40,19 @@ public final class TinyVoice implements AutoCloseable {
     if (cancel.get()) throw new CancellationException();
   }
 
+  static String normalized(String original) {
+    return PronunciationLexicon.apply(original, Collections.emptyMap(), false)
+        .replaceAll("\\s+", " ")
+        .trim()
+        .replace('’', '\'')
+        .replace('‘', '\'')
+        .replace('“', '"')
+        .replace('”', '"')
+        .replace('…', '.');
+  }
+
   public static long[] tokens(String original) {
-    String text =
-        PronunciationLexicon.apply(original, Collections.emptyMap(), false)
-            .replaceAll("\\s+", " ")
-            .trim()
-            .replace('’', '\'')
-            .replace('‘', '\'')
-            .replace('“', '"')
-            .replace('”', '"')
-            .replace('…', '.');
+    String text = normalized(original);
     if (text.isEmpty() || text.length() > 400)
       throw new IllegalArgumentException(
           "Indic Tiny needs sentences of 1–400 characters. Split long sentences with punctuation.");
@@ -85,6 +88,12 @@ public final class TinyVoice implements AutoCloseable {
   /** Noise seed is deterministic per segment for stable resume. Zero-noise mode is test-only. */
   public float[] generate(String text, boolean male, float speed, long seed, boolean zeroNoise)
       throws Exception {
+    return generate(text, male, speed, seed, zeroNoise, true);
+  }
+
+  public float[] generate(
+      String text, boolean male, float speed, long seed, boolean zeroNoise, boolean guard)
+      throws Exception {
     check();
     if (!Float.isFinite(speed) || speed < .5f || speed > 2f)
       throw new IllegalArgumentException("Speaking speed must be between 0.5 and 2.");
@@ -116,9 +125,12 @@ public final class TinyVoice implements AutoCloseable {
     check();
     float scale = (male ? 1.0022f : 0.9942f) / speed;
     float[] cumulative = new float[n];
+    float[] duration = new float[n];
+    for (int i = 0; i < n; i++) duration[i] = (float) Math.ceil((float) Math.exp(logw[i])) * scale;
+    if (guard) duration = TinyDurationGuard.apply(normalized(text), duration);
     double total = 0;
     for (int i = 0; i < n; i++) {
-      total += (float) Math.ceil((float) Math.exp(logw[i])) * scale;
+      total += duration[i];
       cumulative[i] = (float) total;
     }
     int length = Math.max(1, (int) (float) total), padded = (length + 1) / 2 * 2;

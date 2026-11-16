@@ -146,7 +146,7 @@ class StudioActivity : ComponentActivity() {
                 type = mime
                 putExtra(
                     android.content.Intent.EXTRA_TITLE,
-                    "Telugu-narration-${System.currentTimeMillis()}.${file.extension}",
+                    "${model.exportLabel}-${System.currentTimeMillis()}.${file.extension}",
                 )
             }
         )
@@ -263,6 +263,12 @@ fun StudioApp(
             if (vm.notice == message) vm.notice = ""
         }
     }
+    LaunchedEffect(vm.playbackRequest) {
+        vm.playbackRequest?.let {
+            vm.playbackRequest = null
+            play(it)
+        }
+    }
     LaunchedEffect(vm.exportReady) {
         vm.exportReady?.let {
             vm.exportReady = null
@@ -270,6 +276,7 @@ fun StudioApp(
         }
     }
     val requestExport: (File) -> Unit = {
+        vm.inlineExport = false
         vm.exportSource = it
         vm.exportMessage = ""
     }
@@ -512,305 +519,341 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
             "Shape the delivery",
             "Preview & export",
         )
-    LazyColumn(
-        Modifier.fillMaxSize().testTag("studio-list"),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item {
-            PageTitle(titles[vm.step], "Telugu narration, made locally.")
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("Script", "Voice", "Direction", "Audio").forEachIndexed { i, s ->
-                    Column(Modifier.weight(1f)) {
-                        Box(
-                            Modifier.fillMaxWidth()
-                                .height(3.dp)
-                                .background(
-                                    if (i <= vm.step) Sun else Line,
-                                    RoundedCornerShape(4.dp),
-                                )
-                        )
-                        Text(
-                            s,
-                            fontSize = 10.sp,
-                            color = if (i == vm.step) Ink else Muted,
-                            modifier = Modifier.padding(top = 7.dp),
-                        )
-                    }
-                }
-            }
-        }
-        if (vm.step == 0) {
+    Column(Modifier.fillMaxSize()) {
+        LazyColumn(
+            Modifier.weight(1f).testTag("studio-list"),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             item {
-                Panel {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SectionLabel("SCRIPT EDITOR")
-                        Spacer(Modifier.weight(1f))
-                        StatusPill("TELUGU", Paper)
-                    }
-                    OutlinedTextField(
-                        value = vm.script,
-                        onValueChange = vm::edit,
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 6,
-                        maxLines = 15,
-                        placeholder = { Text("Paste your full Telugu script…") },
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Line),
-                    )
-                    Text(
-                        "${vm.script.length} characters · original words stay unchanged",
-                        fontSize = 11.sp,
-                        color = Muted,
-                    )
-                }
-            }
-            item {
-                Primary("Continue to voices →", !vm.recording) {
-                    if (vm.script.isBlank()) vm.notice = "Paste a script first."
-                    else {
-                        vm.persist()
-                        vm.step = 1
-                    }
-                }
-            }
-            item {
-                TextButton(
-                    onClick = {
-                        vm.navigate("Settings")
-                        vm.page = "dictionary"
-                    }
-                ) {
-                    Icon(Icons.Outlined.Translate, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Pronunciation dictionary")
-                }
-            }
-        }
-        if (vm.step == 1) {
-            item { SectionLabel("NEURAL NARRATORS") }
-            items(vm.models, key = { it.index }) { m ->
-                VoiceChoice(
-                    m,
-                    vm.voice == m.index,
-                    { vm.choose(m.index) },
-                    {
-                        vm.navigate("Settings")
-                        vm.page = "models"
-                    },
-                )
-            }
-            item {
-                Text(
-                    "Piper and Indic Tiny are fixed-speaker voices. Indic Tiny is an experimental alternative for Telugu pronunciation; it does not clone your voice.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Muted,
-                )
-            }
-            item {
-                OutlinedButton(
-                    onClick = vm::pronunciationCheck,
-                    enabled = !vm.busy && vm.models.any { it.index == vm.voice && it.ready },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Check నమస్కారం pronunciation")
-                }
-                Text(
-                    "Creates new audio with this voice: one word, greeting, then the word inside a sentence. Your script stays unchanged.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Muted,
-                )
-            }
-            item {
-                Primary("Continue to direction →", !vm.busy) { vm.direct() }
-                TextButton(onClick = { vm.step = 0 }) { Text("← Back to script") }
-            }
-        }
-        if (vm.step == 2) {
-            item {
-                Panel {
-                    SectionLabel("DELIVERY NOTES")
-                    Text(
-                        "${vm.plan.size} segments · ${ModelCatalog.VOICES[vm.voice].name}",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        "Review the suggested pace and pauses. Emotion labels are notes; Piper cannot synthesize them.",
-                        color = Muted,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Secondary("Neutral delivery", Icons.Outlined.Tune, !vm.busy, vm::neutral)
-                }
-            }
-            items(vm.plan.indices.toList(), key = { it }) { index ->
-                val segment = vm.plan[index]
-                Panel {
-                    Row {
-                        Text(
-                            "${index+1}".padStart(2, '0'),
-                            fontSize = 12.sp,
-                            color = Vermilion,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(segment.label(), fontSize = 11.sp, color = Muted)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                PageTitle(titles[vm.step], "Telugu narration, made locally.")
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Script", "Voice", "Direction", "Audio").forEachIndexed { i, s ->
                         Column(Modifier.weight(1f)) {
-                            Text(segment.text)
+                            Box(
+                                Modifier.fillMaxWidth()
+                                    .height(3.dp)
+                                    .background(
+                                        if (i <= vm.step) Sun else Line,
+                                        RoundedCornerShape(4.dp),
+                                    )
+                            )
                             Text(
-                                "${segment.rate}×  ·  ${segment.pauseAfterMs} ms pause",
-                                fontSize = 12.sp,
-                                color = Muted,
+                                s,
+                                fontSize = 10.sp,
+                                color = if (i == vm.step) Ink else Muted,
+                                modifier = Modifier.padding(top = 7.dp),
                             )
                         }
-                        TextButton(onClick = { editing = index }, enabled = !vm.busy) {
-                            Text("Edit")
+                    }
+                }
+            }
+            if (vm.step == 0) {
+                item {
+                    Panel {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SectionLabel("SCRIPT EDITOR")
+                            Spacer(Modifier.weight(1f))
+                            StatusPill("TELUGU", Paper)
+                        }
+                        OutlinedTextField(
+                            value = vm.script,
+                            onValueChange = vm::edit,
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 6,
+                            maxLines = 15,
+                            placeholder = { Text("Paste your full Telugu script…") },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Line),
+                        )
+                        Text(
+                            "${vm.script.length} characters · original words stay unchanged",
+                            fontSize = 11.sp,
+                            color = Muted,
+                        )
+                    }
+                }
+                item {
+                    Primary("Continue to voices →", !vm.recording) {
+                        if (vm.script.isBlank()) vm.notice = "Paste a script first."
+                        else {
+                            vm.persist()
+                            vm.step = 1
+                        }
+                    }
+                }
+                item {
+                    TextButton(
+                        onClick = {
+                            vm.navigate("Settings")
+                            vm.page = "dictionary"
+                        }
+                    ) {
+                        Icon(Icons.Outlined.Translate, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Pronunciation dictionary")
+                    }
+                }
+            }
+            if (vm.step == 1) {
+                item { SectionLabel("NEURAL NARRATORS") }
+                items(vm.models, key = { it.index }) { m ->
+                    VoiceChoice(
+                        m,
+                        vm.voice == m.index,
+                        { vm.choose(m.index) },
+                        { vm.previewVoice(m.index) },
+                        {
+                            vm.navigate("Settings")
+                            vm.page = "models"
+                        },
+                    )
+                }
+                item {
+                    var showTests by rememberSaveable { mutableStateOf(false) }
+                    TextButton(onClick = { showTests = !showTests }) {
+                        Text(if (showTests) "Hide pronunciation tests" else "Pronunciation tests")
+                    }
+                    if (showTests)
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = vm::pronunciationCheck,
+                                enabled =
+                                    !vm.busy && vm.models.any { it.index == vm.voice && it.ready },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("నమస్కారం", fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = vm::sibilantCheck,
+                                enabled =
+                                    !vm.busy && vm.models.any { it.index == vm.voice && it.ready },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("శ · ష · స / ?", fontSize = 12.sp)
+                            }
+                        }
+                }
+            }
+            if (vm.step == 2) {
+                item { DeliveryPanel(vm) }
+                item {
+                    Panel {
+                        SectionLabel("DELIVERY NOTES")
+                        Text(
+                            "${vm.plan.size} segments · ${ModelCatalog.VOICES[vm.voice].name}",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            "Review the suggested pace and pauses. Editable rule-based pacing and DSP pitch; not neural emotion or voice cloning.",
+                            color = Muted,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Row {
+                            TextButton(onClick = vm::neutral, enabled = !vm.busy) {
+                                Text("Neutral delivery")
+                            }
+                            TextButton(onClick = vm::autoDirection, enabled = !vm.busy) {
+                                Text("Auto direction")
+                            }
+                        }
+                    }
+                }
+                items(vm.plan.indices.toList(), key = { it }) { index ->
+                    val segment = vm.plan[index]
+                    Panel {
+                        Row {
+                            Text(
+                                "${index+1}".padStart(2, '0'),
+                                fontSize = 12.sp,
+                                color = Vermilion,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(segment.label(), fontSize = 11.sp, color = Muted)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(segment.text)
+                                Text(
+                                    "${segment.rate}×  ·  ${segment.pauseAfterMs} ms pause",
+                                    fontSize = 12.sp,
+                                    color = Muted,
+                                )
+                            }
+                            TextButton(onClick = { editing = index }, enabled = !vm.busy) {
+                                Text("Edit")
+                            }
                         }
                     }
                 }
             }
-            item {
-                Primary("Generate / Resume", !vm.busy && !vm.recording, action = vm::generate)
-                TextButton(onClick = { vm.step = 1 }) { Text("← Change narrator") }
-            }
-        }
-        if (vm.step == 3) {
-            item {
-                Panel {
+            if (vm.step == 3) {
+                item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            if (vm.busy) Icons.Outlined.GraphicEq else Icons.Outlined.Headphones,
+                            if (vm.busy) Icons.Outlined.GraphicEq else Icons.Outlined.CheckCircle,
                             null,
-                            tint = Vermilion,
+                            tint = if (vm.busy) Vermilion else Color(0xFF44623F),
+                            modifier = Modifier.size(18.dp),
                         )
-                        Spacer(Modifier.width(10.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text(
-                            if (vm.busy) "Creating on your phone" else "Your audio workspace",
-                            style = MaterialTheme.typography.titleMedium,
+                            if (vm.status.startsWith("Ready ·")) "Completed · saved in Projects"
+                            else vm.status,
+                            color = Muted,
+                            fontSize = 12.sp,
+                            modifier =
+                                Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
                         )
+                        if (vm.busy) TextButton(onClick = vm::cancel) { Text("Pause") }
                     }
-                    Text(
-                        if (vm.status.startsWith("Ready ·"))
-                            "Narration complete. Listen, then save your audio."
-                        else vm.status,
-                        color = Muted,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    )
-                    if (vm.busy) {
+                    if (vm.busy)
                         LinearProgressIndicator(
                             Modifier.fillMaxWidth(),
                             color = Vermilion,
                             trackColor = Line,
                         )
-                        Secondary("Pause task", Icons.Outlined.Pause, action = vm::cancel)
-                    }
-                    Text(
-                        "Completed segments are kept if you pause or leave the app.",
-                        fontSize = 12.sp,
-                        color = Muted,
-                    )
                 }
-            }
-            item {
-                vm.latest?.let { file ->
-                    Panel {
-                        StatusPill("LATEST COMPLETED AUDIO", Color(0xFFE9F0E4))
-                        Text("Ready for your video", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "${String.format(Locale.US,"%.1f",file.length()/1_000_000.0)} MB · lossless WAV",
-                            color = Muted,
-                        )
-                        var details by rememberSaveable { mutableStateOf(false) }
-                        TextButton(onClick = { details = !details }) {
-                            Text(if (details) "Hide audio options" else "Audio options")
-                        }
-                        if (details) {
+                item {
+                    vm.latest?.let { file ->
+                        Panel {
+                            AudioIdentityPanel(file, ModelCatalog.VOICES[vm.voice].id)
                             Text(
-                                "Choose the version to play and save. Processing changes tone and loudness, not pronunciation.",
+                                "${String.format(Locale.US,"%.1f",file.length()/1_000_000.0)} MB · lossless WAV",
                                 color = Muted,
                             )
-                            if (File(file.parentFile, "narration-studio.wav").isFile) {
-                                FilterChip(
-                                    selected = file.name == "narration-studio.wav",
-                                    onClick = { vm.selectOutput(true) },
-                                    label = { Text("Processed · balanced volume") },
-                                )
+                            var details by rememberSaveable { mutableStateOf(false) }
+                            TextButton(onClick = { details = !details }) {
+                                Text(if (details) "Hide audio options" else "Audio options")
                             }
-                            if (File(file.parentFile, "narration-playback.wav").isFile)
-                                FilterChip(
-                                    selected = file.name == "narration-playback.wav",
-                                    onClick = vm::selectPlayback,
-                                    label = { Text("Original · playback padding") },
+                            if (details) {
+                                Text(
+                                    "Choose the version to play and save. Processing changes tone and loudness, not pronunciation.",
+                                    color = Muted,
                                 )
-                            FilterChip(
-                                selected = file.name == "narration.wav",
-                                onClick = { vm.selectOutput(false) },
-                                label = { Text("Original · no sound processing") },
-                            )
-                            if (File(file.parentFile, "narration-native-warmth.wav").isFile)
-                                TextButton(onClick = vm::selectNativeWarmth) {
-                                    Text("Optional warmth comparison")
+                                if (File(file.parentFile, "narration-studio.wav").isFile) {
+                                    FilterChip(
+                                        selected = file.name == "narration-studio.wav",
+                                        onClick = { vm.selectOutput(true) },
+                                        label = { Text("Processed · balanced volume") },
+                                    )
                                 }
+                                if (File(file.parentFile, "narration-directed.wav").isFile)
+                                    FilterChip(
+                                        selected = file.name == "narration-directed.wav",
+                                        onClick = vm::selectDirected,
+                                        label = { Text("Voice controls · native audio") },
+                                    )
+                                if (File(file.parentFile, "narration-playback.wav").isFile)
+                                    FilterChip(
+                                        selected = file.name == "narration-playback.wav",
+                                        onClick = vm::selectPlayback,
+                                        label = { Text("Original · playback padding") },
+                                    )
+                                FilterChip(
+                                    selected = file.name == "narration.wav",
+                                    onClick = { vm.selectOutput(false) },
+                                    label = { Text("Original · no sound processing") },
+                                )
+                                if (File(file.parentFile, "narration-native-warmth.wav").isFile)
+                                    TextButton(onClick = vm::selectNativeWarmth) {
+                                        Text("Optional warmth comparison")
+                                    }
+                            }
+                            Text(
+                                if (file.name == "narration-directed.wav")
+                                    "Rule-based voice controls selected · no studio EQ stacked"
+                                else if (file.name == "narration-studio.wav")
+                                    "Processed audio selected"
+                                else "Original engine audio selected",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Muted,
+                            )
                         }
-                        Text(
-                            if (file.name == "narration-studio.wav") "Processed audio selected"
-                            else "Original engine audio selected",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Muted,
-                        )
+                    }
+                        ?: Panel {
+                            Text(
+                                "No completed audio yet",
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                "Generate a narration to preview and export it here.",
+                                color = Muted,
+                            )
+                        }
+                }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = vm::generate,
+                            enabled = !vm.busy && !vm.recording,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = Sun,
+                                    contentColor = Ink,
+                                ),
+                        ) {
+                            Text(if (vm.latest == null) "Generate narration" else "Generate again")
+                        }
+                        vm.latest?.let { AudioMiniPlayer(vm, it, play) }
+                        if (vm.inlineExport && vm.exportBusy) {
+                            LinearProgressIndicator(
+                                progress = { vm.exportProgress },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "${(vm.exportProgress*100).toInt()}% · ${vm.exportMessage}",
+                                    Modifier.weight(1f),
+                                    fontSize = 12.sp,
+                                )
+                                TextButton(onClick = vm::cancelExport) { Text("Cancel download") }
+                            }
+                        }
+                        if (vm.inlineExport && vm.exportMessage.startsWith("Download failed"))
+                            TextButton(onClick = { vm.download(vm.downloadFormat == "MP3") }) {
+                                Text("Retry")
+                            }
+                        if (vm.exportMessage.isNotEmpty() && !vm.exportBusy)
+                            Text(
+                                vm.exportMessage,
+                                color = Muted,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            )
                     }
                 }
-                    ?: Panel {
-                        Text("No completed audio yet", style = MaterialTheme.typography.titleMedium)
-                        Text("Generate a narration to preview and export it here.", color = Muted)
-                    }
-            }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = vm::generate,
-                        enabled = !vm.busy && !vm.recording,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        colors =
-                            ButtonDefaults.buttonColors(containerColor = Sun, contentColor = Ink),
-                    ) {
-                        Text(if (vm.latest == null) "Generate narration" else "Generate again")
-                    }
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        OutlinedButton(
-                            onClick = { vm.latest?.let(play) },
-                            enabled = vm.latest != null,
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        ) {
-                            Text("Play / Pause")
-                        }
-                        OutlinedButton(
-                            onClick = { vm.latest?.let(export) },
-                            enabled = vm.latest != null && !vm.exportBusy,
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        ) {
-                            Text("Save audio")
-                        }
-                    }
-                    if (vm.exportMessage.isNotEmpty())
-                        Text(
-                            vm.exportMessage,
-                            color = Muted,
-                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                        )
-                }
-            }
 
-            item { TextButton(onClick = { vm.step = 2 }) { Text("← Review direction") } }
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        TextButton(onClick = { vm.step = 2 }) { Text("← Review direction") }
+                        if (vm.inlineExport && !vm.exportBusy && vm.exportMessage.isNotBlank())
+                            TextButton(onClick = { vm.exportMessage = "" }) { Text("Close") }
+                    }
+                }
+            }
+        }
+        if (vm.step == 1 || vm.step == 2) {
+            Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                StepNavigation(
+                    if (vm.step == 1) "Continue to direction →" else "Generate / Resume",
+                    !vm.busy && !vm.recording,
+                    { vm.step-- },
+                    { if (vm.step == 1) vm.direct() else vm.generate() },
+                )
+            }
         }
     }
     if (editing >= 0 && editing < vm.plan.size) {
         val i = editing
         val segment = vm.plan[i]
+        var emotion by remember(i) { mutableStateOf(segment.emotion) }
+        var pitch by remember(i) { mutableFloatStateOf(segment.pitch) }
+        var moodMenu by remember { mutableStateOf(false) }
         var rate by remember(i) { mutableFloatStateOf(segment.rate) }
         var pause by remember(i) { mutableFloatStateOf(segment.pauseAfterMs.toFloat()) }
         AlertDialog(
@@ -826,17 +869,39 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                     Slider(value = rate, onValueChange = { rate = it }, valueRange = .75f..1.25f)
                     Text("Pause · ${pause.toInt()} ms")
                     Slider(value = pause, onValueChange = { pause = it }, valueRange = 0f..2000f)
-                    Text(
-                        "Emotion note: ${segment.label()} · not synthesized by Piper",
-                        fontSize = 12.sp,
-                        color = Muted,
-                    )
+                    Box {
+                        TextButton(onClick = { moodMenu = true }) {
+                            Text("Delivery: ${emotion.name.replace('_', ' ')} ▾")
+                        }
+                        DropdownMenu(expanded = moodMenu, onDismissRequest = { moodMenu = false }) {
+                            NarrationDirector.Emotion.values().forEach { choice ->
+                                DropdownMenuItem(
+                                    text = { Text(choice.name.replace('_', ' ')) },
+                                    onClick = {
+                                        emotion = choice
+                                        pitch =
+                                            when (choice) {
+                                                NarrationDirector.Emotion.WELCOME -> 1.12f
+                                                NarrationDirector.Emotion.EXCITED,
+                                                NarrationDirector.Emotion.SURPRISE -> 1.20f
+                                                NarrationDirector.Emotion.EMPATHY -> .92f
+                                                NarrationDirector.Emotion.QUESTION -> 1.13f
+                                                else -> 1f
+                                            }
+                                        moodMenu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Text("Pitch · ${String.format(Locale.US, "%.2f", pitch)}×", fontSize = 12.sp)
+                    Slider(value = pitch, onValueChange = { pitch = it }, valueRange = .8f..1.2f)
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        vm.editDirection(i, rate, pause.toInt(), segment.emotion)
+                        vm.editDirection(i, rate, pause.toInt(), emotion, pitch)
                         editing = -1
                     }
                 ) {
@@ -849,46 +914,157 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
 }
 
 @Composable
-private fun VoiceChoice(m: ModelRow, selected: Boolean, choose: () -> Unit, install: () -> Unit) {
+private fun StepNavigation(label: String, enabled: Boolean, back: () -> Unit, next: () -> Unit) {
+    Row(Modifier.fillMaxWidth().height(48.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = back, modifier = Modifier.weight(.4f).fillMaxHeight()) {
+            Text("← Back", maxLines = 1)
+        }
+        Button(
+            onClick = next,
+            enabled = enabled,
+            modifier = Modifier.weight(.6f).fillMaxHeight(),
+            contentPadding = PaddingValues(horizontal = 8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Sun, contentColor = Ink),
+        ) {
+            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun AudioMiniPlayer(vm: StudioViewModel, file: File, play: (File) -> Unit) {
+    var peaks by remember(file.path, file.lastModified()) { mutableStateOf(FloatArray(0)) }
+    LaunchedEffect(file.path, file.lastModified()) {
+        peaks =
+            withContext(Dispatchers.IO) {
+                runCatching { WaveformEnvelope.read(file) }.getOrDefault(FloatArray(0))
+            }
+    }
+    Column {
+        Canvas(
+            Modifier.fillMaxWidth().height(28.dp).semantics {
+                contentDescription = "Audio waveform"
+            }
+        ) {
+            if (peaks.isNotEmpty()) {
+                val width = size.width / peaks.size
+                peaks.forEachIndexed { index, peak ->
+                    val h = (peak * size.height).coerceAtLeast(1f)
+                    drawLine(
+                        Vermilion,
+                        androidx.compose.ui.geometry.Offset(index * width, (size.height - h) / 2),
+                        androidx.compose.ui.geometry.Offset(index * width, (size.height + h) / 2),
+                        strokeWidth = width * .6f,
+                    )
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            IconButton(onClick = { play(file) }) { Icon(Icons.Outlined.PlayArrow, "Play / Pause") }
+            listOf("WAV", "MP3").forEach { format ->
+                val saved = vm.downloaded(format)
+                OutlinedButton(
+                    onClick = { vm.download(format == "MP3") },
+                    enabled = !vm.exportBusy,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                ) {
+                    Icon(
+                        if (saved) Icons.Outlined.Check else Icons.Outlined.Download,
+                        null,
+                        Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        if (saved) "$format ✓" else format,
+                        fontSize = 12.sp,
+                        modifier =
+                            Modifier.semantics {
+                                contentDescription =
+                                    if (saved) "$format Downloaded" else "Download $format"
+                            },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VoiceChoice(
+    m: ModelRow,
+    selected: Boolean,
+    choose: () -> Unit,
+    preview: () -> Unit,
+    install: () -> Unit,
+) {
+    val accent = if (m.gender == "Male") Color(0xFF1976D2) else Color(0xFFE91E63)
+    val haptic = LocalView.current
     Surface(
         Modifier.fillMaxWidth()
-            .selectable(selected = selected, onClick = choose, role = Role.RadioButton),
-        shape = RoundedCornerShape(20.dp),
-        color = if (selected) Color(0xFFFFF5CC) else Color.White,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Sun else Line),
+            .height(64.dp)
+            .selectable(
+                selected = selected,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    choose()
+                },
+                role = Role.RadioButton,
+            ),
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) accent.copy(alpha = .07f) else Color.White,
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) accent else Line),
     ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(46.dp)
-                    .background(
-                        if (m.gender == "Male") Color(0xFFE5EDF0) else Color(0xFFF9E9E2),
-                        CircleShape,
-                    ),
+                Modifier.size(32.dp).background(accent.copy(alpha = .12f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Outlined.RecordVoiceOver,
                     null,
-                    tint = if (m.gender == "Male") Color(0xFF335E70) else Vermilion,
+                    tint = accent,
+                    modifier = Modifier.size(20.dp),
                 )
             }
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
-                Text(m.name, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "${m.gender} · ${if(ModelCatalog.VOICES[m.index].tiny()) "Indic Tiny · experimental" else "Piper Telugu"}",
-                    fontSize = 12.sp,
-                    color = Muted,
+                    m.name,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    if (m.ready) "Ready offline" else "Download needed",
-                    fontSize = 11.sp,
-                    color = if (m.ready) Color(0xFF44623F) else Vermilion,
+                    "${m.gender} · ${if (ModelCatalog.VOICES[m.index].tiny()) "Indic Tiny 24kHz" else "Piper Offline"}",
+                    fontSize = 10.sp,
+                    color = Muted,
+                    maxLines = 1,
                 )
             }
-            if (selected) Icon(Icons.Outlined.CheckCircle, null, tint = Ink)
-            else if (!m.ready)
-                IconButton(onClick = install) { Icon(Icons.Outlined.Download, "Install ${m.name}") }
+            IconButton(
+                onClick = if (m.ready) preview else install,
+                modifier = Modifier.size(48.dp),
+            ) {
+                Box(
+                    Modifier.size(36.dp).background(accent.copy(alpha = .08f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        if (m.ready) Icons.Outlined.PlayArrow else Icons.Outlined.Download,
+                        if (m.ready) "Preview ${m.name}" else "Install ${m.name}",
+                        tint = accent,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+            RadioButton(
+                selected = selected,
+                onClick = null,
+                modifier = Modifier.size(20.dp),
+                colors = RadioButtonDefaults.colors(selectedColor = accent),
+            )
         }
     }
 }
@@ -1687,6 +1863,7 @@ private fun DictionaryScreen(vm: StudioViewModel) {
 
 @Composable
 private fun ExportDialogs(vm: StudioViewModel) {
+    if (vm.inlineExport) return
     val context = LocalContext.current
     if (vm.exportSource != null && !vm.exportBusy) {
         val source = vm.exportSource!!
@@ -1818,6 +1995,63 @@ private fun ExportDialogs(vm: StudioViewModel) {
                 }
             },
             confirmButton = { TextButton(onClick = { vm.exportedUri = null }) { Text("Done") } },
+        )
+    }
+}
+
+@Composable
+private fun AudioIdentityPanel(file: File, selected: String) {
+    var identity by remember(file.parent) { mutableStateOf<AudioIdentity?>(null) }
+    LaunchedEffect(file.parent) {
+        identity = withContext(Dispatchers.IO) { AudioIdentity.read(file) }
+    }
+    identity?.let { info ->
+        Text("Audio voice: ${info.name}", style = MaterialTheme.typography.titleMedium)
+        Text(info.engine, style = MaterialTheme.typography.bodySmall, color = Muted)
+        if (info.id.isNotEmpty() && info.id != selected) {
+            val next = ModelCatalog.VOICES.firstOrNull { it.id == selected }?.name ?: selected
+            Text(
+                "Selected for next render: $next. Generate again to hear that voice.",
+                color = Vermilion,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeliveryPanel(vm: StudioViewModel) {
+    Panel {
+        SectionLabel("OFFLINE DELIVERY CONTROLS")
+        Text("Tune the delivery", style = MaterialTheme.typography.titleMedium)
+        listOf(
+                Triple("youtuber", "YouTuber delivery · rule based", vm.youtuber),
+                Triple("duration", "Indic Tiny · syllable duration guard", vm.durationGuard),
+                Triple("question", "Question endings · +13%", vm.questionLift),
+                Triple("comma", "Comma buffer · 180 ms", vm.commaBuffer),
+                Triple("careful", "Careful pace · complex clauses", vm.carefulDiction),
+                Triple("soft", "Female tone · gentle EQ", vm.femaleSoftening),
+            )
+            .forEach { (key, label, enabled) ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, Modifier.weight(1f))
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = { vm.setDelivery(key, it) },
+                        enabled = !vm.busy,
+                        modifier = Modifier.semantics { contentDescription = label },
+                    )
+                }
+            }
+        Text(
+            "Question rise is rule-based, applied only to a stable voiced ending. Comma buffers are added to the engine’s own pauses. Careful pace slows complex clauses by 8%.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Muted,
+        )
+        Text(
+            "Female EQ is optional: gentle body at 250 Hz and a 4 kHz dip. Compare with Original; softer sound does not guarantee clearer శ / ష / స.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Muted,
         )
     }
 }

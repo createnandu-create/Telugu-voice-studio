@@ -88,23 +88,23 @@ public final class NarrationDirector {
       int pause = 190;
       switch (e) {
         case WELCOME:
-          rate = 0.96f;
-          pitch = 1.04f;
+          rate = 1.08f;
+          pitch = 1.12f;
           pause = 240;
           break;
         case GUIDE:
-          rate = 0.94f;
-          pitch = 1.02f;
+          rate = 1.02f;
+          pitch = 1.0f;
           pause = 260;
           break;
         case EXCITED:
           rate = 1.10f;
-          pitch = 1.15f;
+          pitch = 1.20f;
           pause = 230;
           break;
         case SURPRISE:
           rate = 1.03f;
-          pitch = 1.16f;
+          pitch = 1.20f;
           pause = 330;
           break;
         case SERIOUS:
@@ -113,14 +113,14 @@ public final class NarrationDirector {
           pause = 370;
           break;
         case EMPATHY:
-          rate = 0.86f;
-          pitch = 0.96f;
-          pause = 360;
+          rate = 0.92f;
+          pitch = 0.92f;
+          pause = 320;
           break;
         case QUESTION:
           rate = 0.97f;
-          pitch = 1.06f;
-          pause = 280;
+          pitch = 1.13f;
+          pause = 220;
           break;
         case CALL_TO_ACTION:
           rate = 1.06f;
@@ -167,8 +167,20 @@ public final class NarrationDirector {
         "మోసం",
         "ప్రమాదం",
         "చేయవద్దు")) return Emotion.SERIOUS;
-    if (has(t, "[sad]", "[బాధగా]", "బాధ", "విచారం", "కన్నీరు", "కష్టాలు", "దుఃఖం"))
-      return Emotion.EMPATHY;
+    if (has(
+        t,
+        "[sad]",
+        "[బాధగా]",
+        "బాధ",
+        "విచారం",
+        "కన్నీరు",
+        "కష్టాలు",
+        "దుఃఖం",
+        "సమస్య ఏంటంటే",
+        "పనిచేయకపోతే",
+        "ఇబ్బంది",
+        "దురదృష్టవశాత్తు")) return Emotion.EMPATHY;
+    if (t.trim().endsWith("?") || t.trim().endsWith("కదా!")) return Emotion.QUESTION;
     if (has(
         t,
         "[surprise]",
@@ -180,8 +192,17 @@ public final class NarrationDirector {
         "అసలు నమ్మ",
         "అద్భుతం జరిగింది")) return Emotion.SURPRISE;
     if (has(
-        t, "[happy]", "[ఉత్సాహంగా]", "చాలా అద్భుత", "సూపర్", "అద్భుతమైన", "ఆనందంగా", "అభినందనలు"))
-      return Emotion.EXCITED;
+        t,
+        "[happy]",
+        "[ఉత్సాహంగా]",
+        "చాలా అద్భుత",
+        "సూపర్",
+        "అద్భుతమైన",
+        "అద్భుతంగా",
+        "ఎంత పర్ఫెక్ట్",
+        "చూశారుగా",
+        "ఆనందంగా",
+        "అభినందనలు")) return Emotion.EXCITED;
     if (has(
         t,
         "[guide]",
@@ -201,7 +222,14 @@ public final class NarrationDirector {
         "లైక్ చేయండి",
         "షేర్ చేయండి",
         "ఫాలో అవ్వండి")) return Emotion.CALL_TO_ACTION;
-    if (has(t, "నమస్కారం", "స్వాగతం", "హలో ఫ్రెండ్స్")) return Emotion.WELCOME;
+    if (has(
+        t,
+        "నమస్కారం",
+        "స్వాగతం",
+        "హలో ఫ్రెండ్స్",
+        "హాయ్ ఫ్రెండ్స్",
+        "వెల్కమ్ బ్యాక్",
+        "టుడే టాపిక్")) return Emotion.WELCOME;
     if (t.contains("?") || has(t, "ఎందుకు", "ఏంటి", "ఎలా", "నిజమేనా", "ఏమిటి"))
       return Emotion.QUESTION;
     // Punctuation alone is not evidence of excitement.

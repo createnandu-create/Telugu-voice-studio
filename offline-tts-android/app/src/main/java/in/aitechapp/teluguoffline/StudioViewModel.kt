@@ -7,6 +7,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import java.io.File
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 
 data class ModelRow(
@@ -49,6 +51,11 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var notice by mutableStateOf("")
     var verifying by mutableIntStateOf(-1)
     var verification by mutableStateOf<Map<Int, String>>(emptyMap())
+    var inlineExport by mutableStateOf(false)
+    var savedFormats by mutableStateOf<Set<String>>(emptySet())
+    var downloadFormat by mutableStateOf("")
+    var playbackRequest by mutableStateOf<File?>(null)
+    var exportLabel by mutableStateOf("Telugu-narration")
     var exportSource by mutableStateOf<File?>(null)
     var exportReady by mutableStateOf<File?>(null)
     var exportBusy by mutableStateOf(false)
@@ -68,6 +75,13 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var recordMillis by mutableLongStateOf(0L)
     var recordingStatus by mutableStateOf("Your voice stays on this device")
     var entries by mutableStateOf<Map<String, String>>(emptyMap())
+    private val speechMutex = Mutex()
+    var youtuber by mutableStateOf(true)
+    var durationGuard by mutableStateOf(true)
+    var questionLift by mutableStateOf(true)
+    var commaBuffer by mutableStateOf(true)
+    var femaleSoftening by mutableStateOf(false)
+    var carefulDiction by mutableStateOf(false)
     var readDigits by mutableStateOf(false)
     var warmthEq by mutableStateOf(false)
     var latest by mutableStateOf<File?>(null)
@@ -92,6 +106,12 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     }
             val speech = withContext(Dispatchers.IO) { SpeechSettings.load(app) }
             entries = speech.dictionary.toMap()
+            youtuber = speech.youtuber
+            durationGuard = speech.durationGuard
+            questionLift = speech.questionLift
+            commaBuffer = speech.commaBuffer
+            femaleSoftening = speech.femaleSoftening
+            carefulDiction = speech.carefulDiction
             readDigits = speech.readDigits
             warmthEq = speech.warmthEq
             withContext(Dispatchers.IO) {
@@ -175,12 +195,32 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             ?.let { latest = it }
     }
 
+    fun selectDirected() {
+        File(latest?.parentFile ?: return, "narration-directed.wav")
+            .takeIf { it.isFile }
+            ?.let { latest = it }
+    }
+
     fun selectNativeWarmth() {
         val file = File(latest?.parentFile ?: return, "narration-native-warmth.wav")
         if (file.isFile) latest = file
     }
 
     fun projectAudio(folder: File): File {
+        val preferred =
+            runCatching { FileIntegrity.read(File(folder, "preferred-output.txt")) }.getOrNull()
+        if (
+            preferred in
+                listOf(
+                    "narration-directed.wav",
+                    "narration.wav",
+                    "narration-studio.wav",
+                    "narration-playback.wav",
+                )
+        ) {
+            val file = File(folder, preferred!!)
+            if (file.isFile) return file
+        }
         val master = File(folder, "narration-studio.wav")
         val padded = File(folder, "narration-playback.wav")
         return if (master.isFile) master
@@ -200,11 +240,17 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         savePlan()
     }
 
-    fun editDirection(index: Int, rate: Float, pause: Int, emotion: NarrationDirector.Emotion) {
+    fun editDirection(
+        index: Int,
+        rate: Float,
+        pause: Int,
+        emotion: NarrationDirector.Emotion,
+        pitch: Float,
+    ) {
         try {
             val next = plan.toMutableList()
             val old = next[index]
-            next[index] = NarrationDirector.Segment(old.text, emotion, rate, old.pitch, pause)
+            next[index] = NarrationDirector.Segment(old.text, emotion, rate, pitch, pause)
             DirectionContract.validate(script, next)
             plan = next
             savePlan()
@@ -214,10 +260,23 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun neutral() {
+        youtuber = false
+        questionLift = false
+        carefulDiction = false
+        saveSpeech()
         plan =
             plan.map {
                 NarrationDirector.Segment(it.text, NarrationDirector.Emotion.NEUTRAL, 1f, 1f, 220)
             }
+        savePlan()
+    }
+
+    fun autoDirection() {
+        plan = NarrationDirector.planExact(script, NarrationDirector.Style.AUTO)
+        plannedScript = script
+        youtuber = true
+        questionLift = true
+        saveSpeech()
         savePlan()
     }
 
@@ -249,7 +308,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         direct()
         if (plan.isEmpty()) return
         val snapshot = PlanStorage(script, voice, plan).json()
-        val desiredWarmth = warmthEq
+        val desiredSpeech = currentSpeech()
         work {
             withContext(Dispatchers.IO) {
                 FileIntegrity.write(
@@ -258,9 +317,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 // Persist the A/B choice before the render service loads SpeechSettings.
                 val app = getApplication<Application>()
-                val settings = SpeechSettings.load(app)
-                settings.warmthEq = desiredWarmth
-                settings.save(app)
+                speechMutex.withLock { desiredSpeech.save(app) }
             }
             startJob("render")
             step = 3
@@ -326,16 +383,24 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun pronunciationCheck() {
+    fun sibilantCheck() =
+        renderCheck(
+            "శ, ష, స. శ్రోతలకు నమస్కారం. కర్కశ శబ్దం. అభ్యాసకుడికి స్పష్టంగా చెప్పండి. అంత సులభమా? కాదు కదా! సాధ్యమౌతుందా?"
+        )
+
+    fun pronunciationCheck() = renderCheck("నమస్కారం. నమస్కారం ఫ్రెండ్స్! మీ అందరికీ నమస్కారం.")
+
+    private fun renderCheck(text: String) {
         if (busy || recording || verifying >= 0 || loading) return
-        val text = "నమస్కారం. నమస్కారం ఫ్రెండ్స్! మీ అందరికీ నమస్కారం."
         val segments =
             NarrationDirector.planExact(text, NarrationDirector.Style.AUTO).map {
                 NarrationDirector.Segment(it.text, NarrationDirector.Emotion.NEUTRAL, 1f, 1f, 500)
             }
         val snapshot = PlanStorage(text, voice, segments).json()
+        val controls = currentSpeech()
         work {
             withContext(Dispatchers.IO) {
+                speechMutex.withLock { controls.save(getApplication()) }
                 FileIntegrity.write(
                     File(getApplication<Application>().filesDir, "render-plan.json"),
                     snapshot,
@@ -343,6 +408,89 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             }
             startJob("render")
             step = 3
+        }
+    }
+
+    fun download(mp3: Boolean) {
+        val source = latest ?: return
+        if (exportBusy) return
+        if (android.os.Build.VERSION.SDK_INT < 29) {
+            inlineExport = false
+            exportSource = source
+            prepareExport(mp3)
+            return
+        }
+        inlineExport = true
+        exportSource = null
+        exportedUri = null
+        exportBusy = true
+        exportProgress = 0f
+        exportCancel.set(false)
+        downloadFormat = if (mp3) "MP3" else "WAV"
+        exportMessage = if (mp3) "Encoding MP3…" else "Saving WAV…"
+        work {
+            try {
+                val name =
+                    withContext(Dispatchers.IO) { AudioIdentity.read(source).exportLabel() } +
+                        "-${System.currentTimeMillis()}." +
+                        if (mp3) "mp3" else "wav"
+                withContext(Dispatchers.IO) {
+                    val file =
+                        if (!mp3) source
+                        else {
+                            val converted =
+                                File(getApplication<Application>().cacheDir, "download.mp3")
+                            Mp3Export.encode(source, converted, exportCancel) { done, total ->
+                                viewModelScope.launch {
+                                    exportProgress = .7f * done.toFloat() / total
+                                }
+                            }
+                            converted
+                        }
+                    AudioDownloads.save(getApplication(), file, name, exportCancel) { done, total ->
+                        viewModelScope.launch {
+                            exportProgress =
+                                (if (mp3) .7f else 0f) +
+                                    (if (mp3) .3f else 1f) * done.toFloat() / total
+                        }
+                    }
+                }
+                savedFormats =
+                    savedFormats +
+                        (source.path + ":" + source.lastModified() + ":" + downloadFormat)
+                exportedName = name
+                exportMessage = "Completed · Downloads / Telugu Voice Studio"
+            } catch (e: Exception) {
+                exportMessage =
+                    if (exportCancel.get()) "Download cancelled"
+                    else "Download failed: ${e.message}"
+            } finally {
+                exportBusy = false
+            }
+        }
+    }
+
+    fun downloaded(format: String): Boolean =
+        latest?.let { (it.path + ":" + it.lastModified() + ":" + format) in savedFormats } ?: false
+
+    fun previewVoice(index: Int) {
+        if (busy || recording) return
+        choose(index)
+        renderCheck("నమస్కారం. మీ కథను స్పష్టంగా వినిపిద్దాం.")
+        viewModelScope.launch {
+            var started = false
+            repeat(40) {
+                if (StudioJobService.busy) started = true
+                if (!started) delay(250)
+            }
+            if (started) {
+                while (StudioJobService.busy) delay(250)
+                val file = StudioJobService.result
+                if (file != null && StudioJobService.status.startsWith("Ready")) {
+                    val identity = withContext(Dispatchers.IO) { AudioIdentity.read(file) }
+                    if (identity.id == ModelCatalog.VOICES[index].id) playbackRequest = file
+                }
+            }
         }
     }
 
@@ -355,6 +503,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         exportMessage = if (mp3) "Creating MP3 on your phone…" else "Preparing WAV…"
         work {
             try {
+                exportLabel =
+                    withContext(Dispatchers.IO) { AudioIdentity.read(source).exportLabel() }
                 val file =
                     withContext(Dispatchers.IO) {
                         if (!mp3) source
@@ -564,18 +714,35 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         saveSpeech()
     }
 
+    fun setDelivery(kind: String, enabled: Boolean) {
+        when (kind) {
+            "youtuber" -> youtuber = enabled
+            "duration" -> durationGuard = enabled
+            "question" -> questionLift = enabled
+            "comma" -> commaBuffer = enabled
+            "soft" -> femaleSoftening = enabled
+            "careful" -> carefulDiction = enabled
+        }
+        saveSpeech()
+    }
+
+    private fun currentSpeech(): SpeechSettings =
+        SpeechSettings().also { s ->
+            s.dictionary.putAll(entries)
+            s.readDigits = readDigits
+            s.warmthEq = warmthEq
+            s.youtuber = youtuber
+            s.durationGuard = durationGuard
+            s.questionLift = questionLift
+            s.commaBuffer = commaBuffer
+            s.femaleSoftening = femaleSoftening
+            s.carefulDiction = carefulDiction
+        }
+
     private fun saveSpeech() {
-        val copy = entries.toMap()
-        val digits = readDigits
-        val warmth = warmthEq
+        val snapshot = currentSpeech()
         work {
-            withContext(Dispatchers.IO) {
-                val s = SpeechSettings()
-                s.dictionary.putAll(copy)
-                s.readDigits = digits
-                s.warmthEq = warmth
-                s.save(getApplication())
-            }
+            withContext(Dispatchers.IO) { speechMutex.withLock { snapshot.save(getApplication()) } }
         }
     }
 
@@ -625,6 +792,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refresh() {
         if (loading) return
+        val selectedAtStart = latest
         loading = true
         work {
             try {
@@ -686,7 +854,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 profiles = loadedProfiles
                 projects = loadedProjects
                 selectedReference = VoiceProfiles(app).selected()
-                latest =
+                val completed =
                     StudioJobService.result?.takeIf { it.isFile }
                         ?: withContext(Dispatchers.IO) {
                             runCatching {
@@ -695,6 +863,11 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                                 }
                                 .getOrNull()
                         }
+                if (
+                    (latest == selectedAtStart || latest?.isFile != true) &&
+                        (latest?.isFile != true || latest?.parent != completed?.parent)
+                )
+                    latest = completed
             } finally {
                 loading = false
             }
@@ -707,6 +880,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         if (!f.isFile) return
         runCatching {
                 val p = JSONObject(FileIntegrity.read(f))
+                val id = p.getString("id")
+                val capture = File(library.root(), "$id-capture.wav")
+                if (capture.isFile && !library.wave(id).isFile)
+                    RecordingCleanup.file(capture, library.wave(id))
                 library.save(
                     p.getString("id"),
                     p.optString("name", "Recovered voice"),

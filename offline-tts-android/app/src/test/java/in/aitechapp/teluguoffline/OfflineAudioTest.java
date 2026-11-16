@@ -10,6 +10,21 @@ import org.junit.Test;
 
 public class OfflineAudioTest {
   @Test
+  public void pastedBracketsAndLatexNeverReachTinyAsUnknownFormattingTokens() {
+    assertArrayEquals(TinyVoice.tokens("నమస్కారం"), TinyVoice.tokens("({[నమస్కారం]})"));
+    assertArrayEquals(TinyVoice.tokens("అంత సులభమా?"), TinyVoice.tokens("\\text{అంత సులభమా?}"));
+    assertArrayEquals(TinyVoice.tokens("నమస్కారం"), TinyVoice.tokens("\\(నమస్కారం\\)"));
+    assertArrayEquals(TinyVoice.tokens("ఒకటి బై రెండు"), TinyVoice.tokens("$\\frac{1}{2}$"));
+    assertArrayEquals(
+        TinyVoice.tokens("ఎక్స్ ఘాతం రెండు ప్లస్ ఒకటి సమానం మూడు"),
+        TinyVoice.tokens("$x^{2}+1=3$"));
+    String original = "({నమస్కారం})";
+    var plan = NarrationDirector.planExact(original, NarrationDirector.Style.AUTO);
+    DirectionContract.validate(original, plan);
+    assertEquals(original, plan.get(0).text);
+  }
+
+  @Test
   public void namaskaramPreservesNaAndNeverSilentlyUsesUnknownToken() {
     long[] namaskaram = {0, 45, 0, 50, 0, 59, 0, 74, 0, 26, 0, 61, 0, 52, 0, 11, 0};
     assertArrayEquals(namaskaram, TinyVoice.tokens("నమస్కారం"));

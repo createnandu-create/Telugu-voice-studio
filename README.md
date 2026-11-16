@@ -9,6 +9,8 @@ An actively developed offline Telugu YouTube voice narrator prototype. The testi
 | File | Direct link | Availability |
 |---|---|---|
 | Android Debug APK | [TeluguVoiceStudio-debug.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-debug.apk) | Created by GitHub Actions **only after a successful build** |
+| **Fresh Install / Side-by-side APK** | [TeluguVoiceStudio-fresh-install.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-fresh-install.apk) | Created only after successful 0.7 CI build; separate package preserves older app/data untouched |
+| Four voice comparison WAVs | [Download audio ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-four-voices.zip) | Locally generated host comparison, not a phone benchmark |
 | Android Source ZIP + project skill | [TeluguVoiceStudio-source.zip](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-source.zip) | Created by successful build |
 | Branch Source ZIP (works without build) | [Download current source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/archive/refs/heads/telugu-voice-testing.zip) | Always reflects the branch |
 | Source in browser | [offline-tts-android/](https://github.com/createnandu-create/Telugu-voice-studio/tree/telugu-voice-testing/offline-tts-android) | Browse files |
@@ -17,7 +19,7 @@ An actively developed offline Telugu YouTube voice narrator prototype. The testi
 
 **If the APK link returns 404, the release has not been published yet; check Actions. Do not treat a source ZIP as an installable APK.** The debug APK is for testing, not Google Play Store distribution.
 
-## Version 0.7 articulation and compact controls
+## Version 0.7.1 articulation and compact controls
 
 Four offline voices now share editable rule-based delivery controls, +13% gated question endings and 180 ms comma buffers. Indic Tiny adds an optional CV-duration guard; female softening is optional. Speech-only bracket/LaTeX cleanup keeps the original script intact. **These controls do not prove corrected pronunciation, neural emotions or cloning.** [Audit and 14 real host-generated comparison WAVs](docs/evaluation/delivery-v07).
 
@@ -65,4 +67,6 @@ The requested roadmap is **real Telugu human-like neural expressiveness, topic-a
 - [Android source and build instructions](offline-tts-android/README.md)
 - [GPL application license, voice attribution and corresponding native source](offline-tts-android/NOTICE.md)
 
-Piper/Indic Tiny use fixed pretrained speakers. Optional rule-based DSP is separate from neural expressive synthesis and voice cloning. The APK is ARM64 (roughly 74 MB with both isolated runtimes); voice weights download separately. No paid inference or cloud API is required. The app is still a test build, with no proven human-naturalness score.
+Piper/Indic Tiny use fixed pretrained speakers. Optional rule-based DSP is separate from neural expressive synthesis and voice cloning. The APK is ARM64 with two isolated runtimes; voice weights download separately. No paid inference or cloud API is required. The app is still a test build, with no proven human-naturalness score.
+
+**Installation troubleshooting:** If Android says “App not installed as package appears to be invalid”, try the **Fresh Install APK** after GitHub Actions publishes version 0.7. It installs alongside the older app with a separate `.fresh` ID; do not uninstall your old app just to test. Old voice recordings/models stay in the old app and are not automatically shared with the new install. This is a compatibility experiment; if both fail, preserve the downloaded APK and capture the exact Android installer error rather than clearing old app data.

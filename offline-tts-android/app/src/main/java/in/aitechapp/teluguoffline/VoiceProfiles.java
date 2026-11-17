@@ -116,6 +116,15 @@ public final class VoiceProfiles {
     java.nio.file.Files.deleteIfExists(audio(id).toPath());
     java.nio.file.Files.deleteIfExists(new File(root, id + "-capture.wav").toPath());
     java.nio.file.Files.deleteIfExists(new File(root, id + ".json").toPath());
+    File enrollmentRoot = new File(root, id + "-enrollments");
+    if (enrollmentRoot.isDirectory())
+      try (java.util.stream.Stream<java.nio.file.Path> paths =
+          java.nio.file.Files.walk(enrollmentRoot.toPath())) {
+        for (java.nio.file.Path path :
+            (Iterable<java.nio.file.Path>)
+                paths.sorted(java.util.Comparator.reverseOrder())::iterator)
+          java.nio.file.Files.deleteIfExists(path);
+      }
     if (selected().equals(id)) new File(root, "selected.txt").delete();
   }
 

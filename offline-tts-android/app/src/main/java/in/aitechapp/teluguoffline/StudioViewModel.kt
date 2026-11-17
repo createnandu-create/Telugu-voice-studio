@@ -67,6 +67,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
 
     var loading by mutableStateOf(false)
     var models by mutableStateOf<List<ModelRow>>(emptyList())
+    var speakerReady by mutableStateOf(false)
+    var referenceStatus by mutableStateOf("")
     var profiles by mutableStateOf<List<ProfileRow>>(emptyList())
     var projects by mutableStateOf<List<ProjectRow>>(emptyList())
     var selectedReference by mutableStateOf("")
@@ -683,6 +685,67 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun speakerAction(action: String, id: String = "") {
+        if (busy || recording || loading || verifying >= 0) return
+        if (action == "verify" || action == "remove") {
+            loading = true
+            notice =
+                if (action == "verify") "Verifying speaker encoder…"
+                else "Removing speaker encoder…"
+            work {
+                try {
+                    notice =
+                        withContext(Dispatchers.IO) {
+                            val store = SpeakerModelStore(getApplication<Application>().filesDir)
+                            if (action == "remove") {
+                                store.remove()
+                                "Speaker encoder removed. Personal recordings and fingerprints kept."
+                            } else if (store.verify()) "Speaker encoder verified · READY OFFLINE"
+                            else
+                                "Speaker encoder missing or damaged. Download repairs only affected files."
+                        }
+                } finally {
+                    loading = false
+                }
+                refresh()
+            }
+            return
+        }
+        busy = true
+        try {
+            getApplication<Application>()
+                .startForegroundService(
+                    Intent(getApplication(), StudioJobService::class.java)
+                        .setAction(action)
+                        .putExtra("profile", id)
+                        .putExtra("consent", action == "speaker-enroll")
+                )
+        } catch (e: Exception) {
+            busy = false
+            notice = e.message ?: "Could not start enrollment"
+        }
+    }
+
+    fun enhanceProfile(id: String, roomTail: Boolean) {
+        if (busy || recording || loading || verifying >= 0) {
+            notice = "Finish the current task first."
+            return
+        }
+        busy = true
+        try {
+            getApplication<Application>()
+                .startForegroundService(
+                    Intent(getApplication(), StudioJobService::class.java)
+                        .setAction("enhance")
+                        .putExtra("profile", id)
+                        .putExtra("roomTail", roomTail)
+                )
+        } catch (e: Exception) {
+            busy = false
+            notice = e.message ?: "Could not start cleanup"
+        }
+    }
+
     fun trimProfile(id: String, start: Long, end: Long) {
         work {
             withContext(Dispatchers.IO) { VoiceProfiles(getApplication()).trim(id, start, end) }
@@ -813,6 +876,17 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                             )
                         }
                     }
+                val loadedSpeaker =
+                    withContext(Dispatchers.IO) { SpeakerModelStore(app.filesDir).ready() }
+                referenceStatus =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                                FileIntegrity.read(
+                                    File(VoiceProfiles(app).root(), "enhancement-state.txt")
+                                )
+                            }
+                            .getOrDefault("")
+                    }
                 val loadedProfiles =
                     withContext(Dispatchers.IO) {
                         VoiceProfiles(app).list().map {
@@ -850,6 +924,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                                 )
                             } ?: emptyList()
                     }
+                speakerReady = loadedSpeaker
                 models = loadedModels
                 profiles = loadedProfiles
                 projects = loadedProjects

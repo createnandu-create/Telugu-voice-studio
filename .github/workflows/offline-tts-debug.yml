@@ -61,6 +61,8 @@ jobs:
       - name: Verify offline bundles and run Java tests
         run: |
           python3 offline-tts-android/scripts/verify-bundle.py
+          python3 offline-tts-android/scripts/test-android-regex.py
+          bash offline-tts-android/scripts/test-restoration.sh
           bash offline-tts-android/scripts/test-java.sh
 
       - name: Build Android 15 debug APK
@@ -105,6 +107,7 @@ jobs:
           cp docs/evaluation/pronunciation-v06/Namaskaram-Piper-*.wav dist/
           cp docs/evaluation/delivery-v07/samples/*-youtube-directed.wav dist/
           python3 -m zipfile -c dist/TeluguVoiceStudio-four-voices.zip docs/evaluation/delivery-v07/samples/*-youtube-directed.wav
+          python3 -m zipfile -c dist/TeluguVoiceStudio-restoration-AB.zip docs/evaluation/restoration-v57
           (cd dist && sha256sum *.apk *.zip *.wav > SHA256SUMS.txt)
           test -s dist/TeluguVoiceStudio-debug.apk
           test -s dist/TeluguVoiceStudio-fresh-install.apk
@@ -128,26 +131,24 @@ jobs:
           Native ARM64 Android test build from commit $GITHUB_SHA.
           Build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
 
-          Version 0.7.1 adds optional Indic Tiny syllable duration guards, editable rule-based YouTuber delivery, gated +13% question endings, 180 ms comma buffers and optional female EQ. Speech-only bracket/LaTeX cleanup preserves original scripts. No invented phoneme IDs, corrected-pronunciation guarantee, neural emotion or cloning claim is made.
+          v57 fixes the Android ICU SpeechMarkup regex crash shown in the user's screenshots. Failed jobs show actionable errors.
 
-          Version 0.7 INSTALL COMPATIBILITY TEST: Native ARM64 shared libraries are packaged for extraction during installation. Two separately signed, verifiable stand-alone APKs are offered: TeluguVoiceStudio-debug.apk keeps the original package ID for normal updates, while TeluguVoiceStudio-fresh-install.apk uses .fresh so it can install beside an existing old test application without uninstalling it. They use the same pinned public debug signing key. The fresh variant stores NEW data separately; it does not automatically import old recordings/models. These changes are a compatibility hypothesis, not a guaranteed repair of the user's Android Package Installer error. Inspect the actual on-device failure if both packages fail.
+          Voices → Enhance creates a new private RNNoise-cleaned copy, with optional experimental WPE room-tail reduction. Originals stay intact. Settings → Offline models → Cloning offers the optional SHA-verified ECAPA speaker encoder; Voices → Enroll saves a consented 192-D fingerprint locally. A fingerprint is NOT a working cloned narrator and is not injected into fixed-speaker Piper/Tiny.
 
-          Version 0.6 repairs a confirmed Piper input-contract mismatch: sherpa 1.12.26 omitted the blank immediately after BOS. Pinned ONNX input adapters restore that token without changing learned weights or the user's script. Existing models migrate locally without downloading; a rollback copy is retained. Generate again to avoid old cached audio. The repaired graphs exactly matched original Piper graphs receiving the correct IDs in deterministic host tests. This does not prove all pronunciation complaints are solved.
+          TeluguVoiceStudio-restoration-AB.zip contains synthetic-noise/echo input and output audio plus measurements. Host tests measured 19.7 dB noise-region attenuation and 5.1 dB echo-tail reduction on these fixtures, not arbitrary real environments. No zero-echo, recovered-speech, cloned-voice, or Nothing Phone performance claim is made. Physical-phone testing remains outstanding.
 
-          Compact 64 dp voice cards and fixed horizontal Back/Continue controls. The inline waveform player saves WAV/MP3 directly to Downloads on Android 10+, with progress, cancel and downloaded checks. Audio displays its actual voice identity. New PCM recording supports hardware noise suppression/AEC when available, 80 Hz high-pass filtering and endpoint trimming; original captures and existing AAC profiles are preserved. A recorded reference is not an active voice clone.
+          The normal debug APK updates the existing package with the same pinned certificate. The optional fresh-install APK is a separate app with separate data; do not uninstall your existing app to try it. Existing narrator models, original recordings and saved projects are preserved.
 
-          Four-voice comparison audio is in TeluguVoiceStudio-pronunciation-AB.zip → delivery-v07. Fourteen real host-generated WAVs, metrics, phoneme audit and limitations are included. These are public pretrained voices, not personal recordings. Four of eight fixture question tails passed the conservative pitch gate; unvoiced/unstable tails stay unchanged. Nothing Phone listening, long-form thermal/RAM validation and genuine cloning remain outstanding.
+          Four-voice comparison WAVs remain the v0.7.1 public pretrained speech fixtures; v57 changes recording restoration/enrollment, not those voice weights. No paid API or hosted inference is added.
 
-          Read docs/evaluation/delivery-v07. Existing verified models are reused; Generate again for the new controls. Fully offline after one-time model downloads; no paid API or hosted inference added.
-
-          The source ZIP includes application source, licenses and upstream corresponding-source archives. This is a publicly debug-signed test APK, not a production release. All files below belong to this commit; SHA256SUMS.txt can be checked after download.
+          See docs/evaluation/restoration-v57 for implementation, reproducible tests and limitations. Source includes corresponding-source archives and licenses. This is a publicly debug-signed test build. Check SHA256SUMS.txt after downloading.
           EOF
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
             gh release edit "$TAG" --notes-file /tmp/release-notes.md
           else
             gh release create "$TAG" dist/* --target "$GITHUB_SHA" --prerelease \
-              --title "Telugu Voice Studio 0.7.1 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
+              --title "Telugu Voice Studio v57 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
           fi
           if gh release view debug-latest >/dev/null 2>&1; then
             gh release upload debug-latest dist/* --clobber

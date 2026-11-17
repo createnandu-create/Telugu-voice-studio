@@ -1,0 +1,10 @@
+{
+  "model_sha256": "f46380bbaeddb929fb3a10ab63a4b1877a50e3d1e5fdd55a1b618d5651d3f64e",
+  "dimensions": 192,
+  "frontend_java_numpy_max_error": 3.814697265625e-06,
+  "java_python_embedding_cosine": 1.0,
+  "vector_l2_norm": 1.0,
+  "fixture": "12 seconds public pretrained Tiny Female synthetic speech; no private human enrollment",
+  "on_device_verified": false,
+  "cloning_supported": false
+}

@@ -5,7 +5,7 @@ import java.util.regex.*;
 /** Removes presentation markup from speech only. This is not a mathematical evaluator. */
 public final class SpeechMarkup {
   private static final Pattern FRACTION =
-      Pattern.compile("\\\\(?:dfrac|tfrac|frac)\\s*\\{([^{}]*)}\\s*\\{([^{}]*)}");
+      Pattern.compile("\\\\(?:dfrac|tfrac|frac)\\s*\\{([^{}]*)\\}\\s*\\{([^{}]*)\\}");
 
   public static boolean math(String text) {
     return text.contains("$")

@@ -25,5 +25,6 @@
   "jniLibs/arm64-v8a/libtinyort.so": "552c5396efbc31fa1abd5b9fd6a2ccbd5371f8fcad87cc8429ab993515adfaf9",
   "res/font/display_serif.ttf": "8cc3643535edf039aa5d95440a8542735e9197e4f4b8d9303e980fefbf5ab616",
   "res/font/manrope.ttf": "9bc8d8251318dfcffe6b24800e1df65e26cae6e012b2f88064acf530b277f9d3",
-  "res/font/manrope_semibold.ttf": "ffe518236f48fd342188388c942fa0ee2fd72455a106feefe0ebc6d1b3496b04"
+  "res/font/manrope_semibold.ttf": "ffe518236f48fd342188388c942fa0ee2fd72455a106feefe0ebc6d1b3496b04",
+  "jniLibs/arm64-v8a/librnnoise_offline.so": "d8578bba5e0ee6ce37b65bb80cfd6f96871f163a0b189df54dadf33ce3d85ce3"
 }

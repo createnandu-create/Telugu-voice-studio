@@ -18,6 +18,7 @@ import org.json.JSONObject;
 public final class StudioJobService extends Service {
   public static volatile boolean busy = false;
   public static volatile int downloadingVoice = -1;
+  public static volatile boolean enhancing = false;
   public static volatile String status = "Ready · all generation is local";
   public static volatile File result;
   public static final AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -31,7 +32,7 @@ public final class StudioJobService extends Service {
 
   public static void cancel() {
     cancelled.set(true);
-    status = "Stopping after the current sentence…";
+    status = enhancing ? "Stopping local processing…" : "Stopping after the current sentence…";
   }
 
   public int onStartCommand(Intent intent, int flags, int startId) {
@@ -43,8 +44,11 @@ public final class StudioJobService extends Service {
     busy = true;
     cancelled.set(false);
     status = "Preparing…";
-    boolean install = "install".equals(intent.getAction());
-    downloadingVoice = install ? intent.getIntExtra("voice", 0) : -1;
+    boolean speakerInstall = "speaker-install".equals(intent.getAction());
+    boolean enroll = "speaker-enroll".equals(intent.getAction());
+    boolean install = "install".equals(intent.getAction()) || speakerInstall;
+    enhancing = "enhance".equals(intent.getAction()) || enroll || speakerInstall;
+    downloadingVoice = install && !speakerInstall ? intent.getIntExtra("voice", 0) : -1;
     NotificationManager nm = getSystemService(NotificationManager.class);
     nm.createNotificationChannel(
         new NotificationChannel(
@@ -79,20 +83,50 @@ public final class StudioJobService extends Service {
         () -> {
           try {
             VoiceModelStore store = new VoiceModelStore(this);
-            if (install) {
+            if (speakerInstall) {
+              new SpeakerModelStore(getFilesDir()).install(cancelled, message -> status = message);
+              status =
+                  "Completed · speaker encoder READY OFFLINE. Enroll a consented reference in"
+                      + " Voices.";
+            } else if (enroll) {
+              if (!intent.getBooleanExtra("consent", false))
+                throw new IOException("Confirm speaker consent before enrollment.");
+              SpeakerEnrollment.run(
+                  this, intent.getStringExtra("profile"), cancelled, message -> status = message);
+              status =
+                  "Completed · 192-D speaker fingerprint saved privately. Cloning remains"
+                      + " unavailable.";
+            } else if (install) {
               int voice = intent.getIntExtra("voice", 0);
               store.install(ModelCatalog.VOICES[voice], cancelled, message -> status = message);
               status = ModelCatalog.VOICES[voice].name + " installed · ready offline";
+            } else if (enhancing) {
+              ReferenceEnhancement.run(
+                  this,
+                  intent.getStringExtra("profile"),
+                  intent.getBooleanExtra("roomTail", false),
+                  cancelled,
+                  message -> status = message);
+              status = "Completed · cleaned recording saved in Voices. Original kept.";
             } else render(store);
           } catch (CancellationException e) {
             status =
-                install
-                    ? "Download paused · partial bytes saved. Tap Resume download in Settings."
-                    : "Stopped · completed chunks saved. Tap Generate / Resume to continue.";
+                speakerInstall
+                    ? "Download paused · partial bytes kept. Tap Download speaker encoder to"
+                          + " resume."
+                    : enhancing
+                        ? "Cleanup stopped · original kept. Tap Enhance or Enroll to retry."
+                        : install
+                            ? "Download paused · partial bytes saved. Tap Resume download in"
+                                  + " Settings."
+                            : "Stopped · completed chunks saved. Tap Generate / Resume to"
+                                  + " continue.";
           } catch (Exception | LinkageError e) {
+            android.util.Log.e("StudioJob", "Offline job failed", e);
             status =
-                "Could not complete: "
-                    + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                cancelled.get()
+                    ? "Cleanup stopped · original kept. Retry when ready."
+                    : JobFailure.message(e);
           } finally {
             new Handler(Looper.getMainLooper())
                 .post(
@@ -101,6 +135,7 @@ public final class StudioJobService extends Service {
                       running.set(false);
                       busy = false;
                       downloadingVoice = -1;
+                      enhancing = false;
                       stopForeground(STOP_FOREGROUND_REMOVE);
                       stopSelf(startId);
                     });

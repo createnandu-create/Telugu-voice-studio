@@ -37,3 +37,8 @@ Immediately read `docs/AUDIO_QUALITY_DIAGNOSIS.md`. The test branch has a local 
 ## Incremental upgrade handoff — 2026-11-09
 
 The testing branch now has `StudioActivity`, `VoiceModelStore`, `StudioJobService`, `RenderJournal`, `PcmWave`, `DirectionContract` and a downloadable Piper/sherpa ARM64 baseline. Follow `docs/research/OFFLINE_NEURAL_UPGRADE.md` and `docs/evaluation/README.md` for actual status; the earlier baseline description above is historical. Java tests, bundle integrity checks, actual Gradle assembly and lint are part of delivery. Host speech generation does not establish Android device inference. Semantic LLM and Indic-Mio cloning remain unintegrated. The default Studio must not claim those capabilities. Keep main safe and preserve the system-TTS fallback.
+
+
+## v57 continuation — 2026-11-17
+
+See `docs/evaluation/restoration-v57/README.md`. Fixed actual Android ICU static-regex crash in SpeechMarkup; keep the ICU regression alongside JVM tests. Bundled RNNoise native C (85 Hz fourth-order high-pass and antialiased 24/48k resampling), optional two-iteration 12-tap WPE, non-destructive foreground reference enhancement, and pinned downloadable ECAPA192 speaker fingerprint enrollment are added. No latent injection into fixed-speaker TTS: enrollment is NOT functional cloning. Preserve the original recordings, per-profile private enrollment directories, model receipts and pinned signing key. VersionCode 57. Read the evaluation limitations before making quality or phone-performance claims.

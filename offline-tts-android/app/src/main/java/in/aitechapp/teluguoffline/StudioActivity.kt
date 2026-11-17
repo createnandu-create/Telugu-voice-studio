@@ -695,9 +695,21 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            if (vm.busy) Icons.Outlined.GraphicEq else Icons.Outlined.CheckCircle,
+                            if (vm.busy) Icons.Outlined.GraphicEq
+                            else if (
+                                vm.status.startsWith("Could not") || vm.status.startsWith("Failed")
+                            )
+                                Icons.Outlined.Info
+                            else Icons.Outlined.CheckCircle,
                             null,
-                            tint = if (vm.busy) Vermilion else Color(0xFF44623F),
+                            tint =
+                                if (
+                                    vm.busy ||
+                                        vm.status.startsWith("Could not") ||
+                                        vm.status.startsWith("Failed")
+                                )
+                                    Vermilion
+                                else Color(0xFF44623F),
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(8.dp))
@@ -1132,6 +1144,23 @@ private fun VoicesScreen(
                 Text(vm.recordingStatus, fontSize = 12.sp, color = Muted)
             }
         }
+        item {
+            if (vm.busy && StudioJobService.enhancing)
+                Panel {
+                    Text(vm.status, style = MaterialTheme.typography.bodyMedium)
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    TextButton(onClick = { StudioJobService.cancel() }) { Text("Cancel") }
+                }
+            else if (
+                vm.status.startsWith("Completed ·") ||
+                    vm.status.startsWith("Cleanup stopped") ||
+                    vm.status.startsWith("Could not")
+            ) {
+                Text(vm.status, fontSize = 13.sp)
+            } else if (vm.referenceStatus.isNotBlank()) {
+                Text(vm.referenceStatus, fontSize = 12.sp, color = Muted)
+            }
+        }
         item { SectionLabel("SAVED REFERENCES · ${vm.profiles.size}") }
         if (vm.profiles.isEmpty())
             item {
@@ -1159,15 +1188,97 @@ private fun VoicesScreen(
                 }
                 Text(p.status, fontSize = 12.sp, color = Muted)
                 if (p.description.isNotBlank()) Text(p.description, fontSize = 12.sp)
+                var cleanupDialog by remember(p.id) { mutableStateOf(false) }
+                var roomTail by remember(p.id) { mutableStateOf(false) }
+                if (cleanupDialog)
+                    AlertDialog(
+                        onDismissRequest = { cleanupDialog = false },
+                        title = { Text("Enhance a copy") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    "Reduce noise locally with RNNoise. Your original stays in the library. Compare both before using the result."
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = roomTail,
+                                        onCheckedChange = { roomTail = it },
+                                    )
+                                    Text("Reduce room tail · experimental WPE")
+                                }
+                                Text(
+                                    "Strong wind, clipping and overlapping voices may remain. This does not create a cloned narrator.",
+                                    fontSize = 12.sp,
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    cleanupDialog = false
+                                    vm.enhanceProfile(p.id, roomTail)
+                                }
+                            ) {
+                                Text("Enhance")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { cleanupDialog = false }) { Text("Cancel") }
+                        },
+                    )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Secondary("Play", Icons.Outlined.PlayArrow) { play(p.file) }
                     Secondary("Select", Icons.Outlined.Check) { vm.selectProfile(p.id) }
+                    TextButton(
+                        onClick = { cleanupDialog = true },
+                        enabled = !vm.busy && !vm.recording,
+                    ) {
+                        Text("Enhance")
+                    }
                 }
+                var enrollDialog by remember(p.id) { mutableStateOf(false) }
+                var consent by remember(p.id) { mutableStateOf(false) }
+                TextButton(
+                    onClick = { enrollDialog = true },
+                    enabled = !vm.busy && !vm.recording && vm.speakerReady,
+                ) {
+                    Text("Enroll speaker fingerprint")
+                }
+                if (enrollDialog)
+                    AlertDialog(
+                        onDismissRequest = { enrollDialog = false },
+                        title = { Text("Private speaker enrollment") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    "Create a 192-D ECAPA fingerprint from 10–15 seconds of cleaned speech. It stays on this device. This does not enable cloned narration."
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = consent, onCheckedChange = { consent = it })
+                                    Text("This is my voice, or I have the speaker's permission.")
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
+                                enabled = consent,
+                                onClick = {
+                                    enrollDialog = false
+                                    vm.speakerAction("speaker-enroll", p.id)
+                                },
+                            ) {
+                                Text("Enroll locally")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { enrollDialog = false }) { Text("Cancel") }
+                        },
+                    )
                 Row {
-                    TextButton(onClick = { edit = p }) { Text("Rename") }
+                    TextButton(onClick = { edit = p }, enabled = !vm.busy) { Text("Rename") }
                     TextButton(onClick = { trim = p }) { Text("Trim") }
                     TextButton(onClick = { export(p.file) }) { Text("Export") }
-                    IconButton(onClick = { deleting = p }) {
+                    IconButton(onClick = { deleting = p }, enabled = !vm.busy) {
                         Icon(Icons.Outlined.DeleteOutline, "Delete ${p.name}")
                     }
                 }
@@ -1748,6 +1859,45 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                         color = Muted,
                     )
                     Secondary("Open voice library", Icons.Outlined.Mic) { vm.navigate("Voices") }
+                    HorizontalDivider()
+                    Text(
+                        "Speaker fingerprint · ECAPA-TDNN",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    StatusPill(if (vm.speakerReady) "READY OFFLINE" else "NOT INSTALLED", Paper)
+                    Text(
+                        "79.7 MiB · Apache 2.0 · 192 dimensions. A speaker verification encoder; Piper and Indic Tiny cannot use this vector for cloning.",
+                        fontSize = 13.sp,
+                        color = Muted,
+                    )
+                    Text(
+                        "RNNoise cleanup is included in the app. WPE room-tail reduction is optional in Voices → Enhance.",
+                        fontSize = 13.sp,
+                    )
+                    if (!vm.speakerReady)
+                        Primary("Download speaker encoder", !vm.busy && !vm.recording) {
+                            vm.speakerAction("speaker-install")
+                        }
+                    else
+                        Row {
+                            TextButton(
+                                onClick = { vm.speakerAction("verify") },
+                                enabled = !vm.busy && !vm.loading,
+                            ) {
+                                Text("Verify files")
+                            }
+                            TextButton(
+                                onClick = { vm.speakerAction("remove") },
+                                enabled = !vm.busy && !vm.loading,
+                            ) {
+                                Text("Remove encoder")
+                            }
+                        }
+                    if (vm.busy && StudioJobService.enhancing) {
+                        Text(vm.status, fontSize = 12.sp)
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        TextButton(onClick = { StudioJobService.cancel() }) { Text("Cancel") }
+                    }
                 }
             }
         if (category == "Updates")

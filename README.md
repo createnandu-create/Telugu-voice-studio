@@ -9,7 +9,7 @@ An actively developed offline Telugu YouTube voice narrator prototype. The testi
 | File | Direct link | Availability |
 |---|---|---|
 | Android Debug APK | [TeluguVoiceStudio-debug.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-debug.apk) | Created by GitHub Actions **only after a successful build** |
-| **Fresh Install / Side-by-side APK** | [TeluguVoiceStudio-fresh-install.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-fresh-install.apk) | Created only after successful 0.7 CI build; separate package preserves older app/data untouched |
+| **Fresh Install / Side-by-side APK** | [TeluguVoiceStudio-fresh-install.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-fresh-install.apk) | Created only after successful CI build; separate package preserves older app/data untouched |
 | Four voice comparison WAVs | [Download audio ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-four-voices.zip) | Locally generated host comparison, not a phone benchmark |
 | Android Source ZIP + project skill | [TeluguVoiceStudio-source.zip](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-source.zip) | Created by successful build |
 | Branch Source ZIP (works without build) | [Download current source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/archive/refs/heads/telugu-voice-testing.zip) | Always reflects the branch |
@@ -18,6 +18,12 @@ An actively developed offline Telugu YouTube voice narrator prototype. The testi
 | All Releases | [Releases page](https://github.com/createnandu-create/Telugu-voice-studio/releases) | APK appears here after CI succeeds |
 
 **If the APK link returns 404, the release has not been published yet; check Actions. Do not treat a source ZIP as an installable APK.** The debug APK is for testing, not Google Play Store distribution.
+
+## v57 recording restoration and speaker fingerprints
+
+**Fixes the Android `SpeechMarkup` generation crash.** Voices → **Enhance** creates a noise-reduced copy using bundled RNNoise, with optional experimental WPE room-tail reduction. Originals remain intact. Settings → Offline models → Cloning offers a separate downloadable **ECAPA 192-D speaker encoder**; consented enrollment stays private on the phone. A fingerprint is **not** a working cloned narrator.
+
+[Restoration A/B audio ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-restoration-AB.zip) · [Measurements, implementation and limitations](docs/evaluation/restoration-v57). Host synthetic fixtures measured 19.7 dB noise-region attenuation and 5.1 dB echo-tail reduction. Zero echo, arbitrary-environment recovery, genuine cloning and Nothing Phone performance are not verified.
 
 ## Version 0.7.1 articulation and compact controls
 

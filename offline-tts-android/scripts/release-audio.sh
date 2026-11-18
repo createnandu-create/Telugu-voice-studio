@@ -40,4 +40,9 @@ python3 -m venv "$work/venv"
 "${run[@]}" retime "$work" "$assets" "$out"
 "$work/venv/bin/python" tools/piper-delivery-audit.py --models "$work" --espeak-dir "$phones" --output "$work" --plan "$work/plan.tsv" --retry
 "${run[@]}" render "$work" "$assets" "$out"
-(cd "$out" && sha256sum *.wav > SHA256SUMS.txt)
+fetch https://repo.maven.apache.org/maven2/de/sciss/jump3r/1.0.5/jump3r-1.0.5.jar jump3r.jar
+javac -encoding UTF-8 -sourcepath "$src" -cp "$work/classes:$work/jump3r.jar" -d "$work/classes" tools/ReleaseMp3.java
+java -cp "$work/classes:$work/jump3r.jar" in.aitechapp.teluguoffline.ReleaseMp3 "$out"
+"$work/venv/bin/pip" install -q imageio-ffmpeg==0.6.0
+"$work/venv/bin/python" tools/check-mp3.py "$out"
+(cd "$out" && sha256sum *.wav *.mp3 > SHA256SUMS.txt)

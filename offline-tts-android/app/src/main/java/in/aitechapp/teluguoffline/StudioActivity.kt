@@ -618,7 +618,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
             }
             if (vm.step == 1) {
                 item {
-                    SectionLabel("NEURAL NARRATORS")
+                    SectionLabel("TAP A NARRATOR TO GENERATE")
                     var batchDialog by rememberSaveable { mutableStateOf(false) }
                     OutlinedButton(onClick = { vm.refresh(); batchDialog = true }, enabled = !vm.busy && !vm.recording) {
                         Text("Generate with multiple voices")
@@ -665,7 +665,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                     VoiceChoice(
                         m,
                         vm.voice == m.index && vm.activeClone.isEmpty(),
-                        { vm.choose(m.index) },
+                        { vm.choose(m.index, autoRender = true) },
                         { vm.previewVoice(m.index) },
                         {
                             vm.navigate("Settings")
@@ -678,7 +678,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                     key = { "clone-" + it.id },
                 ) { p ->
                     Surface(
-                        onClick = { vm.chooseClone(p.id) },
+                        onClick = { vm.chooseClone(p.id, autoRender = true) },
                         color = if (vm.activeClone == p.id) Sun.copy(alpha = .3f) else Color.White,
                         shape = RoundedCornerShape(18.dp),
                         border = BorderStroke(1.dp, Line),
@@ -2221,7 +2221,7 @@ private fun ExportDialogs(vm: StudioViewModel) {
                             onClick = { vm.prepareExport(true) },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text("Save MP3 · 320 kbps")
+                            Text("Save MP3 · 96 kbps mono")
                         }
                         Text(
                             "MP3 is created offline. Your original WAV is always kept.",

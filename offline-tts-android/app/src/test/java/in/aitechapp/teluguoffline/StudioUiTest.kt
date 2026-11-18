@@ -133,6 +133,29 @@ class StudioUiTest {
     }
 
     @Test
+    fun narratorSwitchRestoresOnlyItsOwnDeliveryControls() {
+        val vm = compose.runOnIdle { androidx.lifecycle.ViewModelProvider(compose.activity)[StudioViewModel::class.java] }
+        compose.waitUntil(15000) { vm.models.isNotEmpty() && !vm.loading }
+        compose.runOnIdle {
+            vm.edit("")
+            vm.choose(0)
+            vm.setDelivery("youtuber", false)
+            vm.setDelivery("question", true)
+            vm.choose(2)
+            vm.setDelivery("youtuber", true)
+            vm.setDelivery("question", false)
+            vm.choose(0)
+            org.junit.Assert.assertFalse(vm.youtuber)
+            org.junit.Assert.assertTrue(vm.questionLift)
+            vm.choose(2)
+            org.junit.Assert.assertTrue(vm.youtuber)
+            org.junit.Assert.assertFalse(vm.questionLift)
+            org.junit.Assert.assertTrue(vm.plan.isEmpty())
+            org.junit.Assert.assertNull(vm.latest)
+        }
+    }
+
+    @Test
     fun voiceSwitchClearsPlaybackAndColdWorkspaceKeepsSavedProjects() {
         val file =
             File(compose.activity.filesDir, "old-result.wav").apply { writeBytes(byteArrayOf(1)) }

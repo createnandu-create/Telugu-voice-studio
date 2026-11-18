@@ -28,7 +28,7 @@ for voice in ("venkatesh", "padmavathi"):
         rows = [line.split("\t") for line in (args.models / f"{voice}-retry.tsv").read_text().splitlines()]
     model = args.models / f"{voice}-fixed.onnx"
     config = sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(
-        vits=sherpa_onnx.OfflineTtsVitsModelConfig(model=str(model),
+        vits=sherpa_onnx.OfflineTtsVitsModelConfig(model=str(model), noise_scale=.50, noise_scale_w=.65,
             tokens=str(assets / f"{voice}-tokens.txt"), data_dir=str(args.espeak_dir)),
         num_threads=2, debug=False), max_num_sentences=1)
     engine = sherpa_onnx.OfflineTts(config)

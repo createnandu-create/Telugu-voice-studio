@@ -53,12 +53,15 @@ public final class ReleaseAudio {
     Files.writeString(new File(out, "script.txt").toPath(), SCRIPT);
     StringBuilder stats = new StringBuilder("voice,phrase,first_seconds,selected_seconds,target_seconds\n");
     for (ModelCatalog.Voice voice : ModelCatalog.VOICES) {
+      List<NarrationDirector.Segment> voicePlan = voice.tiny() ? DeliveryControls.expand(
+          NarrationDirector.planExact(SCRIPT, NarrationDirector.Style.AUTO), true, false) : plan;
+      boolean soft = voice.tiny() && voice.gender.equals("Female");
       List<File> chunks = new ArrayList<>(), baseline = new ArrayList<>();
       int hz = voice.tiny() ? 24000 : 22050;
       int improved = 0;
       try (TinyVoice tiny = voice.tiny() ? new TinyVoice(work, cancel) : null) {
-        for (int i = 0; i < plan.size(); i++) {
-          NarrationDirector.Segment s = plan.get(i);
+        for (int i = 0; i < voicePlan.size(); i++) {
+          NarrationDirector.Segment s = voicePlan.get(i);
           String text = PronunciationLexicon.apply(s.text, Map.of(), false);
           File raw = new File(work, voice.id + "-youtube-" + i + ".wav");
           File retry = new File(work, voice.id + "-retry-" + i + ".wav");
@@ -78,17 +81,17 @@ public final class ReleaseAudio {
           File chosen = new File(work, voice.id + "-selected-" + i + ".wav");
           PcmWave.write(chosen, selected, hz);
           File off = new File(work, voice.id + "-off-" + i + ".wav");
-          VoiceDeliveryDsp.process(chosen, off, DeliveryControls.question(s.text), false, s, cancel, true, voice.tiny(), false);
+          VoiceDeliveryDsp.process(chosen, off, !voice.tiny() && DeliveryControls.question(s.text), soft, s, cancel, true, voice.tiny(), false);
           baseline.add(off);
           File processed = new File(work, voice.id + "-chunk-" + i + ".wav");
-          VoiceDeliveryDsp.process(chosen, processed, DeliveryControls.question(s.text), false, s, cancel, true, voice.tiny());
+          VoiceDeliveryDsp.process(chosen, processed, !voice.tiny() && DeliveryControls.question(s.text), soft, s, cancel, true, voice.tiny());
           chunks.add(processed);
         }
       }
       if (improved == 0) throw new IOException("No measurable native timing change for " + voice.name);
       for (boolean enabled : new boolean[] {false, true}) {
         File combined = new File(work, voice.id + "-joined.wav");
-        PcmWave.mergeRaw(enabled ? chunks : baseline, plan, combined, cancel);
+        PcmWave.mergeRaw(enabled ? chunks : baseline, voicePlan, combined, cancel);
         String name = voice.name.replace(' ', '_') + (enabled ? "_Clean" : "_Before");
         File master = new File(out, name + ".wav");
         StudioMastering.Report report = StudioMastering.process(combined, master, cancel, msg -> {}, false);

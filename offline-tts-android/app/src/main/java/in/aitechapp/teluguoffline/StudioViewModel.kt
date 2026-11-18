@@ -100,6 +100,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     private var activeRunId = ""
     private var workspaceRevision = 0
     private var generatePending = false
+    private var requestedSelection: Int? = null
+    private var settingsLoaded = false
 
     init {
         // New ViewModel = a new Studio workspace. Projects and scripts remain on disk.
@@ -113,14 +115,15 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     SpeechSettings.load(app)
                 }
             entries = speech.dictionary.toMap()
-            youtuber = speech.youtuber
-            durationGuard = speech.durationGuard
-            questionLift = speech.questionLift
-            commaBuffer = speech.commaBuffer
-            femaleSoftening = speech.femaleSoftening
-            carefulDiction = speech.carefulDiction
             readDigits = speech.readDigits
-            warmthEq = speech.warmthEq
+            // A pre-profile install owned one settings file. Migrate it once to its saved narrator.
+            if (!prefs.contains("deliveryMigrated")) {
+                if (File(app.filesDir, "pronunciation.json").isFile)
+                    storeControls(prefs.getInt("voice", 0), "", speech)
+                prefs.edit().putBoolean("deliveryMigrated", true).apply()
+            }
+            applyControls(controlsFor(voice, activeClone))
+            settingsLoaded = true
             withContext(Dispatchers.IO) {
                 val library = VoiceProfiles(app)
                 runCatching { library.migrateLegacy(app) }
@@ -160,6 +163,11 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 recordMillis = VoiceRecordingService.elapsedMs
                 recordingStatus = VoiceRecordingService.status
                 if ((priorBusy && !busy) || (priorRecording && !recording)) refresh()
+                val wanted = requestedSelection
+                if (wanted != null && settingsLoaded && !busy && !recording && !generatePending && !loading && verifying < 0) {
+                    requestedSelection = null
+                    if (wanted == workspaceRevision && script.isNotBlank()) generate()
+                }
                 priorBusy = busy
                 priorRecording = recording
                 delay(250)
@@ -189,6 +197,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun clearActiveAudio() {
+        requestedSelection = null
         workspaceRevision++
         observedJob = false
         status = "Ready · everything happens on your phone"
@@ -204,24 +213,29 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         savedFormats = emptySet()
     }
 
-    fun choose(index: Int) {
-        if (index == voice && activeClone.isEmpty()) return
-        clearActiveAudio()
-        voice = index
-        activeClone = ""
-        persist()
+    private fun selectNarrator(index: Int, clone: String, autoRender: Boolean) {
+        if (voice != index || activeClone != clone) {
+            clearActiveAudio()
+            voice = index
+            activeClone = clone
+            plan = emptyList()
+            plannedScript = ""
+            applyControls(controlsFor(index, clone))
+            persist()
+        }
+        if (autoRender && script.isNotBlank() && models.any { it.index == index && it.ready } &&
+            !(activeRunId.isNotEmpty() && busy)) requestedSelection = workspaceRevision
     }
 
-    fun chooseClone(id: String) {
+    fun choose(index: Int, autoRender: Boolean = false) = selectNarrator(index, "", autoRender)
+
+    fun chooseClone(id: String, autoRender: Boolean = false) {
         if (!cloneModelReady) {
             notice = "Install OpenVoice in Settings → Voice cloning."
             return
         }
         val p = profiles.firstOrNull { it.id == id && it.cloneReady } ?: return
-        clearActiveAudio()
-        activeClone = id
-        voice = p.cloneBase
-        persist()
+        selectNarrator(p.cloneBase, id, autoRender)
     }
 
     fun selectOutput(master: Boolean) {
@@ -360,19 +374,17 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         direct()
         if (plan.isEmpty()) return
         if (voices.isEmpty()) return
-        if (voices.size > 1) {
-            // Studio playback follows the final selection. Every completed voice is in Projects.
-            voice = voices.last().first
-            activeClone = voices.last().second
-            persist()
-        }
         val jobs = org.json.JSONArray()
         voices.distinct().forEach { (base, clone) ->
-            jobs.put(JSONObject(PlanStorage(script, base, plan, clone).json()))
+            val selected = base == voice && clone == activeClone
+            val controls = if (selected) currentSpeech() else controlsFor(base, clone)
+            val segments = if (selected) plan else NarrationDirector.planExact(script, NarrationDirector.Style.AUTO)
+            jobs.put(JSONObject(PlanStorage(script, base, segments, clone).json()).put("speech", controls.json()))
         }
+        val last = voices.last()
+        selectNarrator(last.first, last.second, false)
         val id = java.util.UUID.randomUUID().toString()
         val batch = JSONObject().put("plans", jobs).put("next", 0)
-        val desiredSpeech = currentSpeech()
         clearActiveAudio()
         val revision = workspaceRevision
         generatePending = true
@@ -381,11 +393,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 withContext(Dispatchers.IO) {
                     FileIntegrity.write(
                         File(getApplication<Application>().filesDir, "batch-$id.json"),
-                        batch.put("speech", desiredSpeech.json()).toString(),
+                        batch.toString(),
                     )
-                    // Persist the A/B choice before the render service loads SpeechSettings.
-                    val app = getApplication<Application>()
-                    speechMutex.withLock { desiredSpeech.save(app) }
                 }
                 if (revision != workspaceRevision) return@work
                 startJob("render", id = id)
@@ -473,7 +482,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             NarrationDirector.planExact(text, NarrationDirector.Style.AUTO).map {
                 NarrationDirector.Segment(it.text, NarrationDirector.Emotion.NEUTRAL, 1f, 1f, 500)
             }
-        val snapshot = PlanStorage(text, voice, segments).json()
+        val snapshot = PlanStorage(text, voice, segments, activeClone).json()
         val controls = currentSpeech()
         val id = java.util.UUID.randomUUID().toString()
         work {
@@ -558,7 +567,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                         if (mp3) ".mp3" else ".wav"
                 withContext(Dispatchers.IO) {
                     val file =
-                        if (!mp3) source
+                        if (!mp3) MonoWaveExport.prepare(source, getApplication<Application>().cacheDir, exportCancel)
                         else {
                             val converted =
                                 File(getApplication<Application>().cacheDir, "download.mp3")
@@ -599,9 +608,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     fun previewVoice(index: Int) {
         if (busy || recording) return
         clearActiveAudio()
-        voice = index
-        activeClone = ""
-        persist()
+        selectNarrator(index, "", false)
         renderCheck("నమస్కారం. మీ కథను స్పష్టంగా వినిపిద్దాం.")
         val previewRevision = workspaceRevision
         viewModelScope.launch {
@@ -637,7 +644,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 exportLabel = withContext(Dispatchers.IO) { AudioNames.forAudio(source) }
                 val file =
                     withContext(Dispatchers.IO) {
-                        if (!mp3) source
+                        if (!mp3) MonoWaveExport.prepare(source, getApplication<Application>().cacheDir, exportCancel)
                         else {
                             val out =
                                 File(getApplication<Application>().cacheDir, "narration-share.mp3")
@@ -964,8 +971,39 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             s.carefulDiction = carefulDiction
         }
 
+    private fun controlKey(base: Int, clone: String) = "delivery/$base/$clone"
+
+    private fun storeControls(base: Int, clone: String, s: SpeechSettings) {
+        val json = s.json().apply { remove("entries"); remove("readDigits") }
+        prefs.edit().putString(controlKey(base, clone), json.toString()).apply()
+    }
+
+    private fun controlsFor(base: Int, clone: String): SpeechSettings {
+        val raw = prefs.getString(controlKey(base, clone), null)
+        val model = ModelCatalog.VOICES[base]
+        val s = if (raw == null) SpeechSettings().also {
+            it.questionLift = !model.tiny() && clone.isEmpty()
+            it.femaleSoftening = model.tiny() && model.gender == "Female" && clone.isEmpty()
+            it.carefulDiction = !model.tiny()
+        } else SpeechSettings.fromJson(JSONObject(raw).put("entries", JSONObject()))
+        s.dictionary.putAll(entries)
+        s.readDigits = readDigits
+        return s
+    }
+
+    private fun applyControls(s: SpeechSettings) {
+        youtuber = s.youtuber
+        durationGuard = false
+        questionLift = s.questionLift
+        commaBuffer = s.commaBuffer
+        femaleSoftening = s.femaleSoftening
+        carefulDiction = s.carefulDiction
+        warmthEq = s.warmthEq
+    }
+
     private fun saveSpeech() {
         val snapshot = currentSpeech()
+        storeControls(voice, activeClone, snapshot)
         work {
             withContext(Dispatchers.IO) { speechMutex.withLock { snapshot.save(getApplication()) } }
         }
@@ -981,9 +1019,9 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 return@work
             }
             val p = withContext(Dispatchers.IO) { PlanStorage.parse(FileIntegrity.read(f)) }
+            clearActiveAudio()
+            selectNarrator(p.voice, p.cloneProfile, false)
             script = p.script
-            voice = p.voice
-            activeClone = p.cloneProfile
             plan = p.segments
             plannedScript = p.script
             persist()

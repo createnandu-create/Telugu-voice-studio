@@ -176,7 +176,7 @@ public final class StudioJobService extends Service {
     if (!state.isFile()) { status = "Queue finished"; return; }
     JSONObject batch = new JSONObject(FileIntegrity.read(state));
     org.json.JSONArray plans = batch.getJSONArray("plans");
-    SpeechSettings speech = SpeechSettings.fromJson(batch.getJSONObject("speech"));
+    JSONObject legacySpeech = batch.optJSONObject("speech");
     NotificationManager manager = getSystemService(NotificationManager.class);
     manager.createNotificationChannel(new NotificationChannel("completed", "Saved audio",
         NotificationManager.IMPORTANCE_DEFAULT));
@@ -190,7 +190,8 @@ public final class StudioJobService extends Service {
             name = new VoiceProfiles(this).get(plan.cloneProfile).optString("name", "Cloned voice");
           String progress = "Generating audio " + (n + 1) + " of " + plans.length() + ": " + name;
           post(manager, null, 41, message("render", progress, true));
-          render(store, plan, speech);
+          JSONObject settings = plans.getJSONObject(n).optJSONObject("speech");
+          render(store, plan, SpeechSettings.fromJson(settings == null ? legacySpeech : settings));
           post(manager, runId, n + 1, message("completed", "Audio ready: " + AudioNames.forAudio(result), false));
         } catch (CancellationException e) {
           throw e;
@@ -259,7 +260,7 @@ public final class StudioJobService extends Service {
     boolean waveformDelivery = speech.youtuber;
     boolean waveformQuestions = speech.questionLift;
     StringBuilder spokenIdentity =
-        new StringBuilder("delivery-v083-clean/")
+        new StringBuilder("delivery-v084-mask/")
             .append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
@@ -345,6 +346,8 @@ public final class StudioJobService extends Service {
               OfflineTtsVitsModelConfig vits =
                   OfflineTtsVitsModelConfig.builder()
                       .setModel(store.model(voice).getPath())
+                      .setNoiseScale(.50f)
+                      .setNoiseScaleW(.65f)
                       .setTokens(new File(store.root, voice.id + "-tokens.txt").getPath())
                       .setDataDir(new File(store.root, "espeak-ng-data").getPath())
                       .build();
@@ -439,10 +442,7 @@ public final class StudioJobService extends Service {
     File output = new File(journal.directory, "narration.wav");
     PcmWave.mergeRaw(chunks, renderSegments, output, cancelled);
     double seconds = PcmWave.validate(output) / (PcmWave.sampleRate(output) * 2.0);
-    // Publish the untouched raw render first. A failed/cancelled master never loses the narration.
-    result = output;
-    resultRunId = runId;
-    FileIntegrity.write(new File(getFilesDir(), "last-result.txt"), output.getPath());
+    // Keep the raw file in Projects for recovery; expose the master only when it is complete.
     File master = new File(journal.directory, "narration-studio.wav");
     StudioMastering.Report mastered;
     if (speech.warmthEq && (!voice.tiny() || cloned)) {

@@ -150,14 +150,14 @@ public final class TinyVoice implements AutoCloseable {
     try (OnnxTensor m = floats(mask, 1, 1, padded);
         OnnxTensor u = floats(mu, 1, 100, padded);
         OnnxTensor co = floats(cond, 1, 112)) {
-      for (int step = 0; step < 4; step++) {
+      for (int step = 0; step < 8; step++) {
         check();
         try (OnnxTensor xt = floats(x, 1, 100, padded);
-            OnnxTensor time = floats(new float[] {step * .25f}, 1);
+            OnnxTensor time = floats(new float[] {step * .125f}, 1);
             OrtSession.Result r =
                 flow.run(Map.of("x", xt, "mask", m, "mu", u, "t", time, "cond", co))) {
           float[] v = data(r, "v");
-          for (int i = 0; i < x.length; i++) x[i] += .25f * v[i];
+          for (int i = 0; i < x.length; i++) x[i] += .125f * v[i];
         }
       }
     }

@@ -53,6 +53,15 @@ public class OfflineAudioTest {
         java.nio.ByteBuffer.wrap(Files.readAllBytes(master.toPath()))
             .order(java.nio.ByteOrder.LITTLE_ENDIAN)
             .getInt(24));
+    File named = new File(dir, "narration-studio.wav");
+    Files.copy(master.toPath(),named.toPath());
+    File mono = MonoWaveExport.prepare(named, dir, new AtomicBoolean());
+    byte[] stereoPcm = Files.readAllBytes(named.toPath()), monoPcm = Files.readAllBytes(mono.toPath());
+    assertEquals((stereoPcm.length-44)/2, monoPcm.length-44);
+    assertEquals(1,monoPcm[22]);
+    for (int i=44,j=44; j<monoPcm.length; i+=4,j+=2) {
+      assertEquals(stereoPcm[i],monoPcm[j]); assertEquals(stereoPcm[i+1],monoPcm[j+1]);
+    }
     PcmWave.write(b, samples, 22050);
     var two = NarrationDirector.planExact("నమస్కారం. నమస్కారం.", NarrationDirector.Style.AUTO);
     assertThrows(
@@ -72,10 +81,11 @@ public class OfflineAudioTest {
     long[] done = {0};
     Mp3Export.encode(wav, mp3, new AtomicBoolean(), (a, b) -> done[0] = a);
     assertEquals(48000, done[0]);
-    assertTrue(mp3.length() > 30000);
+    assertTrue(mp3.length() > 11000 && mp3.length() < 14500);
     byte[] header = Files.readAllBytes(mp3.toPath());
     assertEquals(255, header[0] & 255);
     assertEquals(224, header[1] & 224);
+    assertEquals(3, (header[3] & 0xff) >>> 6);
     String encoded = FileIntegrity.sha256(mp3);
     assertThrows(
         java.util.concurrent.CancellationException.class,

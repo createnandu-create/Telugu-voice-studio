@@ -66,11 +66,11 @@ public final class Mp3Export {
         throw new IOException("MP3 requires PCM16 mono or stereo WAV.");
       long bytes = Integer.toUnsignedLong(le(in, 4));
       if (bytes != in.length() - 44 || bytes % align != 0) throw new IOException("Incomplete WAV.");
-      flags.num_channels = channels;
+      flags.num_channels = 1;
       flags.in_samplerate = rate;
       flags.out_samplerate = 44100;
-      flags.mode = channels == 1 ? MPEGMode.MONO : MPEGMode.JOINT_STEREO;
-      flags.brate = 320;
+      flags.mode = MPEGMode.MONO;
+      flags.brate = 96;
       flags.quality = 2;
       flags.VBR = VbrMode.vbr_off;
       // No placeholder Xing header: every byte written is a complete MPEG audio frame.
@@ -89,8 +89,10 @@ public final class Mp3Export {
         int frames = count / align;
         for (int i = 0; i < frames; i++) {
           int at = i * align;
-          left[i] = ((pcm[at] & 255) | (pcm[at + 1] << 8)) << 16;
-          right[i] = channels == 1 ? left[i] : ((pcm[at + 2] & 255) | (pcm[at + 3] << 8)) << 16;
+          int sample = (short)((pcm[at] & 255) | (pcm[at+1] << 8));
+          if (channels == 2) sample = (sample + (short)((pcm[at+2] & 255) | (pcm[at+3] << 8))) / 2;
+          left[i] = sample << 16;
+
         }
         int n = lame.lame_encode_buffer_int(flags, left, right, frames, encoded, 0, encoded.length);
         if (n < 0) throw new IOException("MP3 encoding failed (" + n + "). WAV is kept.");

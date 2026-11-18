@@ -4,15 +4,15 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
-## v0.8.2 downloads
+## v0.8.3 downloads
 
-[Unified Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.2-70656df20345/TeluguVoiceStudio-v0.8.2.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.2-70656df20345/TeluguVoiceStudio-v0.8.2-source.zip) · [Four-voice ON/OFF listening comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.2-70656df20345/TeluguVoiceStudio-v0.8.2-audio.zip)
+[Unified Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.3-e102ee25db83/TeluguVoiceStudio-v0.8.3.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.3-e102ee25db83/TeluguVoiceStudio-v0.8.3-source.zip) · [Five before/after audio comparisons](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.3-e102ee25db83/TeluguVoiceStudio-v0.8.3-audio.zip)
 
-Install over v0.8.1. The release workflow verified the package and signing certificate against that APK.
+Install over v0.8.2. In Voices, open a saved recording labeled Male or Female and create its preview. The dialog displays the base narrator before conversion. A preview previously made with a different label needs to be recreated once from the saved recording.
 
-In Studio → Direction, **YouTuber delivery** uses a phrase-duration model fitted to 4,641 recorded Telugu conversational utterances. For eligible phrases outside the target range, the offline narrator generates another take at a bounded speed and picks the closer duration. The setting persists after restart. Cloned voices inherit the base narrator’s timing.
+The recorder displays elapsed captured PCM and microphone peak level. Saving preserves the full take and levels the playback copy. The original capture remains available. The regression fixture contains 49 seconds of quiet speech-like tone and 11 seconds of silence and saves as a 60-second WAV.
 
-The audio ZIP includes matched ON/OFF pairs for four narrators, phrase timings, loudness measurements and a public-reference OpenVoice excerpt. The renders ran on a host CPU. Listener-rated naturalness and physical handset performance remain unmeasured.
+The studio master uses offline RNNoise estimates to attenuate noise while preserving the phase of the original synthesis. The ZIP pairs the same takes before and after this stage for Venkatesh, Padmavathi, Indic Tiny Male, Indic Tiny Female and a public-reference OpenVoice conversion. The renders ran on a host CPU. Telugu listening quality, personal voice similarity and physical handset capture need device evaluation.
 
 ## v0.8.0 workspace, clarity and personal voice previews
 

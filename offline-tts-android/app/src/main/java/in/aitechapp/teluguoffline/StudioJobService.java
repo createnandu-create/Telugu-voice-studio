@@ -189,15 +189,15 @@ public final class StudioJobService extends Service {
           if (!plan.cloneProfile.isEmpty())
             name = new VoiceProfiles(this).get(plan.cloneProfile).optString("name", "Cloned voice");
           String progress = "Generating audio " + (n + 1) + " of " + plans.length() + ": " + name;
-          manager.notify(41, message("render", progress, true));
+          post(manager, null, 41, message("render", progress, true));
           render(store, plan, speech);
-          manager.notify(runId, n + 1, message("completed", "Audio ready: " + AudioNames.forAudio(result), false));
+          post(manager, runId, n + 1, message("completed", "Audio ready: " + AudioNames.forAudio(result), false));
         } catch (CancellationException e) {
           throw e;
         } catch (Exception e) {
           if (cancelled.get()) throw new CancellationException();
           batch.put("failure", name + " · " + JobFailure.message(e));
-          manager.notify(runId, n + 1, message("completed", batch.getString("failure"), false));
+          post(manager, runId, n + 1, message("completed", batch.getString("failure"), false));
         }
         batch.put("next", n + 1);
         FileIntegrity.write(state, batch.toString());
@@ -208,6 +208,13 @@ public final class StudioJobService extends Service {
       state.delete();
       throw e;
     }
+  }
+
+  private void post(NotificationManager manager, String tag, int id, Notification notification) {
+    if (Build.VERSION.SDK_INT < 33 ||
+        checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED)
+      manager.notify(tag, id, notification);
   }
 
   private Notification message(String channel, String text, boolean ongoing) {

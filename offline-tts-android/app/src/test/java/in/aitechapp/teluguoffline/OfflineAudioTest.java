@@ -16,7 +16,7 @@ public class OfflineAudioTest {
     assertArrayEquals(TinyVoice.tokens("నమస్కారం"), TinyVoice.tokens("\\(నమస్కారం\\)"));
     assertArrayEquals(TinyVoice.tokens("ఒకటి బై రెండు"), TinyVoice.tokens("$\\frac{1}{2}$"));
     assertArrayEquals(
-        TinyVoice.tokens("ఎక్స్ ఘాతం రెండు ప్లస్ ఒకటి ఈక్వల్స్ టు మూడు"),
+        TinyVoice.tokens("ఎక్స్ ఘాతం రెండు ప్లస్ ఒకటి సమానం మూడు"),
         TinyVoice.tokens("$x^{2}+1=3$"));
     String original = "({నమస్కారం})";
     var plan = NarrationDirector.planExact(original, NarrationDirector.Style.AUTO);

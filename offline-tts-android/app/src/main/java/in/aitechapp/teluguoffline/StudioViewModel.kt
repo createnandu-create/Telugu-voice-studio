@@ -100,7 +100,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     private var activeRunId = ""
     private var workspaceRevision = 0
     private var generatePending = false
-    private var switchJob: Job? = null
 
     init {
         // New ViewModel = a new Studio workspace. Projects and scripts remain on disk.
@@ -220,7 +219,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         voice = index
         activeClone = ""
         persist()
-        switchJob?.cancel()
     }
 
     fun chooseClone(id: String) {
@@ -231,7 +229,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         val p = profiles.firstOrNull { it.id == id && it.cloneReady } ?: return
         clearActiveAudio()
         activeClone = id
-        switchJob?.cancel()
         voice = p.cloneBase
         persist()
     }
@@ -372,6 +369,12 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         direct()
         if (plan.isEmpty()) return
         if (voices.isEmpty()) return
+        if (voices.size > 1) {
+            // Studio playback follows the final selection. Every completed voice is in Projects.
+            voice = voices.last().first
+            activeClone = voices.last().second
+            persist()
+        }
         val jobs = org.json.JSONArray()
         voices.distinct().forEach { (base, clone) ->
             jobs.put(JSONObject(PlanStorage(script, base, plan, clone).json()))
@@ -604,7 +607,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun previewVoice(index: Int) {
         if (busy || recording) return
-        switchJob?.cancel()
         clearActiveAudio()
         voice = index
         activeClone = ""
@@ -1108,7 +1110,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     StudioJobService.result?.takeIf {
                         it.isFile &&
                             activeRunId.isNotEmpty() &&
-                            StudioJobService.resultRunId == activeRunId
+                            StudioJobService.resultRunId == activeRunId &&
+                            AudioIdentity.read(it).id == (if (activeClone.isEmpty()) ModelCatalog.VOICES[voice].id else "clone-$activeClone")
                     }
                 if (
                     completed != null &&

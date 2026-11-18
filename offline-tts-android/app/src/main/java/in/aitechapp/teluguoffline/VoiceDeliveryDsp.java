@@ -314,7 +314,21 @@ public final class VoiceDeliveryDsp {
         r.samples[i] = (float) (tiny ? deEss.process(x) : x);
       }
     }
-    PcmWave.write(output, r.samples, rate);
+    float[] pcm = r.samples;
+    if (studio) {
+      // Engines include their own quiet padding. Avoid stacking it with the planned breath.
+      // Trim only sustained near-digital-silence and retain a soft consonant margin.
+      int first = 0, last = pcm.length;
+      while (first < last && Math.abs(pcm[first]) < .00018f) first++;
+      while (last > first && Math.abs(pcm[last - 1]) < .00018f) last--;
+      if (last > first) {
+        int margin = rate * 8 / 1000;
+        first = first > rate / 25 ? first - margin : 0;
+        last = pcm.length - last > rate / 25 ? last + margin : pcm.length;
+        if (first > 0 || last < pcm.length) pcm = Arrays.copyOfRange(pcm, first, last);
+      }
+    }
+    PcmWave.write(output, pcm, rate);
     return r;
   }
 

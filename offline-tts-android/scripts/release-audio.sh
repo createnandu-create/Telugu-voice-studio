@@ -26,7 +26,7 @@ a523c39fe6b5df3a8cc76953fce9572ea6b7d3b8677d9232a4d5968fec75c40d  flow_decoder.o
 54ea73764c46cdbb74af2124e30cce42007045f1f5a60bd7520472f155eb6f4c  tone_converter_q8.onnx
 SUMS
 )
-fetch https://repo.maven.apache.org/maven2/com/microsoft/onnxruntime/onnxruntime/1.23.2/onnxruntime-1.23.2.jar ort.jar
+fetch https://repo.maven.apache.org/maven2/com/microsoft/onnxruntime/onnxruntime/1.31.0/onnxruntime-1.31.0.jar ort.jar
 bash native/rnnoise/build.sh host "$work/librnnoise_offline.so"
 javac -encoding UTF-8 -sourcepath "$src" -cp "$work/ort.jar" -d "$work/classes" tools/ReleaseAudio.java
 run=(java -Djava.library.path="$work" -cp "$work/classes:$work/ort.jar" in.aitechapp.teluguoffline.ReleaseAudio)

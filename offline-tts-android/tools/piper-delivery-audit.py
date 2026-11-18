@@ -17,12 +17,15 @@ parser.add_argument("--models", type=pathlib.Path, required=True)
 parser.add_argument("--espeak-dir", type=pathlib.Path, required=True)
 parser.add_argument("--output", type=pathlib.Path, required=True)
 parser.add_argument("--plan", type=pathlib.Path, required=True, help="TSV emitted by DeliveryAudit plan")
+parser.add_argument("--retry", action="store_true")
 args = parser.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
 assets = pathlib.Path(__file__).resolve().parents[1] / "app/src/main/assets"
 rows = [line.split("\t") for line in args.plan.read_text().splitlines()]
 records = []
 for voice in ("venkatesh", "padmavathi"):
+    if args.retry:
+        rows = [line.split("\t") for line in (args.models / f"{voice}-retry.tsv").read_text().splitlines()]
     model = args.models / f"{voice}-fixed.onnx"
     config = sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(
         vits=sherpa_onnx.OfflineTtsVitsModelConfig(model=str(model),
@@ -30,10 +33,12 @@ for voice in ("venkatesh", "padmavathi"):
         num_threads=2, debug=False), max_num_sentences=1)
     engine = sherpa_onnx.OfflineTts(config)
     for index, row in enumerate(rows):
+        if float(row[0]) == 0:
+            continue
         start = time.monotonic()
         audio = engine.generate(row[4], sid=0, speed=float(row[0]))
         elapsed = time.monotonic() - start
-        file = args.output / f"{voice}-youtube-{index}.wav"
+        file = args.output / f"{voice}-{'retry' if args.retry else 'youtube'}-{index}.wav"
         with wave.open(str(file), "wb") as out:
             out.setparams((1, 2, audio.sample_rate, 0, "NONE", ""))
             out.writeframes((np.clip(audio.samples, -1, 1) * 32767).astype("<i2").tobytes())

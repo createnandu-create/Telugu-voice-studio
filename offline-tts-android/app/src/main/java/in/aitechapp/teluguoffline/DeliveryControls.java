@@ -104,9 +104,14 @@ public final class DeliveryControls {
       boolean careful) {
     if (text.trim().isEmpty()) return;
     float rate = source.rate;
-    // This is a slower reading option, not a phoneme correctness guarantee.
-    if (careful && (text.indexOf('్') >= 0 || text.indexOf('శ') >= 0 || text.indexOf('ష') >= 0))
-      rate = Math.max(.75f, rate * .92f);
+    if (careful) {
+      for (String word : text.split("\\s+")) {
+        if (word.length() >= 9 && word.chars().filter(c -> c == '్').count() >= 2) {
+          rate = Math.max(.75f, rate * .965f);
+          break;
+        }
+      }
+    }
     out.add(new NarrationDirector.Segment(text.trim(), source.emotion, rate, source.pitch, pause));
   }
 

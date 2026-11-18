@@ -37,5 +37,7 @@ test -n "$phones"
 python3 -m venv "$work/venv"
 "$work/venv/bin/pip" install -q sherpa-onnx==1.12.26 numpy
 "$work/venv/bin/python" tools/piper-delivery-audit.py --models "$work" --espeak-dir "$phones" --output "$work" --plan "$work/plan.tsv"
+"${run[@]}" retime "$work" "$assets" "$out"
+"$work/venv/bin/python" tools/piper-delivery-audit.py --models "$work" --espeak-dir "$phones" --output "$work" --plan "$work/plan.tsv" --retry
 "${run[@]}" render "$work" "$assets" "$out"
 (cd "$out" && sha256sum *.wav > SHA256SUMS.txt)

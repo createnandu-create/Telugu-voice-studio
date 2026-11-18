@@ -191,7 +191,7 @@ public final class VoiceDeliveryDsp {
     float[] audio = source.clone();
     boolean shifted = false;
     int start = 0, end = 0;
-    float factor = question ? 1f : segment.pitch;
+    float factor = question || segment.emotion == NarrationDirector.Emotion.QUESTION ? 1f : segment.pitch;
     if (Math.abs(factor - 1) > .001) {
       int hop = rate / 100, window = rate * 60 / 1000;
       int run = -1;

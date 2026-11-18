@@ -112,15 +112,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     DynamicEnglishPhonetizer.load(app.assets.open("english-cmudict.bin"))
                     SpeechSettings.load(app)
                 }
-            speech.youtuber = true
-            speech.durationGuard = false
-            speech.questionLift = true
-            speech.commaBuffer = true
-            speech.carefulDiction = true
-            speech.femaleSoftening = false
-            speech.warmthEq = false
-            // Actual rendering snapshots these controls; no active background job is overwritten
-            // here.
             entries = speech.dictionary.toMap()
             youtuber = speech.youtuber
             durationGuard = speech.durationGuard
@@ -940,7 +931,17 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setDelivery(kind: String, enabled: Boolean) {
         when (kind) {
-            "youtuber" -> youtuber = enabled
+            "youtuber" -> {
+                youtuber = enabled
+                if (enabled && plan.isNotEmpty() && plan.all {
+                        it.emotion == NarrationDirector.Emotion.NEUTRAL && it.rate == 1f &&
+                            it.pitch == 1f && it.pauseAfterMs == 220
+                    }) {
+                    plan = NarrationDirector.planExact(script, NarrationDirector.Style.AUTO)
+                    plannedScript = script
+                    savePlan()
+                }
+            }
             "duration" -> durationGuard = enabled
             "question" -> questionLift = enabled
             "comma" -> commaBuffer = enabled
@@ -1038,6 +1039,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                             )
                         }
                     }
+                models = loadedModels
                 val loadedClone =
                     withContext(Dispatchers.IO) { OpenVoiceModelStore(app.filesDir).ready() }
                 val loadedSpeaker =
@@ -1102,7 +1104,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 cloneModelReady = loadedClone
                 speakerReady = loadedSpeaker
-                models = loadedModels
                 profiles = loadedProfiles
                 projects = loadedProjects
                 selectedReference = VoiceProfiles(app).selected()

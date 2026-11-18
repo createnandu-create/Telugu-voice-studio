@@ -32,28 +32,70 @@ public final class ReleaseAudio {
       }
       return;
     }
+    if (args[0].equals("retime")) {
+      for (ModelCatalog.Voice voice : ModelCatalog.VOICES) {
+        if (voice.tiny()) continue;
+        try (PrintWriter rows = new PrintWriter(new File(work, voice.id + "-retry.tsv"), "UTF-8")) {
+          for (int i = 0; i < plan.size(); i++) {
+            NarrationDirector.Segment s = plan.get(i);
+            String text = PronunciationLexicon.apply(s.text, Map.of(), false);
+            File raw = new File(work, voice.id + "-youtube-" + i + ".wav");
+            int hz = PcmWave.sampleRate(raw);
+            float[] pcm = ConversationTiming.trimPadding(OpenVoiceEngine.read(raw), hz);
+            float rate = ConversationTiming.candidateRate(ConversationTiming.targetSeconds(text, s.rate),
+                pcm.length / (double) hz, s.rate);
+            rows.println((rate == s.rate ? 0 : rate) + "\t0\t0\t0\t" + PronunciationLexicon.piperInput(text));
+          }
+        }
+      }
+      return;
+    }
     Files.writeString(new File(out, "script.txt").toPath(), SCRIPT);
+    StringBuilder stats = new StringBuilder("voice,phrase,first_seconds,selected_seconds,target_seconds\n");
     for (ModelCatalog.Voice voice : ModelCatalog.VOICES) {
-      List<File> chunks = new ArrayList<>();
+      List<File> chunks = new ArrayList<>(), baseline = new ArrayList<>();
+      int hz = voice.tiny() ? 24000 : 22050;
+      int improved = 0;
       try (TinyVoice tiny = voice.tiny() ? new TinyVoice(work, cancel) : null) {
         for (int i = 0; i < plan.size(); i++) {
           NarrationDirector.Segment s = plan.get(i);
+          String text = PronunciationLexicon.apply(s.text, Map.of(), false);
           File raw = new File(work, voice.id + "-youtube-" + i + ".wav");
-          if (tiny != null) {
-            String text = PronunciationLexicon.apply(s.text, Map.of(), false);
-            PcmWave.write(raw, tiny.generate(text, voice.gender.equals("Male"), s.rate, s.text.hashCode(), false, false), 24000);
-          }
+          File retry = new File(work, voice.id + "-retry-" + i + ".wav");
+          if (tiny != null)
+            PcmWave.write(raw, tiny.generate(text, voice.gender.equals("Male"), s.rate, s.text.hashCode(), false, false), hz);
+          float[] first = OpenVoiceEngine.read(raw);
+          float[] selected = ConversationTiming.render(text, s.rate, hz, true, rate -> {
+            if (rate == s.rate) return first;
+            if (tiny == null) return OpenVoiceEngine.read(retry);
+            return tiny.generate(text, voice.gender.equals("Male"), rate, s.text.hashCode(), false, false);
+          });
+          double initial = ConversationTiming.trimPadding(first, hz).length / (double) hz;
+          double actual = selected.length / (double) hz;
+          double target = ConversationTiming.targetSeconds(text, s.rate);
+          if (Math.abs(actual - initial) > .025) improved++;
+          stats.append(voice.id + "," + i + "," + initial + "," + actual + "," + target + "\n");
+          File off = new File(work, voice.id + "-off-" + i + ".wav");
+          VoiceDeliveryDsp.process(raw, off, DeliveryControls.question(s.text), false, null, cancel, true, voice.tiny());
+          baseline.add(off);
+          File chosen = new File(work, voice.id + "-selected-" + i + ".wav");
+          PcmWave.write(chosen, selected, hz);
           File processed = new File(work, voice.id + "-chunk-" + i + ".wav");
-          VoiceDeliveryDsp.process(raw, processed, DeliveryControls.question(s.text), false, s, cancel, true, voice.tiny());
+          VoiceDeliveryDsp.process(chosen, processed, DeliveryControls.question(s.text), false, s, cancel, true, voice.tiny());
           chunks.add(processed);
         }
       }
-      File combined = new File(work, voice.id + "-joined.wav");
-      PcmWave.mergeRaw(chunks, plan, combined, cancel);
-      File master = new File(out, voice.name.replace(' ', '_') + ".wav");
-      StudioMastering.Report report = StudioMastering.process(combined, master, cancel, msg -> {}, false);
-      Files.writeString(new File(out, voice.id + "-measurements.json").toPath(), report.json());
+      if (improved == 0) throw new IOException("No measurable native timing change for " + voice.name);
+      for (boolean enabled : new boolean[] {false, true}) {
+        File combined = new File(work, voice.id + "-joined.wav");
+        PcmWave.mergeRaw(enabled ? chunks : baseline, plan, combined, cancel);
+        String name = voice.name.replace(' ', '_') + (enabled ? "_ON" : "_OFF");
+        File master = new File(out, name + ".wav");
+        StudioMastering.Report report = StudioMastering.process(combined, master, cancel, msg -> {}, false);
+        Files.writeString(new File(out, name + ".json").toPath(), report.json());
+      }
     }
+    Files.writeString(new File(out, "phrase-timing.csv").toPath(), stats.toString());
     File reference = new File(assets, "comparison/piper-padmavathi-2.wav");
     float[] quiet = OfflineDenoiser.resample(OpenVoiceEngine.read(reference), PcmWave.sampleRate(reference), 24000, cancel);
     for (int i = 0; i < quiet.length; i++) quiet[i] *= .001f;
@@ -61,7 +103,7 @@ public final class ReleaseAudio {
     double level = ReferenceLevel.loudness(quiet);
     if (Math.abs(level + 16) > .3) throw new IOException("Quiet reference loudness: " + level);
     float[] target = ReferenceLevel.excerpt(quiet);
-    File base = new File(work, "venkatesh-youtube-1.wav");
+    File base = new File(work, "venkatesh-selected-1.wav");
     try (OpenVoiceEngine engine = new OpenVoiceEngine(work, cancel)) {
       float[] speech = OpenVoiceEngine.read(base);
       int rate = PcmWave.sampleRate(base);
@@ -69,7 +111,7 @@ public final class ReleaseAudio {
           engine.convert(speech, rate, engine.embedding(speech, rate), engine.embedding(target, 24000)), 22050);
     }
     Files.writeString(new File(out, "Verification.txt").toPath(),
-        "Four CPU host renders and one local OpenVoice conversion using a public pretrained reference.\nQuiet-reference regression: " +
+        "Four pairs of loudness-matched CPU host renders. ON/OFF differ only in the YouTuber switch. The OpenVoice excerpt uses a public pretrained reference.\nQuiet-reference regression: " +
         level + " LUFS after normalization.\nSpeaker similarity, pronunciation and handset behavior require listening and device testing.\n");
   }
 }

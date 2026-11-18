@@ -620,7 +620,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 item {
                     SectionLabel("NEURAL NARRATORS")
                     var batchDialog by rememberSaveable { mutableStateOf(false) }
-                    OutlinedButton(onClick = { batchDialog = true }, enabled = !vm.busy && !vm.recording) {
+                    OutlinedButton(onClick = { vm.refresh(); batchDialog = true }, enabled = !vm.busy && !vm.recording) {
                         Text("Generate with multiple voices")
                     }
                     if (batchDialog) {
@@ -628,16 +628,24 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                         val voices = ready.map { (it.index to "") to it.name } +
                             vm.profiles.filter { p -> vm.cloneModelReady && p.cloneReady && ready.any { it.index == p.cloneBase } }
                                 .map { (it.cloneBase to it.id) to (it.name + " · Cloned") }
-                        var selected by remember { mutableStateOf(voices.map { it.first }.toSet()) }
+                        var excluded by remember { mutableStateOf(emptySet<Pair<Int, String>>()) }
+                        val selected = voices.map { it.first }.toSet() - excluded
                         AlertDialog(onDismissRequest = { batchDialog = false },
                             title = { Text("Queue voices") },
                             text = {
                                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                                    if (voices.isEmpty()) Text("Install a narrator in Settings first.")
+                                    if (voices.isEmpty()) {
+                                        if (vm.loading) Text("Checking offline narrators…")
+                                        else TextButton(onClick = {
+                                            batchDialog = false
+                                            vm.navigate("Settings")
+                                            vm.page = "models"
+                                        }) { Text("Install a narrator in Settings") }
+                                    }
                                     voices.forEach { (key, label) ->
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Checkbox(key in selected, onCheckedChange = { checked ->
-                                                selected = if (checked) selected + key else selected - key
+                                                excluded = if (checked) excluded - key else excluded + key
                                             })
                                             Text(label)
                                         }
@@ -2354,7 +2362,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
         SectionLabel("OFFLINE DELIVERY CONTROLS")
         Text("Tune the delivery", style = MaterialTheme.typography.titleMedium)
         listOf(
-                Triple("youtuber", "YouTuber delivery · rule based", vm.youtuber),
+                Triple("youtuber", "YouTuber delivery · conversational timing", vm.youtuber),
 
                 Triple("question", "Question endings · +13%", vm.questionLift),
                 Triple("comma", "Comma breath · 110 ms", vm.commaBuffer),
@@ -2373,7 +2381,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
                 }
             }
         Text(
-            "Question pitch and waveform effects apply to Indic Tiny and cloned output. Piper keeps its native pitch to protect consonant clarity. Pauses and model pacing remain editable.",
+            "YouTuber delivery adapts phrase timing to recorded Telugu conversations. Each narrator can generate a second take. Cloned voices follow their base narrator’s timing.",
             style = MaterialTheme.typography.bodySmall,
             color = Muted,
         )

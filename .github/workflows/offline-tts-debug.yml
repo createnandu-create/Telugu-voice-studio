@@ -68,32 +68,32 @@ jobs:
       - name: Build the unified APK and run Android tests
         run: gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 
-      - name: Verify upgrade package and certificate against v0.8.0
+      - name: Verify upgrade package and certificate against v0.8.1
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p dist "$RUNNER_TEMP/v080"
-          apk=dist/TeluguVoiceStudio-v0.8.1.apk
+          mkdir -p dist "$RUNNER_TEMP/v081"
+          apk=dist/TeluguVoiceStudio-v0.8.2.apk
           cp offline-tts-android/app/build/outputs/apk/debug/app-debug.apk "$apk"
-          gh release download testing-a217988537ff -p TeluguVoiceStudio-fresh-install.apk -D "$RUNNER_TEMP/v080"
-          previous="$RUNNER_TEMP/v080/TeluguVoiceStudio-fresh-install.apk"
+          gh release download v0.8.1-de279b22b331 -p TeluguVoiceStudio-v0.8.1.apk -D "$RUNNER_TEMP/v081"
+          previous="$RUNNER_TEMP/v081/TeluguVoiceStudio-v0.8.1.apk"
           tools="$ANDROID_HOME/build-tools/35.0.0"
           "$tools/apksigner" verify --print-certs "$previous" > "$RUNNER_TEMP/old-cert"
           "$tools/apksigner" verify --print-certs "$apk" > "$RUNNER_TEMP/new-cert"
           diff <(grep 'certificate SHA-256 digest' "$RUNNER_TEMP/old-cert") <(grep 'certificate SHA-256 digest' "$RUNNER_TEMP/new-cert")
           "$tools/aapt2" dump badging "$apk" > "$RUNNER_TEMP/new-badging"
           "$tools/aapt2" dump badging "$previous" > "$RUNNER_TEMP/old-badging"
-          grep -F "package: name='in.aitechapp.teluguoffline.fresh' versionCode='59' versionName='0.8.1'" "$RUNNER_TEMP/new-badging"
-          grep -F "package: name='in.aitechapp.teluguoffline.fresh' versionCode='58'" "$RUNNER_TEMP/old-badging"
+          grep -F "package: name='in.aitechapp.teluguoffline.fresh' versionCode='60' versionName='0.8.2'" "$RUNNER_TEMP/new-badging"
+          grep -F "package: name='in.aitechapp.teluguoffline.fresh' versionCode='59'" "$RUNNER_TEMP/old-badging"
           "$tools/zipalign" -c -P 16 4 "$apk"
-          git archive -o dist/TeluguVoiceStudio-v0.8.1-source.zip HEAD
+          git archive -o dist/TeluguVoiceStudio-v0.8.2-source.zip HEAD
 
       - name: Generate four narrators and verify quiet-reference OpenVoice conversion
         run: |
           set -euo pipefail
           bash offline-tts-android/scripts/release-audio.sh "$RUNNER_TEMP/listening"
-          (cd "$RUNNER_TEMP/listening" && zip -q "$GITHUB_WORKSPACE/dist/TeluguVoiceStudio-v0.8.1-audio.zip" ./*)
+          (cd "$RUNNER_TEMP/listening" && zip -q "$GITHUB_WORKSPACE/dist/TeluguVoiceStudio-v0.8.2-audio.zip" ./*)
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -106,7 +106,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="v0.8.1-${GITHUB_SHA:0:12}"
-          gh release create "$tag" dist/* --target "$GITHUB_SHA" --title 'Telugu Voice Studio v0.8.1' --notes 'Single upgrade for the installed Fresh package. Includes four host-rendered narrators and a public-reference OpenVoice conversion.'
+          tag="v0.8.2-${GITHUB_SHA:0:12}"
+          gh release create "$tag" dist/* --target "$GITHUB_SHA" --title 'Telugu Voice Studio v0.8.2' --notes 'Single upgrade for the installed Fresh package. Includes four loudness-matched conversational delivery ON/OFF comparisons and a public-reference OpenVoice excerpt.'
           gh release download "$tag" -D "$RUNNER_TEMP/release-check"
           for file in dist/*; do cmp "$file" "$RUNNER_TEMP/release-check/$(basename "$file")"; done

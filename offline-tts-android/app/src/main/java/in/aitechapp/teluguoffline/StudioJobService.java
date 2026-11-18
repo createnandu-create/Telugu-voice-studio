@@ -258,7 +258,7 @@ public final class StudioJobService extends Service {
     boolean waveformDelivery = speech.youtuber;
     boolean waveformQuestions = speech.questionLift;
     StringBuilder spokenIdentity =
-        new StringBuilder("delivery-v081-native/")
+        new StringBuilder("delivery-v082-conversation/")
             .append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
@@ -329,14 +329,13 @@ public final class StudioJobService extends Service {
         if (!journal.reusable(i)) {
           if (voice.tiny()) {
             if (tiny == null) tiny = new TinyVoice(new TinyModelStore(store.root).root, cancelled);
-            float[] samples =
-                tiny.generate(
-                    speech.spoken(s.text),
-                    voice.gender.equals("Male"),
-                    s.rate,
-                    s.text.hashCode(),
-                    false,
-                    speech.durationGuard);
+            TinyVoice engine = tiny;
+            String spoken = speech.spoken(s.text);
+            float[] samples = ConversationTiming.render(spoken, s.rate, 24000, speech.youtuber,
+                rate -> {
+                  check();
+                  return engine.generate(spoken, voice.gender.equals("Male"), rate, s.text.hashCode(), false, false);
+                });
             check();
             PcmWave.write(journal.chunk(i), samples, 24000);
           } else {
@@ -360,12 +359,18 @@ public final class StudioJobService extends Service {
                           .setMaxNumSentences(1)
                           .build());
             }
-            GeneratedAudio audio = tts.generate(PronunciationLexicon.piperInput(speech.spoken(s.text)), 0, s.rate);
+            OfflineTts engine = tts;
+            String spoken = speech.spoken(s.text);
+            String input = PronunciationLexicon.piperInput(spoken);
+            float[] samples = ConversationTiming.render(spoken, s.rate, 22050, speech.youtuber,
+                rate -> {
+                  check();
+                  GeneratedAudio audio = engine.generate(input, 0, rate);
+                  if (audio.getSampleRate() != 22050) throw new IOException("Unexpected Piper sample rate");
+                  return audio.getSamples();
+                });
             check();
-            if (audio.getSampleRate() != 22050)
-              throw new IOException(
-                  "Piper returned an unexpected sample rate: " + audio.getSampleRate());
-            PcmWave.write(journal.chunk(i), audio.getSamples(), audio.getSampleRate());
+            PcmWave.write(journal.chunk(i), samples, 22050);
           }
           journal.complete(i);
         } else reused++;

@@ -25,6 +25,16 @@ public final class ModelCatalog {
       return id.startsWith("tiny-");
     }
 
+    public boolean hima() { return id.startsWith("hima-"); }
+    public boolean fastPitch() { return id.startsWith("fastpitch-"); }
+    public boolean alternative() { return hima() || fastPitch(); }
+    public int sampleRate() { return tiny() || hima() ? 24000 : 22050; }
+    public String engine() {
+      if (hima()) return "Hima Nano INT8";
+      if (fastPitch()) return "Indic-TTS / FastPitch + HiFi-GAN";
+      return tiny() ? "Indic Tiny / Vocos" : "Piper / VITS";
+    }
+
     public String url() {
       return "https://huggingface.co/rhasspy/piper-voices/resolve/"
           + REVISION
@@ -52,7 +62,11 @@ public final class ModelCatalog {
         "4eecc3c3da95e6915bb1a7227b345830e3662bf419ad47da8045c5eaf1614597",
         "8461a931a8759001165fd4b83fd8b46978cfde171d630f8e75a4e981f3482102"),
     new Voice("tiny-male", "Indic Tiny Male", "Male", "", "tiny-55cfc683-v1-male"),
-    new Voice("tiny-female", "Indic Tiny Female", "Female", "", "tiny-55cfc683-v1-female")
+    new Voice("tiny-female", "Indic Tiny Female", "Female", "", "tiny-55cfc683-v1-female"),
+    new Voice("hima-srinivas","Srinivas","Male","","hima-srinivas-8fd92e39"),
+    new Voice("hima-bhavana","Bhavana","Female","","hima-bhavana-8fd92e39"),
+    new Voice("fastpitch-male","Indic-TTS Male","Male","","fastpitch-male-78f9e2ce"),
+    new Voice("fastpitch-female","Indic-TTS Female","Female","","fastpitch-female-78f9e2ce")
   };
 
   public static int previewBase(String label, int selected) {
@@ -60,7 +74,7 @@ public final class ModelCatalog {
     if (!"Male".equalsIgnoreCase(label) && !"Female".equalsIgnoreCase(label)) return selected;
     if (VOICES[selected].gender.equalsIgnoreCase(label)) return selected;
     for (int i = 0; i < VOICES.length; i++)
-      if (VOICES[i].tiny() == VOICES[selected].tiny() && VOICES[i].gender.equalsIgnoreCase(label)) return i;
+      if (VOICES[i].engine().equals(VOICES[selected].engine()) && VOICES[i].gender.equalsIgnoreCase(label)) return i;
     throw new IllegalStateException("No matching narrator");
   }
 

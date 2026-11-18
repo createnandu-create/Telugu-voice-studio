@@ -18,10 +18,12 @@ public final class CloneProfiles {
       throw new IOException("Recording changed; create a new voice preview");
     String revision = p.optString("cloneDirectory");
     if (!revision.matches("[a-zA-Z0-9-]+")) throw new IOException("Create a voice preview first");
-    if (!OpenVoiceModelStore.REVISION.equals(p.optString("cloneModel")))
+    boolean hima=HimaClonePack.REV.equals(p.optString("cloneModel"));
+    if (stored<0 || stored>=ModelCatalog.VOICES.length || hima!=ModelCatalog.VOICES[stored].hima()) throw new IOException("Reselect your personal narrator");
+    if (!hima && !OpenVoiceModelStore.REVISION.equals(p.optString("cloneModel")))
       throw new IOException("Recreate this preview with the installed model");
     File folder = new File(new File(profiles.root(), p.optString("id") + "-clones"), revision);
-    if (!FileIntegrity.matches(new File(folder, "tone256.bin"), p.optString("cloneToneSha")))
+    if (!FileIntegrity.matches(new File(folder, hima?"hima.bin":"tone256.bin"), p.optString("cloneToneSha")))
       throw new IOException("Voice profile is damaged; recreate its preview");
     PcmWave.validate(new File(folder, "preview.wav"));
     return folder;
@@ -32,7 +34,8 @@ public final class CloneProfiles {
       "piper-venkatesh-2.wav",
       "piper-padmavathi-2.wav",
       "indic-tiny-male-2.wav",
-      "indic-tiny-female-2.wav"
+      "indic-tiny-female-2.wav",
+      "hima-srinivas.wav", "hima-bhavana.wav", "fastpitch-male.wav", "fastpitch-female.wav"
     };
     File dest = new File(c.getCacheDir(), "openvoice-base-" + voice + ".wav");
     try (InputStream in = c.getAssets().open("comparison/" + names[voice]);
@@ -52,7 +55,10 @@ public final class CloneProfiles {
     JSONObject p = profiles.get(id);
     base = ModelCatalog.previewBase(p.optString("label"), base);
     OpenVoiceModelStore models = new OpenVoiceModelStore(context.getFilesDir());
-    if (!models.ready())
+    boolean hima=ModelCatalog.VOICES[base].hima();
+    HimaClonePack nativePack=new HimaClonePack(context);
+    if (hima && !nativePack.ready()) throw new IOException("Install Hima cloning in Settings first");
+    if (!hima && !models.ready())
       throw new IOException("Install OpenVoice in Settings → Voice cloning first");
     if (profiles.root().getUsableSpace() < 20_000_000)
       throw new IOException("Free 20 MB for the private preview");
@@ -73,7 +79,11 @@ public final class CloneProfiles {
     File folder = new File(new File(profiles.root(), id + "-clones"), UUID.randomUUID().toString());
     if (!folder.mkdirs()) throw new IOException("Cannot create voice preview storage");
     boolean committed = false;
-    try (OpenVoiceEngine engine = new OpenVoiceEngine(models.root, cancel)) {
+    try {
+      if (hima) {
+        progress.update("Creating your Hima voice from the recording…");
+        nativePack.preview(folder,target,cancel);
+      } else try (OpenVoiceEngine engine = new OpenVoiceEngine(models.root, cancel)) {
       progress.update("Creating voice · extracting OpenVoice tone (256-D)…");
       float[] tone = engine.embedding(target, 24000);
       File source = baseReference(context, base);
@@ -91,10 +101,11 @@ public final class CloneProfiles {
           new File(folder, "preview.wav"),
           cancel);
       OpenVoiceEngine.saveEmbedding(new File(folder, "tone256.bin"), tone);
+      }
       OfflineDenoiser.check(cancel);
       p.put("cloneDirectory", folder.getName())
-          .put("cloneModel", OpenVoiceModelStore.REVISION)
-          .put("cloneToneSha", FileIntegrity.sha256(new File(folder, "tone256.bin")))
+          .put("cloneModel", hima?HimaClonePack.REV:OpenVoiceModelStore.REVISION)
+          .put("cloneToneSha", FileIntegrity.sha256(new File(folder, hima?"hima.bin":"tone256.bin")))
           .put("cloneBase", base)
           .put("cloneConsent", true)
           .put("cloneSourceSha", FileIntegrity.sha256(profiles.audio(id)))

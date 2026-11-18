@@ -626,7 +626,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                     if (batchDialog) {
                         val ready = vm.models.filter { it.ready }
                         val voices = ready.map { (it.index to "") to it.name } +
-                            vm.profiles.filter { p -> vm.cloneModelReady && p.cloneReady && ready.any { it.index == p.cloneBase } }
+                            vm.profiles.filter { p -> vm.clonePackReady(p.cloneBase) && p.cloneReady && ready.any { it.index == p.cloneBase } }
                                 .map { (it.cloneBase to it.id) to (it.name + " · Cloned") }
                         var excluded by remember { mutableStateOf(emptySet<Pair<Int, String>>()) }
                         val selected = voices.map { it.first }.toSet() - excluded
@@ -674,7 +674,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                     )
                 }
                 items(
-                    vm.profiles.filter { it.cloneReady && vm.cloneModelReady },
+                    vm.profiles.filter { it.cloneReady && vm.clonePackReady(it.cloneBase) },
                     key = { "clone-" + it.id },
                 ) { p ->
                     Surface(
@@ -696,7 +696,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                                     softWrap = false,
                                     fontSize = 14.sp,
                                 )
-                                Text("OpenVoice · ${p.label} · ${ModelCatalog.VOICES[p.cloneBase].name}", fontSize = 10.sp, color = Muted)
+                                Text("${if (ModelCatalog.VOICES[p.cloneBase].hima()) "Hima" else "OpenVoice"} · ${p.label} · ${ModelCatalog.VOICES[p.cloneBase].name}", fontSize = 10.sp, color = Muted)
                             }
                             IconButton(onClick = { p.clonePreview?.let(play) }) {
                                 Icon(Icons.Outlined.PlayArrow, "Preview cloned ${p.name}")
@@ -1196,7 +1196,7 @@ private fun VoiceChoice(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    "${m.gender} · ${if (ModelCatalog.VOICES[m.index].tiny()) "Indic Tiny 24kHz" else "Piper Offline"}",
+                    "${m.gender} · ${ModelCatalog.VOICES[m.index].engine()}",
                     fontSize = 10.sp,
                     color = Muted,
                     maxLines = 1,
@@ -1247,7 +1247,7 @@ private fun VoicesScreen(
         item {
             PageTitle("Your recordings", "Record, clean and export your own audio.")
             Text(
-                "To narrate in your voice, create and listen to an OpenVoice preview first.",
+                "To narrate in your voice, create and listen to a local cloning preview first.",
                 fontSize = 12.sp,
                 color = Muted,
             )
@@ -1295,7 +1295,7 @@ private fun VoicesScreen(
                     )
                     Primary("New voice recording", !vm.busy) { showRecord = true }
                 }
-                Text(vm.recordingStatus + if (vm.recording) "" else if (vm.cloneModelReady) " · OpenVoice ready offline" else " · Install OpenVoice in Settings", fontSize = 12.sp, color = Muted)
+                Text(vm.recordingStatus + if (vm.recording) "" else if (vm.clonePackReady(vm.voice)) " · Voice cloning ready offline" else " · Install the selected cloning pack in Settings", fontSize = 12.sp, color = Muted)
             }
         }
         item {
@@ -1415,7 +1415,7 @@ private fun VoicesScreen(
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(
                             onClick = {
-                                if (vm.cloneModelReady) create = true
+                                if (vm.clonePackReady(vm.voice)) create = true
                                 else {
                                     vm.navigate("Settings")
                                     vm.page = "cloning"
@@ -1434,7 +1434,7 @@ private fun VoicesScreen(
                             IconButton(onClick = { p.clonePreview?.let(play) }) {
                                 Icon(Icons.Outlined.PlayArrow, "Play cloned preview")
                             }
-                        if (p.cloneReady && vm.cloneModelReady)
+                        if (p.cloneReady && vm.clonePackReady(p.cloneBase))
                             TextButton(
                                 onClick = {
                                     vm.chooseClone(p.id)
@@ -1482,7 +1482,7 @@ private fun VoicesScreen(
                             text = {
                                 Column {
                                     Text(
-                                        "Uses your recording with ${ModelCatalog.VOICES[ModelCatalog.previewBase(p.label, vm.voice)].name} as the base narrator. Listen to the preview before generating."
+                                        "${if (ModelCatalog.VOICES[vm.voice].hima()) "Hima extracts your speaker identity and speech features." else "OpenVoice converts the selected narrator."} Selected narrator: ${ModelCatalog.VOICES[ModelCatalog.previewBase(p.label, vm.voice)].name}. Listen to the preview before generating."
                                     )
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(consent, { consent = it })
@@ -1512,7 +1512,7 @@ private fun VoicesScreen(
             Panel {
                 SectionLabel("NARRATOR VOICES")
                 Text(
-                    "Download narrator models in Settings → Offline models. Personal voice previews use the separate OpenVoice pack.",
+                    "Download narrator models in Settings → Offline models. Select Hima or OpenVoice in Settings → Voice cloning.",
                     color = Muted,
                 )
                 Secondary("Manage offline models", Icons.Outlined.Tune) {
@@ -1814,7 +1814,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
         item {
             SettingsTile(
                 "Sample audio",
-                "Bundled examples from the four narrator voices",
+                "Listen to the offline narrator samples",
                 Icons.Outlined.PlayArrow,
             ) {
                 vm.page = "samples"
@@ -1823,7 +1823,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
         item {
             SettingsTile(
                 "Voice cloning",
-                "OpenVoice · create a local voice preview",
+                "Hima and OpenVoice · local voice previews",
                 Icons.Outlined.Mic,
             ) {
                 vm.page = "cloning"
@@ -1869,7 +1869,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
         item {
             Panel {
                 SectionLabel("ON THIS DEVICE")
-                Text("Piper + Indic Tiny Telugu", style = MaterialTheme.typography.titleMedium)
+                Text("Piper, Indic Tiny, Hima and Indic-TTS", style = MaterialTheme.typography.titleMedium)
                 val context = LocalContext.current
                 val version = remember { AppIdentity.version(context) }
                 Text(
@@ -1889,7 +1889,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
                 Text(context.packageName, fontSize = 11.sp, color = Muted)
                 HorizontalDivider(color = Line)
                 Text(
-                    "Four pretrained narrators. Personal voices require the optional OpenVoice pack and a successful local preview.",
+                    "Personal voices require a local cloning pack and a successful preview.",
                     fontSize = 13.sp,
                     color = Muted,
                 )
@@ -1992,7 +1992,7 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                         Column(Modifier.weight(1f)) {
                             Text(m.name, style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "${m.gender} · ${if(ModelCatalog.VOICES[m.index].tiny()) "Indic Tiny / Vocos" else "Piper / VITS"}",
+                                "${m.gender} · ${ModelCatalog.VOICES[m.index].engine()}",
                                 fontSize = 12.sp,
                                 color = Muted,
                             )
@@ -2007,7 +2007,9 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                     }
                     var details by rememberSaveable(m.index) { mutableStateOf(false) }
                     Text(
-                        if (ModelCatalog.VOICES[m.index].tiny()) "91 MB shared pack · 24 kHz"
+                        if (ModelCatalog.VOICES[m.index].hima()) "102 MB shared download · 24 kHz"
+                        else if (ModelCatalog.VOICES[m.index].fastPitch()) "281 MB download · 137 MB installed · 22.05 kHz"
+                        else if (ModelCatalog.VOICES[m.index].tiny()) "91 MB shared pack · 24 kHz"
                         else "63.5 MB · 22.05 kHz",
                         fontSize = 12.sp,
                         color = Muted,
@@ -2017,7 +2019,9 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                     }
                     if (details) {
                         Text(
-                            if (ModelCatalog.VOICES[m.index].tiny())
+                            if (ModelCatalog.VOICES[m.index].alternative())
+                                "One shared pack installs both speakers. Removal affects both. Inference runs on the device."
+                            else if (ModelCatalog.VOICES[m.index].tiny())
                                 "Indic Tiny Telugu · experimental\n91 MB shared pack · 24 kHz · CC BY 4.0 + MIT\nRevision ${TinyModelStore.REVISION.take(12)}\nTelugu script only. Android phone validation pending."
                             else
                                 "ID: te_IN-${ModelCatalog.VOICES[m.index].id}-medium\n63.5 MB · 22.05 kHz · CC BY 4.0\nStart-token repair v1 · Revision ${ModelCatalog.REVISION.take(12)}\nUpgraded installs keep a 63.5 MB backup.",
@@ -2102,7 +2106,7 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
     if (deleting >= 0)
         ConfirmDelete(
             "Remove ${ModelCatalog.VOICES[deleting].name}?",
-            "This removes the voice weights. Indic Tiny male and female share one pack, so removing it removes both. Recordings, scripts and exports are kept.",
+            "This removes the voice weights. Speakers that share this pack are removed together. Recordings, scripts and exports are kept.",
             { deleting = -1 },
         ) {
             vm.deleteModel(deleting)
@@ -2482,6 +2486,16 @@ private fun CloningScreen(vm: StudioViewModel) {
         item {
             TextButton(onClick = { vm.page = "" }) { Text("← Settings") }
             PageTitle("Your voice, locally", "Create a preview before using a personal narrator.")
+        }
+        item {
+            Panel {
+                Text("Hima · native Telugu cloning", style = MaterialTheme.typography.titleMedium)
+                Text("Uses the speaker and acoustic features of your recording. Up to 325 MB including the Hima voices and speaker encoder.", fontSize = 13.sp)
+                if (vm.himaCloneReady) {
+                    StatusPill("READY OFFLINE", Paper)
+                    Primary("Create my Hima voice", !vm.busy) { vm.choose(4); vm.navigate("Voices") }
+                } else Primary("Download Hima cloning", !vm.busy) { vm.speakerAction("hima-install") }
+            }
         }
         item {
             Panel {

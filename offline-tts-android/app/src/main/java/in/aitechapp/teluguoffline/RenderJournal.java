@@ -22,10 +22,10 @@ public final class RenderJournal {
       List<NarrationDirector.Segment> plan,
       String speechIdentity)
       throws IOException {
-    expectedRate = voice.tiny() ? 24000 : 22050;
+    expectedRate = voice.sampleRate();
     StringBuilder identity =
         new StringBuilder(
-                voice.tiny() ? "tiny-java-v2-duration-ort1.31/" : "sherpa-1.12.26/pcm-v1/")
+                voice.alternative() ? voice.engine()+"/v1/" : voice.tiny() ? "tiny-java-v2-duration-ort1.31/" : "sherpa-1.12.26/pcm-v1/")
             .append(voice.installedSha);
     if (!speechIdentity.isEmpty()) identity.append("/speech-v2/").append(speechIdentity);
     for (NarrationDirector.Segment s : plan)

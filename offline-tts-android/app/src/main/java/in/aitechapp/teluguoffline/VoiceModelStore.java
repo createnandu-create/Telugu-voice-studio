@@ -25,6 +25,7 @@ public final class VoiceModelStore {
   }
 
   public File model(ModelCatalog.Voice voice) {
+    if (voice.alternative()) return new AlternativePack(root, voice).model();
     if (voice.tiny()) return new File(new TinyModelStore(root).root, "text_encoder.onnx");
     return new File(root, voice.id + ".onnx");
   }
@@ -34,6 +35,7 @@ public final class VoiceModelStore {
   }
 
   public boolean ready(ModelCatalog.Voice voice) throws IOException {
+    if (voice.alternative()) return new AlternativePack(root, voice).ready();
     if (voice.tiny()) return new TinyModelStore(root).ready();
     return InstallReceipt.ready(
         model(voice), receipt(voice), voice.installedSha, ModelCatalog.REVISION);
@@ -47,7 +49,7 @@ public final class VoiceModelStore {
   }
 
   private boolean verifyAndMigrate(ModelCatalog.Voice voice) throws IOException {
-    if (voice.tiny()) return ready(voice);
+    if (voice.tiny() || voice.alternative()) return ready(voice);
     if (ready(voice)) return true;
     if (!voice.legacySha.equals(voice.installedSha)
         && FileIntegrity.matches(model(voice), voice.legacySha)) {
@@ -70,12 +72,14 @@ public final class VoiceModelStore {
   }
 
   public boolean verify(ModelCatalog.Voice voice) throws IOException {
+    if (voice.alternative()) return new AlternativePack(root, voice).verify();
     if (voice.tiny()) return new TinyModelStore(root).verify();
     return InstallReceipt.verify(
         model(voice), receipt(voice), voice.installedSha, ModelCatalog.REVISION);
   }
 
   public void remove(ModelCatalog.Voice voice) throws IOException {
+    if (voice.alternative()) { new AlternativePack(root,voice).remove(); return; }
     if (voice.tiny()) {
       new TinyModelStore(root).remove();
       return;
@@ -92,6 +96,7 @@ public final class VoiceModelStore {
 
   public void install(ModelCatalog.Voice voice, AtomicBoolean cancel, Progress progress)
       throws Exception {
+    if (voice.alternative()) { new AlternativePack(root,voice).install(cancel,progress); return; }
     if (voice.tiny()) {
       new TinyModelStore(root).install(cancel, progress);
       return;
@@ -226,7 +231,7 @@ public final class VoiceModelStore {
         }
       }
     for (ModelCatalog.Voice voice : ModelCatalog.VOICES) {
-      if (voice.tiny()) continue;
+      if (voice.tiny() || voice.alternative()) continue;
       File tmp = new File(root, voice.id + "-tokens.txt.tmp");
       try (InputStream in = context.getAssets().open(voice.id + "-tokens.txt");
           FileOutputStream out = new FileOutputStream(tmp)) {

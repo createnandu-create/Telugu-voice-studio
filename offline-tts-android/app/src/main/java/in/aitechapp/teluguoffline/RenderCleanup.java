@@ -83,7 +83,7 @@ final class RenderCleanup {
 
   static Cleaner forVoice(int voice, boolean clone, AtomicBoolean cancel) {
     // Protect onsets and fricatives; use a deeper tail reduction on Vocos than on Piper.
-    final double depth = clone ? .55 : new double[]{.36, .46, .62, .70}[voice];
+    final double depth = clone ? .55 : voice >= 4 ? .36 : new double[]{.36, .46, .62, .70}[voice];
     return (samples, rate) -> apply(samples, rate, voice >= 2 || clone, cancel, depth);
   }
 

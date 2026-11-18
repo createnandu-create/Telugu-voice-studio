@@ -60,3 +60,14 @@ Other candidates: [Indic-Mio 0.6B](https://huggingface.co/SPRINGLab/Indic-Mio) e
 - [Rubber Band](https://breakfastquay.com/rubberband/) permits time stretching but is GPL/commercial licensed, not a permissive code dependency, and doesn't add expressive prosody.
 
 **Next real acceptance**: create distinct offline WAV samples from stock Android TTS neutral, Android TTS tuned filter, Piper Telugu, Indic Tiny TTS Telugu ONNX. Use original user Telugu script, listening comparison (loudness-matched), CER for words, model runtime, memory and waveform analysis. Prefer the audible model, not the one with the largest parameter count. Only THEN approach local semantic direction with LiteRT-LM, and local consented Indic-Mio cloning after a real native ARM64 port.
+
+
+## v0.8.6 offline alternatives
+
+Hima Nano uses the pinned Telugu INT8 preset graphs, SentencePiece unigram vocabulary, 24 kHz neural codec, and separate Srinivas and Bhavana conditioning. Its optional recording-based clone uses the base graphs, a normalized SpeechBrain-compatible ECAPA vector and 62 Mimi acoustic reference frames. Studio derives both from the consented local waveform. Removing the speaker pack disables creation and native Hima clone selection until it is restored. Hima weights come from the original model publisher on explicit installation. The bundled encoder topology contains references to the codec file and the codec code license is in third-party/Hima-Codec-LICENSE.txt.
+
+Indic-TTS uses the Telugu FastPitch / HiFi-GAN files from the pinned iTantra archive. Speaker 0 is female and speaker 1 is male. The app retains only the two TTS graphs. The native duration predictor accepts the scale before model-side rounding. No individual vowel or rendered PCM is stretched for speed. Both new families use isolated sessions per render job.
+
+The public IndicF5 community export at developerabu/IndicF5-ONNX revision 8886363d9473330618a458b119d5d8bd95ffccba has acoustic inputs [1,128,100] and text [1,128]. At a 256-sample hop and 24 kHz its total reference-plus-output window is 1.37 seconds. It does not support this app's reference and narration workflow. The original ai4bharat/IndicF5 checkpoint and its exact vocabulary require upstream access approval. No IndicF5 choice is advertised in this build.
+
+Four native CPU renders and the public Hima cloning fixture use the same Telugu text: నమస్కారం ఫ్రెండ్స్! మీరు ఎలా ఉన్నారు? ఇక్కడ క్లిక్ చేయండి. Host outputs in assets/comparison and tests/fixtures are real PCM. Phone throughput, long-script perceptual quality and listener preference are unmeasured. No user recording or derived personal voice is part of the repository or public release.

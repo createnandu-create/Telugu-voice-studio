@@ -73,6 +73,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var loading by mutableStateOf(false)
     var models by mutableStateOf<List<ModelRow>>(emptyList())
     var speakerReady by mutableStateOf(false)
+    var himaCloneReady by mutableStateOf(false)
+    fun clonePackReady(base: Int) = if (ModelCatalog.VOICES[base].hima()) himaCloneReady else cloneModelReady
     var cloneModelReady by mutableStateOf(false)
     var activeClone by mutableStateOf("")
     var referenceStatus by mutableStateOf("")
@@ -130,6 +132,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                             "Piper · Padmavathi" to "piper-padmavathi-2.wav",
                             "Indic Tiny · Male" to "indic-tiny-male-2.wav",
                             "Indic Tiny · Female" to "indic-tiny-female-2.wav",
+                            "Srinivas" to "hima-srinivas.wav",
+                            "Bhavana" to "hima-bhavana.wav",
+                            "Indic-TTS Male" to "fastpitch-male.wav",
+                            "Indic-TTS Female" to "fastpitch-female.wav",
                         )
                         .map { (label, name) ->
                             val folder = File(app.cacheDir, "comparison-v04").apply { mkdirs() }
@@ -224,11 +230,11 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     fun choose(index: Int, autoRender: Boolean = false) = selectNarrator(index, "", autoRender)
 
     fun chooseClone(id: String, autoRender: Boolean = false) {
-        if (!cloneModelReady) {
-            notice = "Install OpenVoice in Settings → Voice cloning."
+        val p = profiles.firstOrNull { it.id == id && it.cloneReady } ?: return
+        if (!clonePackReady(p.cloneBase)) {
+            notice = "Install the matching pack in Settings → Voice cloning."
             return
         }
-        val p = profiles.firstOrNull { it.id == id && it.cloneReady } ?: return
         selectNarrator(p.cloneBase, id, autoRender)
     }
 
@@ -747,6 +753,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         work {
             withContext(Dispatchers.IO) {
                 val root = VoiceModelStore(getApplication()).root
+                if (ModelCatalog.VOICES[index].alternative()) AlternativePack(root,ModelCatalog.VOICES[index]).restart()
                 if (ModelCatalog.VOICES[index].tiny()) {
                     val tiny = TinyModelStore(root)
                     TinyModelStore.ASSETS.forEach { a ->
@@ -1056,7 +1063,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                                 v.name,
                                 v.gender,
                                 ready,
-                                if (v.tiny()) TinyModelStore(store.root).partial()
+                                if (v.alternative()) AlternativePack(store.root,v).partial() else if (v.tiny()) TinyModelStore(store.root).partial()
                                 else File(store.root, v.id + ".download").length(),
                                 store.model(v).exists() && !ready,
                             )
@@ -1125,6 +1132,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                                 )
                             } ?: emptyList()
                     }
+                himaCloneReady = withContext(Dispatchers.IO) { HimaClonePack(app).ready() }
                 cloneModelReady = loadedClone
                 speakerReady = loadedSpeaker
                 profiles = loadedProfiles

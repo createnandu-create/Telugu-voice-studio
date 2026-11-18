@@ -47,7 +47,8 @@ public final class StudioJobService extends Service {
     status = "Preparing…";
     runId = intent.getStringExtra("runId");
     if (runId == null) runId = "";
-    boolean cloneInstall = "clone-install".equals(intent.getAction());
+    boolean himaInstall = "hima-install".equals(intent.getAction());
+    boolean cloneInstall = himaInstall || "clone-install".equals(intent.getAction());
     boolean cloneCreate = "clone-create".equals(intent.getAction());
     boolean speakerInstall = "speaker-install".equals(intent.getAction());
     boolean enroll = "speaker-enroll".equals(intent.getAction());
@@ -94,7 +95,10 @@ public final class StudioJobService extends Service {
         () -> {
           try {
             VoiceModelStore store = new VoiceModelStore(this);
-            if (cloneInstall) {
+            if (himaInstall) {
+              new HimaClonePack(this).install(cancelled,message -> status=message);
+              status="Completed · Hima cloning ready offline";
+            } else if (cloneInstall) {
               new OpenVoiceModelStore(getFilesDir())
                   .install(cancelled, message -> status = message);
               status = "Completed · OpenVoice ready. Create a consented voice preview in Voices.";
@@ -239,7 +243,7 @@ public final class StudioJobService extends Service {
     status = "Checking voice integrity…";
     if (!store.verified(voice))
       throw new IOException("Install " + voice.name + " in Offline Models first.");
-    if (!voice.tiny()) store.prepareAssets(cancelled);
+    if (!voice.tiny() && !voice.alternative()) store.prepareAssets(cancelled);
     check();
     DynamicEnglishPhonetizer.load(getAssets().open("english-cmudict.bin"));
     boolean cloned = !plan.cloneProfile.isEmpty();
@@ -250,7 +254,8 @@ public final class StudioJobService extends Service {
       clone = profiles.get(plan.cloneProfile);
       cloneDirectory = CloneProfiles.directory(profiles, clone);
       if (plan.voice != clone.optInt("cloneBase", 0)) throw new IOException("Reselect the cloned voice and generate again.");
-      if (!new OpenVoiceModelStore(getFilesDir()).ready())
+      if (voice.hima() && !new HimaClonePack(this).ready()) throw new IOException("Install Hima cloning first");
+      if (!voice.hima() && !new OpenVoiceModelStore(getFilesDir()).ready())
         throw new IOException("Install OpenVoice before generating a cloned voice");
     }
     List<NarrationDirector.Segment> renderSegments =
@@ -271,8 +276,8 @@ public final class StudioJobService extends Service {
             .append(speech.carefulDiction);
     if (cloned)
       spokenIdentity
-          .append("/openvoice/")
-          .append(OpenVoiceModelStore.REVISION)
+          .append("/clone/")
+          .append(clone.getString("cloneModel"))
           .append(clone.getString("cloneToneSha"));
     org.json.JSONArray inputAudit = new org.json.JSONArray();
     for (NarrationDirector.Segment segment : renderSegments) {
@@ -297,8 +302,8 @@ public final class StudioJobService extends Service {
             .put(
                 "engine",
                 cloned
-                    ? "OpenVoice V2 tone conversion · " + voice.name
-                    : voice.tiny() ? "Indic Tiny / Vocos" : "Piper / sherpa-onnx")
+                    ? (voice.hima() ? "Hima native voice cloning" : "OpenVoice V2 tone conversion · " + voice.name)
+                    : voice.engine())
             .put("model_sha", voice.installedSha)
             .put("question_lift", speech.questionLift)
             .put("youtuber_controls", speech.youtuber)
@@ -317,6 +322,7 @@ public final class StudioJobService extends Service {
               + " MB.");
     OfflineTts tts = null;
     TinyVoice tiny = null;
+    AlternativeVoice alternative = null;
     long start = SystemClock.elapsedRealtime();
     int peakPss = 0, maxThermal = 0;
     float maxBattery = Float.NaN;
@@ -328,7 +334,21 @@ public final class StudioJobService extends Service {
         NarrationDirector.Segment s = renderSegments.get(i);
         status = "Rendering " + (i + 1) + " / " + renderSegments.size() + " · " + voice.name;
         if (!journal.reusable(i)) {
-          if (voice.tiny()) {
+          if (voice.alternative()) {
+            if (alternative == null) {
+              File pack = new AlternativePack(store.root,voice).root;
+              if(voice.fastPitch()) PackTopology.prepare(this,new File(pack,"fastpitch-pace.pb"),FastPitchVoice.TOPOLOGY_SHA);
+              alternative = cloned && voice.hima() ? new HimaClonePack(this).voice(cloneDirectory,cancelled)
+                  : voice.hima() ? new HimaVoice(pack,voice.name,cancelled)
+                  : new FastPitchVoice(pack,voice.gender.equals("Male"),cancelled);
+            }
+            AlternativeVoice engine = alternative;
+            String spoken = speech.spoken(s.text);
+            float[] samples = ConversationTiming.render(spoken,s.rate,voice.sampleRate(),speech.youtuber,
+                rate -> engine.render(spoken,rate));
+            check();
+            PcmWave.write(journal.chunk(i),samples,voice.sampleRate());
+          } else if (voice.tiny()) {
             if (tiny == null) tiny = new TinyVoice(new TinyModelStore(store.root).root, cancelled);
             TinyVoice engine = tiny;
             String spoken = speech.spoken(s.text);
@@ -399,9 +419,10 @@ public final class StudioJobService extends Service {
     } finally {
       if (tts != null) tts.release();
       if (tiny != null) tiny.close();
+      if (alternative != null) alternative.close();
     }
     check();
-    if (cloned) {
+    if (cloned && !voice.hima()) {
       File converted = new File(journal.directory, "cloned");
       converted.mkdirs();
       List<File> convertedChunks = new ArrayList<>();
@@ -517,10 +538,8 @@ public final class StudioJobService extends Service {
             .put(
                 "engine",
                 cloned
-                    ? "OpenVoice V2 tone conversion / " + voice.name
-                    : voice.tiny()
-                        ? "Indic Tiny / ONNX Runtime 1.31 / Vocos"
-                        : "sherpa-onnx 1.12.26 / Piper")
+                    ? (voice.hima() ? "Hima native voice cloning" : "OpenVoice V2 tone conversion / " + voice.name)
+                    : voice.engine())
             .put("voice", cloned ? "clone-" + plan.cloneProfile : voice.id)
             .put("voice_name", cloned ? clone.getString("name") : voice.name)
             .put("cloned", cloned)

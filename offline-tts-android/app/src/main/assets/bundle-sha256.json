@@ -31,5 +31,11 @@
   "assets/licenses/CMUDict-BSD.txt": "bd4ce8e44170a5f9f481310ca85c51de3c4f851a65e679b40e603b143bd3542a",
   "assets/licenses/CMUDict-PROVENANCE.txt": "35fb6d1dfee0ec6e01bc8575ea75f3df9dd630d81e0a89e9be23e091a6969e21",
   "assets/licenses/OpenVoice-MIT.txt": "137b873e75b39950448998d4b4a1812f90c505fd23922fefe0495ac27f547053",
-  "assets/licenses/OpenVoice-PROVENANCE.md": "40237288c29d999248c0896416f2e4187366f6d1b2c33922ac9f3ecfb20771ef"
+  "assets/licenses/OpenVoice-PROVENANCE.md": "40237288c29d999248c0896416f2e4187366f6d1b2c33922ac9f3ecfb20771ef",
+  "assets/comparison/fastpitch-male.wav": "3945ffdda0ea9f26165281f655c0fe5556cce7162c2d54efac559ef63ef03abc",
+  "assets/comparison/fastpitch-female.wav": "c0c21fd89cba215059fec7810c46b144a8735101f6d486fc50f3e401fbae5b9b",
+  "assets/comparison/hima-bhavana.wav": "e5443530ad48355ef70e3eb497d353fda04af2f5ee0abfd557961aa432604a19",
+  "assets/comparison/hima-srinivas.wav": "55036dfa864388333e4aa3b58b722d1150c4e16e180ade65ff9f11544e5081df",
+  "assets/hima-encoder.pb.gz": "2dd3e18ed18d2cc856d15a537a4609bd0ad5f149cf2e7f26e731db25a196dff0",
+  "assets/fastpitch-pace.pb.gz": "60acbc178334b5cc442e0068c7a8d45e7a1cb067207de24a5430a40c037c668d"
 }

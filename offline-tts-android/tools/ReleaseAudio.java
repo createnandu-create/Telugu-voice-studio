@@ -34,7 +34,7 @@ public final class ReleaseAudio {
     }
     if (args[0].equals("retime")) {
       for (ModelCatalog.Voice voice : ModelCatalog.VOICES) {
-        if (voice.tiny()) continue;
+        if (voice.tiny() || voice.alternative()) continue;
         try (PrintWriter rows = new PrintWriter(new File(work, voice.id + "-retry.tsv"), "UTF-8")) {
           for (int i = 0; i < plan.size(); i++) {
             NarrationDirector.Segment s = plan.get(i);
@@ -53,6 +53,7 @@ public final class ReleaseAudio {
     Files.writeString(new File(out, "script.txt").toPath(), SCRIPT);
     StringBuilder stats = new StringBuilder("voice,phrase,first_seconds,selected_seconds,target_seconds\n");
     for (ModelCatalog.Voice voice : ModelCatalog.VOICES) {
+      if (voice.alternative()) continue;
       List<NarrationDirector.Segment> voicePlan = voice.tiny() ? DeliveryControls.expand(
           NarrationDirector.planExact(SCRIPT, NarrationDirector.Style.AUTO), true, false) : plan;
       boolean soft = voice.tiny() && voice.gender.equals("Female");

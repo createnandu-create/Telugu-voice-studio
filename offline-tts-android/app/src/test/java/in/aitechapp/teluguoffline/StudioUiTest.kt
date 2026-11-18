@@ -134,9 +134,9 @@ class StudioUiTest {
 
     @Test
     fun narratorSwitchRestoresOnlyItsOwnDeliveryControls() {
-        val vm = compose.runOnIdle { androidx.lifecycle.ViewModelProvider(compose.activity)[StudioViewModel::class.java] }
-        compose.waitUntil(15000) { vm.models.isNotEmpty() && !vm.loading }
         compose.runOnIdle {
+            // Saving and restoring controls works before an optional voice pack is installed.
+            val vm = androidx.lifecycle.ViewModelProvider(compose.activity)[StudioViewModel::class.java]
             vm.edit("")
             vm.choose(0)
             vm.setDelivery("youtuber", false)

@@ -179,9 +179,26 @@ public final class DynamicEnglishPhonetizer {
   public static String apply(String source) {
     Matcher m = Pattern.compile("[A-Za-z]+(?:'[A-Za-z]+)?").matcher(source);
     StringBuffer b = new StringBuffer();
-    while (m.find()) m.appendReplacement(b, Matcher.quoteReplacement(word(m.group())));
+    while (m.find()) {
+      String value = word(m.group());
+      if (m.group().equalsIgnoreCase("the")) {
+        int next = m.end();
+        while (next < source.length() && Character.isWhitespace(source.charAt(next))) next++;
+        int end = next;
+        while (end < source.length() && isLatin(source.charAt(end))) end++;
+        if (end > next) {
+          String onset = word(source.substring(next, end));
+          if (!onset.isEmpty()) value = onset.charAt(0) >= 'అ' && onset.charAt(0) <= 'ఔ' ? "దీ" : "ద";
+        }
+      }
+      m.appendReplacement(b, Matcher.quoteReplacement(value));
+    }
     m.appendTail(b);
     return b.toString().replaceAll("(?<=[\\p{L}\\p{M}])[-–](?=[\\p{L}\\p{M}])", " ");
+  }
+
+  private static boolean isLatin(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
   }
 
   private DynamicEnglishPhonetizer() {}

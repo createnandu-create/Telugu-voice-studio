@@ -62,7 +62,7 @@ public final class VoiceDeliveryDsp {
         Collections.sort(sorted);
         int p = sorted.get(sorted.size() / 2);
         int min = Collections.min(periods), max = Collections.max(periods);
-        if (min > p * .75 && max < p * 1.25) {
+        if (min > p * .88 && max < p * 1.12) {
           int first = times.get(times.size() - 1), end = times.get(0);
           from = Math.max(0, first);
           to = Math.min(source.length, end);
@@ -114,9 +114,9 @@ public final class VoiceDeliveryDsp {
       score[lag] = a / Math.sqrt(Math.max(1e-16, b * c));
       best = Math.max(best, score[lag]);
     }
-    if (best < .65) return -1;
+    if (best < .78) return -1;
     for (int lag = low + 1; lag < high; lag++)
-      if (score[lag] >= Math.max(.65, best * .94)
+      if (score[lag] >= Math.max(.78, best * .94)
           && score[lag] >= score[lag - 1]
           && score[lag] > score[lag + 1]) return lag;
     return -1;
@@ -204,7 +204,7 @@ public final class VoiceDeliveryDsp {
                 : -1;
         if (period > 0
             && (periods.isEmpty()
-                || (period > periods.get(0) * .75 && period < periods.get(0) * 1.25))) {
+                || (period > periods.get(0) * .88 && period < periods.get(0) * 1.12))) {
           if (run < 0) run = center;
           periods.add(period);
         } else {
@@ -283,6 +283,12 @@ public final class VoiceDeliveryDsp {
   static Result process(File input, File output, boolean question, boolean soft,
       NarrationDirector.Segment direction, AtomicBoolean cancel, boolean studio, boolean tiny)
       throws IOException {
+    return process(input, output, question, soft, direction, cancel, studio, tiny, studio);
+  }
+
+  static Result process(File input, File output, boolean question, boolean soft,
+      NarrationDirector.Segment direction, AtomicBoolean cancel, boolean studio, boolean tiny, boolean cleanup)
+      throws IOException {
     long bytes = PcmWave.validate(input);
     int rate = PcmWave.sampleRate(input);
     if (bytes > 16_000_000)
@@ -314,7 +320,7 @@ public final class VoiceDeliveryDsp {
         r.samples[i] = (float) (tiny ? deEss.process(x) : x);
       }
     }
-    float[] pcm = r.samples;
+    float[] pcm = cleanup ? RenderCleanup.apply(r.samples, rate, tiny, cancel) : r.samples;
     if (studio) {
       // Engines include their own quiet padding. Avoid stacking it with the planned breath.
       // Trim only sustained near-digital-silence and retain a soft consonant margin.

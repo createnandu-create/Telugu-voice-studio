@@ -55,5 +55,14 @@ public final class ModelCatalog {
     new Voice("tiny-female", "Indic Tiny Female", "Female", "", "tiny-55cfc683-v1-female")
   };
 
+  public static int previewBase(String label, int selected) {
+    if (selected < 0 || selected >= VOICES.length) selected = 0;
+    if (!"Male".equalsIgnoreCase(label) && !"Female".equalsIgnoreCase(label)) return selected;
+    if (VOICES[selected].gender.equalsIgnoreCase(label)) return selected;
+    for (int i = 0; i < VOICES.length; i++)
+      if (VOICES[i].tiny() == VOICES[selected].tiny() && VOICES[i].gender.equalsIgnoreCase(label)) return i;
+    throw new IllegalStateException("No matching narrator");
+  }
+
   private ModelCatalog() {}
 }

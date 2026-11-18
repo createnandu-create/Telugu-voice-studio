@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Generates release listening fixtures from pinned models using Studio's production DSP. */
 public final class ReleaseAudio {
-  private static final String SCRIPT = "నమస్కారం! AiTechApp నుంచి mind-blowing tech update. Alight Motion, VN, DNA. మెయిన్ ప్రాబ్లమ్ ఏంటి? ఇక్కడ export చేయండి. గగనాన సంక్లిష్టమైన కర్కశమైన రసవత్తరమైన తాళపత్రాలలోని సస్వరమైన explanation. రెండు = రెండు.";
+  private static final String SCRIPT = "నమస్కారం! AiTechApp నుంచి mind-blowing tech update. Alight Motion, VN, DNA. మెయిన్ ప్రాబ్లమ్ ఏంటి? ఇక్కడ export చేయండి. గగనాన సంక్లిష్టమైన కర్కశమైన రసవత్తరమైన తాళపత్రాలలోని సస్వరమైన explanation. రెండు = రెండు. ఏం రా ఎలా ఉన్నావురా? ఫ్రెండ్స్, మీరు ఎలా ఉన్నారు? This is the final version. This is the only version.";
   public static void main(String[] args) throws Exception {
     File work = new File(args[1]), assets = new File(args[2]), out = new File(args[3]);
     AtomicBoolean cancel = new AtomicBoolean();
@@ -75,11 +75,11 @@ public final class ReleaseAudio {
           double target = ConversationTiming.targetSeconds(text, s.rate);
           if (Math.abs(actual - initial) > .025) improved++;
           stats.append(voice.id + "," + i + "," + initial + "," + actual + "," + target + "\n");
-          File off = new File(work, voice.id + "-off-" + i + ".wav");
-          VoiceDeliveryDsp.process(raw, off, DeliveryControls.question(s.text), false, null, cancel, true, voice.tiny());
-          baseline.add(off);
           File chosen = new File(work, voice.id + "-selected-" + i + ".wav");
           PcmWave.write(chosen, selected, hz);
+          File off = new File(work, voice.id + "-off-" + i + ".wav");
+          VoiceDeliveryDsp.process(chosen, off, DeliveryControls.question(s.text), false, s, cancel, true, voice.tiny(), false);
+          baseline.add(off);
           File processed = new File(work, voice.id + "-chunk-" + i + ".wav");
           VoiceDeliveryDsp.process(chosen, processed, DeliveryControls.question(s.text), false, s, cancel, true, voice.tiny());
           chunks.add(processed);
@@ -89,14 +89,14 @@ public final class ReleaseAudio {
       for (boolean enabled : new boolean[] {false, true}) {
         File combined = new File(work, voice.id + "-joined.wav");
         PcmWave.mergeRaw(enabled ? chunks : baseline, plan, combined, cancel);
-        String name = voice.name.replace(' ', '_') + (enabled ? "_ON" : "_OFF");
+        String name = voice.name.replace(' ', '_') + (enabled ? "_Clean" : "_Before");
         File master = new File(out, name + ".wav");
         StudioMastering.Report report = StudioMastering.process(combined, master, cancel, msg -> {}, false);
         Files.writeString(new File(out, name + ".json").toPath(), report.json());
       }
     }
     Files.writeString(new File(out, "phrase-timing.csv").toPath(), stats.toString());
-    File reference = new File(assets, "comparison/piper-padmavathi-2.wav");
+    File reference = new File(assets, "comparison/indic-tiny-male-2.wav");
     float[] quiet = OfflineDenoiser.resample(OpenVoiceEngine.read(reference), PcmWave.sampleRate(reference), 24000, cancel);
     for (int i = 0; i < quiet.length; i++) quiet[i] *= .001f;
     ReferenceLevel.normalize(quiet, true, cancel);
@@ -107,11 +107,17 @@ public final class ReleaseAudio {
     try (OpenVoiceEngine engine = new OpenVoiceEngine(work, cancel)) {
       float[] speech = OpenVoiceEngine.read(base);
       int rate = PcmWave.sampleRate(base);
-      PcmWave.write(new File(out, "OpenVoice_public_reference.wav"),
-          engine.convert(speech, rate, engine.embedding(speech, rate), engine.embedding(target, 24000)), 22050);
+      File raw = new File(work, "clone-raw.wav");
+      PcmWave.write(raw, engine.convert(speech, rate, engine.embedding(speech, rate), engine.embedding(target, 24000)), 22050);
+      for (boolean cleanup : new boolean[]{false,true}) {
+        File stage = new File(work, "clone-stage.wav");
+        VoiceDeliveryDsp.process(raw, stage, false, false, null, cancel, true, true, cleanup);
+        StudioMastering.process(stage, new File(out, cleanup ? "OpenVoice_Clean.wav" : "OpenVoice_Before.wav"),
+            cancel, msg -> {}, false);
+      }
     }
     Files.writeString(new File(out, "Verification.txt").toPath(),
-        "Four pairs of loudness-matched CPU host renders. ON/OFF differ only in the YouTuber switch. The OpenVoice excerpt uses a public pretrained reference.\nQuiet-reference regression: " +
+        "Five loudness-matched host comparisons. Each Before/Clean pair shares exactly the same generated take. The OpenVoice excerpt uses a public male reference.\nQuiet-reference regression: " +
         level + " LUFS after normalization.\nSpeaker similarity, pronunciation and handset behavior require listening and device testing.\n");
   }
 }

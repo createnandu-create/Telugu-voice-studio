@@ -43,6 +43,15 @@ public final class RestorationTest {
     float[] silence = new float[24000];
     float[] cleaned = OfflineDenoiser.process(silence, 24000, cancel, p -> {});
     require(rms(cleaned, 0, cleaned.length) < 1e-8, "silent denoiser");
+    for (int rate : new int[] {22050, 24000}) {
+      Random rng = new Random(721);
+      float[] lowNoise = new float[rate / 2];
+      for (int i = 0; i < lowNoise.length; i++) lowNoise[i] = (float)(rng.nextGaussian() * .0015);
+      float[] filtered = RenderCleanup.apply(lowNoise, rate, true, cancel);
+      require(filtered.length == lowNoise.length, "short chunk must keep every frame");
+      double ratio = rms(filtered, rate/5, filtered.length)/rms(lowNoise, rate/5, filtered.length);
+      require(ratio < .8 && ratio > .20, "bounded noise attenuation " + ratio);
+    }
     double[] re = new double[512], im = new double[512];
     re[123] = 1;
     LateReverb.fft(re, im, false);

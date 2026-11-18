@@ -32,6 +32,8 @@ public final class ReferenceEnhancement {
     try {
       progress.update("Enhancing · decoding reference…");
       float[] audio = ReferenceAudio.read(input, cancel);
+      // Bring a quiet microphone into the denoiser's working range before estimating noise.
+      ReferenceLevel.normalize(audio, false, cancel);
       audio = OfflineDenoiser.process(audio, 24000, cancel,
           p -> progress.update("Enhancing · noise reduction " + p + "%"));
       if (roomTail)

@@ -58,15 +58,33 @@ public final class TargetedAudioTest {
         NarrationDirector.planExact("కానీ బాగుంది.", NarrationDirector.Style.AUTO).get(0).emotion
             == NarrationDirector.Emotion.NEUTRAL,
         "contrast alone is not sadness");
+    check(ModelCatalog.previewBase("Male", 1)==0 && ModelCatalog.previewBase("Female", 0)==1
+        && ModelCatalog.previewBase("Male", 3)==2 && ModelCatalog.previewBase("Custom", 3)==3,
+        "clone label chooses matching base and preserves engine family");
+    DynamicEnglishPhonetizer.load(new FileInputStream("app/src/main/assets/english-cmudict.bin"));
+    check(DynamicEnglishPhonetizer.apply("the final the university").startsWith("ద ")
+        && DynamicEnglishPhonetizer.apply("the university").startsWith("ద ")
+        && DynamicEnglishPhonetizer.apply("the only").startsWith("దీ ")
+        && DynamicEnglishPhonetizer.apply("the hour").startsWith("దీ "), "article follows sound");
+    check(NarrationDirector.planExact("ఏం రా ఎలా ఉన్నావురా?", null).get(0).pitch
+        < NarrationDirector.planExact("మీరు ఎలా ఉన్నారు?", null).get(0).pitch, "greeting context");
+    int micRate = 24000;
+    float[] fullMinute = new float[micRate * 60];
+    for (int i = micRate * 6; i < micRate * 55; i++)
+      fullMinute[i] = (float)(.008 * Math.sin(2 * Math.PI * 180 * i / micRate));
+    File folder = Files.createTempDirectory("full-minute").toFile();
+    File mic = new File(folder,"mic.wav"), saved = new File(folder,"saved.wav");
+    PcmWave.write(mic, fullMinute, micRate);
+    RecordingCleanup.Result full = RecordingCleanup.file(mic, saved);
+    check(PcmWave.validate(saved)==60L*micRate*2 && Math.abs(ReferenceLevel.loudness(full.samples)+16)<.3,
+        "49 seconds of low speech in a full minute stays full length and leveled");
     int sr = 24000;
     float[] capture = new float[sr * 3];
     for (int i = sr / 2; i < sr * 5 / 2; i++)
       capture[i] = (float) (.15 * Math.sin(2 * Math.PI * 200 * i / sr));
     var cleaned = RecordingCleanup.clean(capture, sr);
-    check(
-        cleaned.samples.length > sr * 2 && cleaned.samples.length < sr * 23 / 10,
-        "trim retains 50ms margins");
-    check(cleaned.removedStart > sr * 4 / 10, "leading silence trimmed");
+    check(cleaned.samples.length == capture.length && cleaned.removedStart == 0 && cleaned.removedEnd == 0,
+        "quiet endpoints retained");
     float[] silence = new float[sr];
     check(RecordingCleanup.clean(silence, sr).samples.length == sr, "silent capture retained");
     for (int hz : new int[] {20, 200}) {

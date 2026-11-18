@@ -248,6 +248,7 @@ public final class StudioJobService extends Service {
       VoiceProfiles profiles = new VoiceProfiles(this);
       clone = profiles.get(plan.cloneProfile);
       cloneDirectory = CloneProfiles.directory(profiles, clone);
+      if (plan.voice != clone.optInt("cloneBase", 0)) throw new IOException("Reselect the cloned voice and generate again.");
       if (!new OpenVoiceModelStore(getFilesDir()).ready())
         throw new IOException("Install OpenVoice before generating a cloned voice");
     }
@@ -258,7 +259,7 @@ public final class StudioJobService extends Service {
     boolean waveformDelivery = speech.youtuber;
     boolean waveformQuestions = speech.questionLift;
     StringBuilder spokenIdentity =
-        new StringBuilder("delivery-v082-conversation/")
+        new StringBuilder("delivery-v083-clean/")
             .append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
@@ -480,7 +481,7 @@ public final class StudioJobService extends Service {
                   question,
                   soft,
                   waveformDelivery ? renderSegments.get(i) : null,
-                  cancelled, true, voice.tiny());
+                  cancelled, true, voice.tiny() || cloned);
           if (question && applied.lifted) lifted++;
           controlAudit.put(
               new JSONObject()

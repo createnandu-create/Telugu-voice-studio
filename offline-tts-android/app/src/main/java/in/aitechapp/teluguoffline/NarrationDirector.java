@@ -129,6 +129,15 @@ public final class NarrationDirector {
           }
           break;
       }
+      if (e == Emotion.QUESTION) {
+        if (has(s, "ఎలా ఉన్నావురా", "ఎలా ఉన్నావు రా", "ఎలాగున్నావురా", "ఎలా ఉన్నావ్")) {
+          rate = 1.02f;
+          pitch = 1.055f;
+        } else if (has(s, "అందరూ ఎలా ఉన్నారు", "మీరెలా ఉన్నారు", "మీరు ఎలా ఉన్నారు", "అందరూ బాగున్నారా")) {
+          rate = 1.065f;
+          pitch = 1.13f;
+        }
+      }
       // Human-readable direction markers must not be spoken aloud by the TTS engine.
       String spoken =
           s.replaceAll("\\[(?i:happy|sad|surprise|warning|serious|guide)\\]", "")

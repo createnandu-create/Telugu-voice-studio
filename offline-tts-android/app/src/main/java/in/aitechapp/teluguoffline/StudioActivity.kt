@@ -696,7 +696,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                                     softWrap = false,
                                     fontSize = 14.sp,
                                 )
-                                Text("OpenVoice · experimental", fontSize = 10.sp, color = Muted)
+                                Text("OpenVoice · ${p.label} · ${ModelCatalog.VOICES[p.cloneBase].name}", fontSize = 10.sp, color = Muted)
                             }
                             IconButton(onClick = { p.clonePreview?.let(play) }) {
                                 Icon(Icons.Outlined.PlayArrow, "Preview cloned ${p.name}")
@@ -1482,7 +1482,7 @@ private fun VoicesScreen(
                             text = {
                                 Column {
                                     Text(
-                                        "Uses 10–15 seconds of your recording to create a local OpenVoice preview. Listen first: clarity and similarity vary."
+                                        "Uses your recording with ${ModelCatalog.VOICES[ModelCatalog.previewBase(p.label, vm.voice)].name} as the base narrator. Listen to the preview before generating."
                                     )
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Checkbox(consent, { consent = it })

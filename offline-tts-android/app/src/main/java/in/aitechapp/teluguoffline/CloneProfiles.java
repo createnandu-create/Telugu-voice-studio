@@ -11,6 +11,9 @@ public final class CloneProfiles {
   public static File directory(VoiceProfiles profiles, JSONObject p) throws IOException {
     if (!p.optBoolean("cloneConsent", false))
       throw new IOException("Confirm consent and create a voice preview");
+    int stored = p.optInt("cloneBase", 0);
+    if (stored != ModelCatalog.previewBase(p.optString("label"), stored))
+      throw new IOException("Create a new preview to use the selected voice label.");
     if (!FileIntegrity.matches(profiles.audio(p.optString("id")), p.optString("cloneSourceSha")))
       throw new IOException("Recording changed; create a new voice preview");
     String revision = p.optString("cloneDirectory");
@@ -47,6 +50,7 @@ public final class CloneProfiles {
       throws Exception {
     VoiceProfiles profiles = new VoiceProfiles(context);
     JSONObject p = profiles.get(id);
+    base = ModelCatalog.previewBase(p.optString("label"), base);
     OpenVoiceModelStore models = new OpenVoiceModelStore(context.getFilesDir());
     if (!models.ready())
       throw new IOException("Install OpenVoice in Settings → Voice cloning first");
@@ -79,7 +83,7 @@ public final class CloneProfiles {
       progress.update("Creating voice · generating local preview…");
       float[] preview = engine.convert(pcm, rate, sourceTone, tone);
       File raw = new File(folder, "raw-preview.wav");
-      PcmWave.write(raw, preview, 22050);
+      PcmWave.write(raw, RenderCleanup.apply(preview, 22050, true, cancel), 22050);
       PcmWave.merge(
           List.of(raw),
           List.of(

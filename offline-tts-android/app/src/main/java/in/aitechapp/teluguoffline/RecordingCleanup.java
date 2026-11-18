@@ -1,9 +1,9 @@
 package in.aitechapp.teluguoffline;
 
 import java.io.*;
-import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Offline 80 Hz high-pass + conservative endpoint RMS trim. Never overwrites the capture. */
+/** Offline 80 Hz high-pass for full-length recorded references. Never overwrites the capture. */
 public final class RecordingCleanup {
   public static final class Result {
     public final float[] samples;
@@ -35,32 +35,23 @@ public final class RecordingCleanup {
       z2 = b2 * out[i] - a2 * y;
       out[i] = (float) y;
     }
-    int hop = Math.max(1, rate / 100), first = -1, last = -1;
-    for (int start = 0; start < out.length; start += hop) {
-      int end = Math.min(out.length, start + hop);
-      double power = 0;
-      for (int i = start; i < end; i++) power += out[i] * out[i];
-      if (Math.sqrt(power / (end - start)) >= .01) {
-        if (first < 0) first = start;
-        last = end;
-      }
-    }
-    // Preserve all-silent captures for recovery/listening, never invent speech.
-    if (first < 0) return new Result(out, 0, 0);
-    first = Math.max(0, first - rate / 20);
-    last = Math.min(out.length, last + rate / 20);
-    return new Result(Arrays.copyOfRange(out, first, last), first, out.length - last);
+    return new Result(out, 0, 0);
   }
 
   public static Result file(File raw, File output) throws IOException {
     long bytes = PcmWave.validate(raw);
     if (bytes > 24000 * 2 * 61L) throw new IOException("Reference exceeds one minute");
     float[] x = new float[(int) bytes / 2];
-    try (RandomAccessFile f = new RandomAccessFile(raw, "r")) {
-      f.seek(44);
+    try (DataInputStream f = new DataInputStream(new BufferedInputStream(new FileInputStream(raw)))) {
+      f.readFully(new byte[44]);
       for (int i = 0; i < x.length; i++) x[i] = Short.reverseBytes(f.readShort()) / 32768f;
     }
     Result result = clean(x, PcmWave.sampleRate(raw));
+    // Leave pure silence and near-digital noise at their captured level.
+    double peak = 0;
+    for (float v : result.samples) peak = Math.max(peak, Math.abs(v));
+    if (peak >= .0005 && Double.isFinite(ReferenceLevel.loudness(result.samples)))
+      ReferenceLevel.normalize(result.samples, false, new AtomicBoolean());
     PcmWave.write(output, result.samples, PcmWave.sampleRate(raw));
     return result;
   }

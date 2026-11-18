@@ -4,7 +4,6 @@ import android.app.*;
 import android.content.*;
 import android.content.pm.ServiceInfo;
 import android.media.*;
-import android.media.audiofx.*;
 import android.os.*;
 import java.io.*;
 import java.util.UUID;
@@ -17,8 +16,6 @@ public final class VoiceRecordingService extends Service {
   public static volatile String status = "Ready to record", profileId = "";
   public static volatile long elapsedMs = 0;
   private AudioRecord recorder;
-  private NoiseSuppressor noise;
-  private AcousticEchoCanceler echo;
   private Thread capture;
   private volatile boolean stopping;
   private volatile boolean discard;
@@ -28,18 +25,6 @@ public final class VoiceRecordingService extends Service {
   private Handler handler;
   private VoiceProfiles profiles;
   private String name, label;
-  private final Runnable tick =
-      new Runnable() {
-        public void run() {
-          elapsedMs = clock.elapsed(SystemClock.elapsedRealtime());
-          if (clock.limit(SystemClock.elapsedRealtime())) {
-            finish(false);
-            return;
-          }
-          handler.postDelayed(this, 200);
-        }
-      };
-
   public IBinder onBind(Intent i) {
     return null;
   }
@@ -135,28 +120,7 @@ public final class VoiceRecordingService extends Service {
             buffer);
     if (recorder.getState() != AudioRecord.STATE_INITIALIZED)
       throw new IOException("Microphone does not support 24 kHz PCM recording.");
-    boolean ns = false, aec = false;
-    try {
-      if (NoiseSuppressor.isAvailable()) {
-        noise = NoiseSuppressor.create(recorder.getAudioSessionId());
-        if (noise != null) ns = noise.setEnabled(true) == AudioEffect.SUCCESS && noise.getEnabled();
-      }
-    } catch (RuntimeException ignored) {
-      /* Hardware effect is optional. */
-    }
-    try {
-      if (AcousticEchoCanceler.isAvailable()) {
-        echo = AcousticEchoCanceler.create(recorder.getAudioSessionId());
-        if (echo != null) aec = echo.setEnabled(true) == AudioEffect.SUCCESS && echo.getEnabled();
-      }
-    } catch (RuntimeException ignored) {
-      /* Hardware effect is optional. */
-    }
-    effects =
-        "Noise suppression: "
-            + (ns ? "enabled" : "unavailable")
-            + " · Echo cancellation: "
-            + (aec ? "enabled" : "unavailable");
+    effects = "24 kHz PCM";
     raw = new File(profiles.root(), profileId + "-capture.wav");
     stopping = false;
     discard = false;
@@ -168,7 +132,7 @@ public final class VoiceRecordingService extends Service {
     status = "Recording · " + effects;
     capture = new Thread(this::capturePcm, "voice-reference-capture");
     capture.start();
-    handler.post(tick);
+
   }
 
   private void capturePcm() {
@@ -177,7 +141,7 @@ public final class VoiceRecordingService extends Service {
       PcmWave.header(output, 0, 24000);
       output.seek(44);
       byte[] buffer = new byte[2400];
-      long count = 0;
+      long count = 0, lastMeter = 0;
       while (!stopping && count < 24000 * 2 * 60L) {
         int n = recorder.read(buffer, 0, buffer.length, AudioRecord.READ_BLOCKING);
         if (n < 0) {
@@ -189,6 +153,15 @@ public final class VoiceRecordingService extends Service {
         output.seek(44 + count);
         output.write(buffer, 0, n);
         count += n;
+        elapsedMs = count / 48;
+        if (elapsedMs - lastMeter >= 250) {
+          int peak = 0;
+          for (int at = 0; at + 1 < n; at += 2)
+            peak = Math.max(peak, Math.abs((int) (short) ((buffer[at] & 255) | buffer[at+1] << 8)));
+          int db = (int) Math.round(20 * Math.log10(Math.max(1, peak) / 32768.0));
+          if (!discard && !stopping) status = "Recording · mic peak " + db + " dBFS";
+          lastMeter = elapsedMs;
+        }
         // A recoverable WAV even if the OS interrupts this service.
         PcmWave.header(output, count, 24000);
       }
@@ -204,17 +177,17 @@ public final class VoiceRecordingService extends Service {
     if (finishing) return;
     if (recorder == null) {
       active = false;
-      handler.removeCallbacks(tick);
+
       stopForeground(STOP_FOREGROUND_REMOVE);
       stopSelf();
       return;
     }
     final String failure = interrupted ? status : "";
     finishing = true;
-    handler.removeCallbacks(tick);
+
     stopping = true;
     clock.stop(SystemClock.elapsedRealtime());
-    elapsedMs = clock.elapsed(SystemClock.elapsedRealtime());
+
     status = "Saving and cleaning reference…";
     new Thread(
             () -> {
@@ -235,7 +208,7 @@ public final class VoiceRecordingService extends Service {
                       profileId,
                       name == null ? "My voice" : name,
                       label == null ? "Custom" : label,
-                      "80 Hz high-pass · silence trimmed · " + effects + ". Original capture kept.",
+                      "Full-length leveled reference · " + effects + ". Original capture kept.",
                       interrupted);
                   new File(profiles.root(), "pending-recording.json").delete();
                   status =
@@ -251,8 +224,6 @@ public final class VoiceRecordingService extends Service {
               } catch (Exception e) {
                 status = "Capture kept for recovery: " + e.getMessage();
               } finally {
-                if (noise != null) noise.release();
-                if (echo != null) echo.release();
                 if (recorder != null) recorder.release();
                 recorder = null;
                 active = false;
@@ -270,7 +241,7 @@ public final class VoiceRecordingService extends Service {
   @Override
   public void onDestroy() {
     if (recorder != null && !finishing) finish(true);
-    if (handler != null) handler.removeCallbacks(tick);
+
     super.onDestroy();
   }
 }

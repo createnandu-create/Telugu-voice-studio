@@ -106,7 +106,9 @@ jobs:
           python3 -m zipfile -c dist/TeluguVoiceStudio-pronunciation-AB.zip docs/evaluation/pronunciation-v04 docs/evaluation/dsp-v05 docs/evaluation/pronunciation-v06 docs/evaluation/delivery-v07
           cp docs/evaluation/pronunciation-v06/Namaskaram-Piper-*.wav dist/
           cp docs/evaluation/delivery-v07/samples/*-youtube-directed.wav dist/
-          python3 -m zipfile -c dist/TeluguVoiceStudio-four-voices.zip docs/evaluation/delivery-v07/samples/*-youtube-directed.wav
+          python3 -m zipfile -c dist/TeluguVoiceStudio-four-voices.zip docs/evaluation/v080/*-studio.wav docs/evaluation/v080/script.txt
+          python3 -m zipfile -c dist/TeluguVoiceStudio-v080-audio.zip docs/evaluation/v080
+          cp docs/evaluation/v080/*-studio.wav dist/
           python3 -m zipfile -c dist/TeluguVoiceStudio-restoration-AB.zip docs/evaluation/restoration-v57
           (cd dist && sha256sum *.apk *.zip *.wav > SHA256SUMS.txt)
           test -s dist/TeluguVoiceStudio-debug.apk
@@ -131,24 +133,22 @@ jobs:
           Native ARM64 Android test build from commit $GITHUB_SHA.
           Build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
 
-          v57 fixes the Android ICU SpeechMarkup regex crash shown in the user's screenshots. Failed jobs show actionable errors.
+          v0.8.0 adds isolated Studio/voice-switch state, cardinal/math and English-to-Telugu speech normalization, descriptive timestamp names, compact Projects and consistent pill controls. Both native neural rates master to 44.1 kHz with 150 ms head / 100 ms tail guards and a 15 ms onset fade. Female EQ is OFF; ordinary Piper bypasses waveform pitch/time changes.
 
-          Voices → Enhance creates a new private RNNoise-cleaned copy, with optional experimental WPE room-tail reduction. Originals stay intact. Settings → Offline models → Cloning offers the optional SHA-verified ECAPA speaker encoder; Voices → Enroll saves a consented 192-D fingerprint locally. A fingerprint is NOT a working cloned narrator and is not injected into fixed-speaker Piper/Tiny.
+          Settings → Voice cloning offers the optional pinned 41.1 MiB OpenVoice V2 ONNX pack. Voices → Create voice preview requires explicit consent and a 10+ second reference. A real local preview unlocks the experimental cloned narrator. OpenVoice uses its matching 256-D encoder, not ECAPA 192-D. Actual host Telugu tone-conversion audio is included; Nothing Phone inference quality, speaker similarity and long-form thermal performance remain unverified.
 
-          TeluguVoiceStudio-restoration-AB.zip contains synthetic-noise/echo input and output audio plus measurements. Host tests measured 19.7 dB noise-region attenuation and 5.1 dB echo-tail reduction on these fixtures, not arbitrary real environments. No zero-echo, recovered-speech, cloned-voice, or Nothing Phone performance claim is made. Physical-phone testing remains outstanding.
+          TeluguVoiceStudio-four-voices.zip contains NEW mixed Telugu/English/math studio WAVs. TeluguVoiceStudio-v080-audio.zip includes raw comparisons, measured mastering reports, normalization text and public pretrained OpenVoice conversion evidence. These are host fixtures, not personal-voice or phone benchmarks. Noise cleanup cannot guarantee zero echo or reconstruct arbitrary lost speech; model pronunciation and human naturalness still need listening checks.
 
-          The normal debug APK updates the existing package with the same pinned certificate. The optional fresh-install APK is a separate app with separate data; do not uninstall your existing app to try it. Existing narrator models, original recordings and saved projects are preserved.
+          IMPORTANT: Use fresh-install.apk to update an existing 0.7.0-…-fresh app; debug.apk updates the separate standard package. Both use their existing pinned certificate and preserve their own models, recordings and Projects. No uninstall is required. This is a publicly debug-signed test build.
 
-          Four-voice comparison WAVs remain the v0.7.1 public pretrained speech fixtures; v57 changes recording restoration/enrollment, not those voice weights. No paid API or hosted inference is added.
-
-          See docs/evaluation/restoration-v57 for implementation, reproducible tests and limitations. Source includes corresponding-source archives and licenses. This is a publicly debug-signed test build. Check SHA256SUMS.txt after downloading.
+          See docs/evaluation/v080 for limitations, provenance and reproducible evidence. No paid inference or cloud synthesis is used. Check SHA256SUMS.txt after downloading.
           EOF
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
             gh release edit "$TAG" --notes-file /tmp/release-notes.md
           else
             gh release create "$TAG" dist/* --target "$GITHUB_SHA" --prerelease \
-              --title "Telugu Voice Studio v57 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
+              --title "Telugu Voice Studio v0.8.0 — ${GITHUB_SHA:0:12}" --notes-file /tmp/release-notes.md
           fi
           if gh release view debug-latest >/dev/null 2>&1; then
             gh release upload debug-latest dist/* --clobber

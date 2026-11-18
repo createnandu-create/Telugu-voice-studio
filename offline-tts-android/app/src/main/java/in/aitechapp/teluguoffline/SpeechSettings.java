@@ -12,7 +12,7 @@ public final class SpeechSettings {
   public boolean questionLift = true;
   public boolean commaBuffer = true;
   public boolean femaleSoftening = false;
-  public boolean carefulDiction = false;
+  public boolean carefulDiction = true;
   public boolean readDigits = false;
   public boolean warmthEq = false; // Explicit opt-in only; raw audio is default.
 
@@ -26,7 +26,7 @@ public final class SpeechSettings {
     s.questionLift = o.optBoolean("questionLift", true);
     s.commaBuffer = o.optBoolean("commaBuffer", true);
     s.femaleSoftening = o.optBoolean("femaleSoftening", false);
-    s.carefulDiction = o.optBoolean("carefulDiction", false);
+    s.carefulDiction = o.optBoolean("carefulDiction", true);
     s.readDigits = o.optBoolean("readDigits", false);
     s.warmthEq = o.optBoolean("warmthEq", false);
     JSONObject entries = o.getJSONObject("entries");

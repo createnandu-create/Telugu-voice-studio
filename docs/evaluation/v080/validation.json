@@ -1,0 +1,13 @@
+{
+  "tests": 26,
+  "failures": 0,
+  "errors": 0,
+  "lint_errors": 0,
+  "lint_warnings": 18,
+  "java_suites": 8,
+  "bundled_files_verified": 33,
+  "phoneme_assets_verified": 355,
+  "icu_regex_checks": 7,
+  "physical_phone_verified": false,
+  "source_note": "Local reports from successful release-build.log; final commit is built again in GitHub Actions."
+}

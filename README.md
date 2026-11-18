@@ -2,7 +2,7 @@
 
 **Android 15 · Nothing Phone (1) · 8 GB RAM · Snapdragon 778G+**
 
-An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. It does **not** yet include human-like neural expressive voice cloning or an on-device LLM.
+An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
 ## Downloads
 
@@ -19,7 +19,17 @@ An actively developed offline Telugu YouTube voice narrator prototype. The testi
 
 **If the APK link returns 404, the release has not been published yet; check Actions. Do not treat a source ZIP as an installable APK.** The debug APK is for testing, not Google Play Store distribution.
 
-## v57 recording restoration and speaker fingerprints
+## v0.8.0 workspace, clarity and personal voice previews
+
+Fresh Studio sessions clear stale playback; switching an installed voice queues a new render. Both neural rates master to 44.1 kHz with 150 ms head padding. English/math inputs are verbalized in Telugu before token lookup. Padmavathi avoids pitch/time DSP by default. Projects and exports share descriptive timestamps; compact cards, pill controls and in-place recording cleanup preserve originals.
+
+**Experimental local cloning:** Settings → Voice cloning installs the 41.1 MiB OpenVoice V2 pack. Voices → Create voice preview requires consent and 10+ seconds of clear reference speech. A real device-generated preview unlocks the cloned tile. It uses OpenVoice's matching **256-D** tone encoder, not an incompatible ECAPA fingerprint. Host Telugu conversion is verified; Nothing Phone quality, speed and speaker similarity still need testing. No zero-echo guarantee.
+
+[New four-voice mixed-script WAVs](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-four-voices.zip) · [v0.8.0 audio evidence](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-v080-audio.zip) · [Implementation and measured limits](docs/evaluation/v080)
+
+Your existing `0.7.0-…-fresh` installation should be updated with **TeluguVoiceStudio-fresh-install.apk**; the normal APK updates the separate standard package. Both now show **0.8.0** (fresh has a suffix) and distinct app labels. Do not uninstall either app to update it: their recordings and models are stored separately.
+
+## Historical v57 recording restoration and speaker fingerprints
 
 **Fixes the Android `SpeechMarkup` generation crash.** Voices → **Enhance** creates a noise-reduced copy using bundled RNNoise, with optional experimental WPE room-tail reduction. Originals remain intact. Settings → Offline models → Cloning offers a separate downloadable **ECAPA 192-D speaker encoder**; consented enrollment stays private on the phone. A fingerprint is **not** a working cloned narrator.
 

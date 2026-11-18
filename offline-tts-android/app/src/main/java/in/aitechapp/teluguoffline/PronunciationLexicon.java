@@ -53,6 +53,7 @@ public final class PronunciationLexicon {
       m.appendTail(out);
       text = out.toString();
     }
+    text = MathScienceNormalizer.apply(text);
     boolean math = SpeechMarkup.math(text);
     text = SpeechMarkup.clean(text);
     if (readDigits || math) {
@@ -66,7 +67,7 @@ public final class PronunciationLexicon {
               });
       text = out.toString().replaceAll("[ \\t]+", " ").trim();
     }
-    return text;
+    return DynamicEnglishPhonetizer.apply(text);
   }
 
   private PronunciationLexicon() {}

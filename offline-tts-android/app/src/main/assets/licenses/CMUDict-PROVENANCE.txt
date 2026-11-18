@@ -1,0 +1,7 @@
+CMU Pronouncing Dictionary
+Source: https://github.com/cmusphinx/cmudict
+Revision: 74790861f652b15e4ac49015a90074ad62a27690
+cmudict.dict SHA256: 81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22
+License: BSD-style; see CMUDict-BSD.txt
+Compressed deterministically as english-cmudict.bin (gzip format). The .bin name avoids AAPT automatically stripping .gz.
+ARPAbet pronunciations map to Telugu letters in DynamicEnglishPhonetizer; unknown words use explicit letter names.

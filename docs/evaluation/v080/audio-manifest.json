@@ -1,0 +1,74 @@
+[
+  {
+    "file": "IndicTinyFemale-raw.wav",
+    "rate": 24000,
+    "channels": 1,
+    "frames": 388864,
+    "seconds": 16.202666666666666,
+    "sha256": "cc3e6d34489d55c4b600230dea2d014d7c593aad9b49339d37b6d966de5e47a0"
+  },
+  {
+    "file": "IndicTinyFemale-studio.wav",
+    "rate": 44100,
+    "channels": 2,
+    "frames": 725563,
+    "seconds": 16.452675736961453,
+    "sha256": "a5fe0c5df276a72f2a895bb8034fd430ac8cb7a642eeeb22bf2770f162dca274"
+  },
+  {
+    "file": "IndicTinyMale-raw.wav",
+    "rate": 24000,
+    "channels": 1,
+    "frames": 328448,
+    "seconds": 13.685333333333332,
+    "sha256": "2d0795e366b9530cca10146d9573d039e9e6ca69d5648ae3e97c2c79f49f3258"
+  },
+  {
+    "file": "IndicTinyMale-studio.wav",
+    "rate": 44100,
+    "channels": 2,
+    "frames": 614548,
+    "seconds": 13.93532879818594,
+    "sha256": "9edf513c333166c01912fb4cb7953102b02886da65fc2068ff6d309f5b6191d5"
+  },
+  {
+    "file": "OpenVoice-public-tone-conversion.wav",
+    "rate": 22050,
+    "channels": 1,
+    "frames": 110250,
+    "seconds": 5.0,
+    "sha256": "08ede5c138304a1a76ae10ddb8ce40ece7ebf392c7305378e97e5fec3b3a9a9c"
+  },
+  {
+    "file": "Padmavathi-raw.wav",
+    "rate": 22050,
+    "channels": 1,
+    "frames": 322853,
+    "seconds": 14.64185941043084,
+    "sha256": "2a586c81db1f665b7b5b71d3bffeff0d8f2f26e08a65a46b82d68dd184c8cb03"
+  },
+  {
+    "file": "Padmavathi-studio.wav",
+    "rate": 44100,
+    "channels": 2,
+    "frames": 656731,
+    "seconds": 14.89185941043084,
+    "sha256": "dc92bc71ba37071b218b356d2d9288825758142cb5701a028defd4d4fa71c598"
+  },
+  {
+    "file": "Venkatesh-raw.wav",
+    "rate": 22050,
+    "channels": 1,
+    "frames": 265744,
+    "seconds": 12.0518820861678,
+    "sha256": "cf698138ae955ef32275d6ee9fc14ebc1bc35d009aea4e6c5d09a6eeb9b74e3f"
+  },
+  {
+    "file": "Venkatesh-studio.wav",
+    "rate": 44100,
+    "channels": 2,
+    "frames": 542513,
+    "seconds": 12.3018820861678,
+    "sha256": "69d9a2673d7f4f52862a70a39f5cc66b664dcbafcd7ee488e174082a5b12a795"
+  }
+]

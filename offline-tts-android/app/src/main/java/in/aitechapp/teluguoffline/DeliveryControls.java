@@ -66,7 +66,6 @@ public final class DeliveryControls {
         continue;
       }
       int start = s.text.indexOf(target), end = start + target.length();
-      if (start > 0) add(out, s, s.text.substring(0, start), before, false);
       if ((start > 0 && !Character.isWhitespace(s.text.charAt(start - 1)))
           || (end < s.text.length()
               && (Character.isLetterOrDigit(s.text.charAt(end))
@@ -75,6 +74,7 @@ public final class DeliveryControls {
         out.add(s);
         continue;
       }
+      if (start > 0) add(out, s, s.text.substring(0, start), before, false);
       // Attach adjacent punctuation; never synthesize a punctuation-only chunk.
       while (end < s.text.length()
           && !Character.isLetterOrDigit(s.text.charAt(end))

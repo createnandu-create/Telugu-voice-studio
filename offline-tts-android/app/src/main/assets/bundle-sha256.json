@@ -26,5 +26,10 @@
   "res/font/display_serif.ttf": "8cc3643535edf039aa5d95440a8542735e9197e4f4b8d9303e980fefbf5ab616",
   "res/font/manrope.ttf": "9bc8d8251318dfcffe6b24800e1df65e26cae6e012b2f88064acf530b277f9d3",
   "res/font/manrope_semibold.ttf": "ffe518236f48fd342188388c942fa0ee2fd72455a106feefe0ebc6d1b3496b04",
-  "jniLibs/arm64-v8a/librnnoise_offline.so": "d8578bba5e0ee6ce37b65bb80cfd6f96871f163a0b189df54dadf33ce3d85ce3"
+  "jniLibs/arm64-v8a/librnnoise_offline.so": "d8578bba5e0ee6ce37b65bb80cfd6f96871f163a0b189df54dadf33ce3d85ce3",
+  "assets/english-cmudict.bin": "3b15db9eddeb1660bbe269131d637fa99c69425aa7653e75d9de876f2f9ce469",
+  "assets/licenses/CMUDict-BSD.txt": "bd4ce8e44170a5f9f481310ca85c51de3c4f851a65e679b40e603b143bd3542a",
+  "assets/licenses/CMUDict-PROVENANCE.txt": "35fb6d1dfee0ec6e01bc8575ea75f3df9dd630d81e0a89e9be23e091a6969e21",
+  "assets/licenses/OpenVoice-MIT.txt": "137b873e75b39950448998d4b4a1812f90c505fd23922fefe0495ac27f547053",
+  "assets/licenses/OpenVoice-PROVENANCE.md": "40237288c29d999248c0896416f2e4187366f6d1b2c33922ac9f3ecfb20771ef"
 }

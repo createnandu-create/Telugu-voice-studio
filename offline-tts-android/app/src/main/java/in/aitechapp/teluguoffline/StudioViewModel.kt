@@ -28,6 +28,9 @@ data class ProfileRow(
     val duration: Long,
     val status: String,
     val file: File,
+    val displayStem: String = name,
+    val cloneReady: Boolean = false,
+    val clonePreview: File? = null,
 )
 
 data class ProjectRow(val folder: File, val name: String, val ready: Boolean, val duration: Double)
@@ -47,7 +50,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     private var plannedScript = ""
     var busy by mutableStateOf(false)
     var downloadingVoice by mutableIntStateOf(-1)
-    var status by mutableStateOf("Everything happens on your phone")
+    var status by mutableStateOf("Ready · everything happens on your phone")
+    private var observedJob = false
     var notice by mutableStateOf("")
     var verifying by mutableIntStateOf(-1)
     var verification by mutableStateOf<Map<Int, String>>(emptyMap())
@@ -68,6 +72,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var loading by mutableStateOf(false)
     var models by mutableStateOf<List<ModelRow>>(emptyList())
     var speakerReady by mutableStateOf(false)
+    var cloneModelReady by mutableStateOf(false)
+    var activeClone by mutableStateOf("")
     var referenceStatus by mutableStateOf("")
     var profiles by mutableStateOf<List<ProfileRow>>(emptyList())
     var projects by mutableStateOf<List<ProjectRow>>(emptyList())
@@ -83,30 +89,38 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var questionLift by mutableStateOf(true)
     var commaBuffer by mutableStateOf(true)
     var femaleSoftening by mutableStateOf(false)
-    var carefulDiction by mutableStateOf(false)
+    var carefulDiction by mutableStateOf(true)
     var readDigits by mutableStateOf(false)
     var warmthEq by mutableStateOf(false)
     var latest by mutableStateOf<File?>(null)
     var comparisons by mutableStateOf<List<Pair<String, File>>>(emptyList())
     private var persistJob: Job? = null
+    var playbackEpoch by mutableIntStateOf(0)
+    private var activeRunId = ""
+    private var workspaceRevision = 0
+    private var generatePending = false
+    private var switchJob: Job? = null
 
     init {
-        tab =
-            prefs.getString("tab", "Studio")?.takeIf {
-                it in listOf("Studio", "Voices", "Projects", "Settings")
-            } ?: "Studio"
+        // New ViewModel = a new Studio workspace. Projects and scripts remain on disk.
+        tab = "Studio"
+        step = 0
+        latest = null
         work {
-            val f = File(app.filesDir, "draft-plan.json")
-            if (f.exists())
-                runCatching { PlanStorage.parse(FileIntegrity.read(f)) }
-                    .getOrNull()
-                    ?.let {
-                        if (it.script == script) {
-                            plan = it.segments
-                            plannedScript = it.script
-                        }
-                    }
-            val speech = withContext(Dispatchers.IO) { SpeechSettings.load(app) }
+            val speech =
+                withContext(Dispatchers.IO) {
+                    DynamicEnglishPhonetizer.load(app.assets.open("english-cmudict.bin"))
+                    SpeechSettings.load(app)
+                }
+            speech.youtuber = true
+            speech.durationGuard = true
+            speech.questionLift = true
+            speech.commaBuffer = true
+            speech.carefulDiction = true
+            speech.femaleSoftening = false
+            speech.warmthEq = false
+            // Actual rendering snapshots these controls; no active background job is overwritten
+            // here.
             entries = speech.dictionary.toMap()
             youtuber = speech.youtuber
             durationGuard = speech.durationGuard
@@ -146,7 +160,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             while (isActive) {
                 busy = StudioJobService.busy
                 downloadingVoice = StudioJobService.downloadingVoice
-                status = StudioJobService.status
+                if (busy) observedJob = true
+                status =
+                    if (busy || observedJob || activeRunId.isNotEmpty()) StudioJobService.status
+                    else "Ready · everything happens on your phone"
                 recording = VoiceRecordingService.active
                 paused = VoiceRecordingService.clock.state() == RecordingClock.State.PAUSED
                 recordMillis = VoiceRecordingService.elapsedMs
@@ -166,6 +183,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun edit(value: String) {
+        if (value != script) clearActiveAudio()
         script = value
         persistJob?.cancel()
         persistJob =
@@ -179,9 +197,58 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("script", script).putInt("voice", voice).apply()
     }
 
+    private fun clearActiveAudio() {
+        workspaceRevision++
+        observedJob = false
+        status = "Ready · everything happens on your phone"
+        activeRunId = ""
+        latest = null
+        playbackRequest = null
+        playbackEpoch++
+        exportCancel.set(true)
+        exportSource = null
+        exportReady = null
+        exportedUri = null
+        exportMessage = ""
+        savedFormats = emptySet()
+    }
+
     fun choose(index: Int) {
+        if (index == voice && activeClone.isEmpty()) return
+        clearActiveAudio()
         voice = index
+        activeClone = ""
         persist()
+        switchJob?.cancel()
+        if (StudioJobService.busy) StudioJobService.cancel()
+        if (script.isBlank() || recording || models.none { it.index == index && it.ready }) return
+        switchJob =
+            viewModelScope.launch {
+                while (StudioJobService.busy || loading || generatePending) delay(100)
+                if (voice == index) generate()
+            }
+    }
+
+    fun chooseClone(id: String) {
+        if (!cloneModelReady) {
+            notice = "Install OpenVoice in Settings → Voice cloning."
+            return
+        }
+        val p = profiles.firstOrNull { it.id == id && it.cloneReady } ?: return
+        clearActiveAudio()
+        activeClone = id
+        switchJob?.cancel()
+        if (StudioJobService.busy) StudioJobService.cancel()
+        switchJob =
+            viewModelScope.launch {
+                while (StudioJobService.busy || loading || generatePending) delay(100)
+                if (
+                    activeClone == id &&
+                        script.isNotBlank() &&
+                        models.any { it.index == voice && it.ready }
+                )
+                    generate()
+            }
     }
 
     fun selectOutput(master: Boolean) {
@@ -262,6 +329,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun neutral() {
+        durationGuard = false
+        commaBuffer = false
+        femaleSoftening = false
+        warmthEq = false
         youtuber = false
         questionLift = false
         carefulDiction = false
@@ -274,6 +345,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun autoDirection() {
+        durationGuard = true
+        commaBuffer = true
+        carefulDiction = true
+        femaleSoftening = false
         plan = NarrationDirector.planExact(script, NarrationDirector.Style.AUTO)
         plannedScript = script
         youtuber = true
@@ -285,7 +360,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     private fun savePlan() {
         persist()
         if (plan.isNotEmpty() && plannedScript == script) {
-            val value = PlanStorage(script, voice, plan).json()
+            val value = PlanStorage(script, voice, plan, activeClone).json()
             work {
                 withContext(Dispatchers.IO) {
                     FileIntegrity.write(
@@ -298,7 +373,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun generate() {
-        if (busy || recording || verifying >= 0 || loading) {
+        if (busy || generatePending || recording || verifying >= 0 || loading) {
             notice = "Finish the current task first."
             return
         }
@@ -309,20 +384,28 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
         direct()
         if (plan.isEmpty()) return
-        val snapshot = PlanStorage(script, voice, plan).json()
+        val snapshot = PlanStorage(script, voice, plan, activeClone).json()
         val desiredSpeech = currentSpeech()
+        clearActiveAudio()
+        val revision = workspaceRevision
+        generatePending = true
         work {
-            withContext(Dispatchers.IO) {
-                FileIntegrity.write(
-                    File(getApplication<Application>().filesDir, "render-plan.json"),
-                    snapshot,
-                )
-                // Persist the A/B choice before the render service loads SpeechSettings.
-                val app = getApplication<Application>()
-                speechMutex.withLock { desiredSpeech.save(app) }
+            try {
+                withContext(Dispatchers.IO) {
+                    FileIntegrity.write(
+                        File(getApplication<Application>().filesDir, "render-plan.json"),
+                        snapshot,
+                    )
+                    // Persist the A/B choice before the render service loads SpeechSettings.
+                    val app = getApplication<Application>()
+                    speechMutex.withLock { desiredSpeech.save(app) }
+                }
+                if (revision != workspaceRevision) return@work
+                startJob("render")
+                step = 3
+            } finally {
+                generatePending = false
             }
-            startJob("render")
-            step = 3
         }
     }
 
@@ -334,11 +417,13 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         StudioJobService.busy = true
         busy = true
         StudioJobService.status = "Preparing…"
+        activeRunId = java.util.UUID.randomUUID().toString()
         try {
             getApplication<Application>()
                 .startForegroundService(
                     Intent(getApplication(), StudioJobService::class.java)
                         .setAction(action)
+                        .putExtra("runId", activeRunId)
                         .putExtra("voice", index)
                 )
         } catch (e: Exception) {
@@ -393,7 +478,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     fun pronunciationCheck() = renderCheck("నమస్కారం. నమస్కారం ఫ్రెండ్స్! మీ అందరికీ నమస్కారం.")
 
     private fun renderCheck(text: String) {
-        if (busy || recording || verifying >= 0 || loading) return
+        if (busy || generatePending || recording || verifying >= 0 || loading) return
+        clearActiveAudio()
+        val revision = workspaceRevision
+        generatePending = true
         val segments =
             NarrationDirector.planExact(text, NarrationDirector.Style.AUTO).map {
                 NarrationDirector.Segment(it.text, NarrationDirector.Emotion.NEUTRAL, 1f, 1f, 500)
@@ -401,15 +489,59 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         val snapshot = PlanStorage(text, voice, segments).json()
         val controls = currentSpeech()
         work {
-            withContext(Dispatchers.IO) {
-                speechMutex.withLock { controls.save(getApplication()) }
-                FileIntegrity.write(
-                    File(getApplication<Application>().filesDir, "render-plan.json"),
-                    snapshot,
-                )
+            try {
+                withContext(Dispatchers.IO) {
+                    speechMutex.withLock { controls.save(getApplication()) }
+                    FileIntegrity.write(
+                        File(getApplication<Application>().filesDir, "render-plan.json"),
+                        snapshot,
+                    )
+                }
+                if (revision != workspaceRevision) return@work
+                startJob("render")
+                step = 3
+            } finally {
+                generatePending = false
             }
-            startJob("render")
-            step = 3
+        }
+    }
+
+    fun openSavedFolder() {
+        val context = getApplication<Application>()
+        try {
+            val saved = prefs.getString("lastSavedDocument", null)
+            if (saved != null) {
+                context.startActivity(
+                    Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                        .putExtra(
+                            android.provider.DocumentsContract.EXTRA_INITIAL_URI,
+                            android.net.Uri.parse(saved),
+                        )
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            }
+            val uri =
+                android.provider.DocumentsContract.buildDocumentUri(
+                    "com.android.externalstorage.documents",
+                    "primary:Download/Telugu Voice Studio",
+                )
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(uri, android.provider.DocumentsContract.Document.MIME_TYPE_DIR)
+                    .addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+            )
+        } catch (e: Exception) {
+            try {
+                context.startActivity(
+                    Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            } catch (e: Exception) {
+                notice = "Open Files → Downloads → Telugu Voice Studio."
+            }
         }
     }
 
@@ -433,9 +565,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         work {
             try {
                 val name =
-                    withContext(Dispatchers.IO) { AudioIdentity.read(source).exportLabel() } +
-                        "-${System.currentTimeMillis()}." +
-                        if (mp3) "mp3" else "wav"
+                    withContext(Dispatchers.IO) { AudioNames.forAudio(source) } +
+                        if (mp3) ".mp3" else ".wav"
                 withContext(Dispatchers.IO) {
                     val file =
                         if (!mp3) source
@@ -461,6 +592,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     savedFormats +
                         (source.path + ":" + source.lastModified() + ":" + downloadFormat)
                 exportedName = name
+                prefs.edit().remove("lastSavedDocument").apply()
                 exportMessage = "Completed · Downloads / Telugu Voice Studio"
             } catch (e: Exception) {
                 exportMessage =
@@ -477,8 +609,13 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun previewVoice(index: Int) {
         if (busy || recording) return
-        choose(index)
+        switchJob?.cancel()
+        clearActiveAudio()
+        voice = index
+        activeClone = ""
+        persist()
         renderCheck("నమస్కారం. మీ కథను స్పష్టంగా వినిపిద్దాం.")
+        val previewRevision = workspaceRevision
         viewModelScope.launch {
             var started = false
             repeat(40) {
@@ -490,7 +627,11 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 val file = StudioJobService.result
                 if (file != null && StudioJobService.status.startsWith("Ready")) {
                     val identity = withContext(Dispatchers.IO) { AudioIdentity.read(file) }
-                    if (identity.id == ModelCatalog.VOICES[index].id) playbackRequest = file
+                    if (
+                        workspaceRevision == previewRevision &&
+                            identity.id == ModelCatalog.VOICES[index].id
+                    )
+                        playbackRequest = file
                 }
             }
         }
@@ -505,8 +646,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         exportMessage = if (mp3) "Creating MP3 on your phone…" else "Preparing WAV…"
         work {
             try {
-                exportLabel =
-                    withContext(Dispatchers.IO) { AudioIdentity.read(source).exportLabel() }
+                exportLabel = withContext(Dispatchers.IO) { AudioNames.forAudio(source) }
                 val file =
                     withContext(Dispatchers.IO) {
                         if (!mp3) source
@@ -575,6 +715,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 exportedName = name
                 exportedUri = uri
+                prefs.edit().putString("lastSavedDocument", uri.toString()).apply()
                 exportMessage = "Saved to your selected folder"
             } catch (e: Exception) {
                 // Only this newly created destination is removed; the source always remains.
@@ -674,7 +815,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         work {
             withContext(Dispatchers.IO) { VoiceProfiles(getApplication()).select(id) }
             selectedReference = id
-            notice = "Reference selected. Cloning is not installed; narrator voice has not changed."
+            notice =
+                "Reference marked. This recording cannot speak new text; the Studio narrator is unchanged."
         }
     }
 
@@ -718,11 +860,33 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     Intent(getApplication(), StudioJobService::class.java)
                         .setAction(action)
                         .putExtra("profile", id)
-                        .putExtra("consent", action == "speaker-enroll")
+                        .putExtra("voice", voice)
+                        .putExtra("consent", action == "speaker-enroll" || action == "clone-create")
                 )
         } catch (e: Exception) {
             busy = false
             notice = e.message ?: "Could not start enrollment"
+        }
+    }
+
+    fun clonePackAction(remove: Boolean) {
+        if (busy || recording || loading) return
+        loading = true
+        work {
+            try {
+                notice =
+                    withContext(Dispatchers.IO) {
+                        val store = OpenVoiceModelStore(getApplication<Application>().filesDir)
+                        if (remove) {
+                            store.remove()
+                            "OpenVoice pack removed. Your recordings and voice profiles are kept."
+                        } else if (store.verify()) "OpenVoice verified · READY OFFLINE"
+                        else "Files missing or damaged. Download OpenVoice to repair them."
+                    }
+            } finally {
+                loading = false
+                refresh()
+            }
         }
     }
 
@@ -821,6 +985,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             val p = withContext(Dispatchers.IO) { PlanStorage.parse(FileIntegrity.read(f)) }
             script = p.script
             voice = p.voice
+            activeClone = p.cloneProfile
             plan = p.segments
             plannedScript = p.script
             persist()
@@ -876,6 +1041,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                             )
                         }
                     }
+                val loadedClone =
+                    withContext(Dispatchers.IO) { OpenVoiceModelStore(app.filesDir).ready() }
                 val loadedSpeaker =
                     withContext(Dispatchers.IO) { SpeakerModelStore(app.filesDir).ready() }
                 referenceStatus =
@@ -890,6 +1057,9 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 val loadedProfiles =
                     withContext(Dispatchers.IO) {
                         VoiceProfiles(app).list().map {
+                            val cloneFolder =
+                                runCatching { CloneProfiles.directory(VoiceProfiles(app), it) }
+                                    .getOrNull()
                             ProfileRow(
                                 it.getString("id"),
                                 it.getString("name"),
@@ -898,6 +1068,12 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                                 it.optLong("durationMs"),
                                 it.optString("status"),
                                 VoiceProfiles(app).audio(it.getString("id")),
+                                it.optString(
+                                    "displayStem",
+                                    AudioNames.stem(it.getString("name"), "", it.optLong("created")),
+                                ),
+                                cloneFolder != null,
+                                cloneFolder?.let { folder -> File(folder, "preview.wav") },
                             )
                         }
                     }
@@ -914,8 +1090,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                                         }
                                         .getOrNull()
                                 val name =
-                                    runCatching { FileIntegrity.read(File(f, "project-name.txt")) }
-                                        .getOrDefault("Narration · " + f.name.take(6))
+                                    AudioNames.project(
+                                        f,
+                                        AudioIdentity.read(File(f, "narration.wav")).name,
+                                    )
                                 ProjectRow(
                                     f,
                                     name,
@@ -924,23 +1102,22 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                                 )
                             } ?: emptyList()
                     }
+                cloneModelReady = loadedClone
                 speakerReady = loadedSpeaker
                 models = loadedModels
                 profiles = loadedProfiles
                 projects = loadedProjects
                 selectedReference = VoiceProfiles(app).selected()
                 val completed =
-                    StudioJobService.result?.takeIf { it.isFile }
-                        ?: withContext(Dispatchers.IO) {
-                            runCatching {
-                                    File(FileIntegrity.read(File(app.filesDir, "last-result.txt")))
-                                        .takeIf { it.isFile }
-                                }
-                                .getOrNull()
-                        }
+                    StudioJobService.result?.takeIf {
+                        it.isFile &&
+                            activeRunId.isNotEmpty() &&
+                            StudioJobService.resultRunId == activeRunId
+                    }
                 if (
-                    (latest == selectedAtStart || latest?.isFile != true) &&
-                        (latest?.isFile != true || latest?.parent != completed?.parent)
+                    completed != null &&
+                        latest == selectedAtStart &&
+                        latest?.parent != completed.parent
                 )
                     latest = completed
             } finally {

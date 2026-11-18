@@ -9,6 +9,7 @@ import java.util.List;
  */
 public final class RenderJournal {
   public final File directory;
+  private final int expectedRate;
 
   public RenderJournal(File parent, ModelCatalog.Voice voice, List<NarrationDirector.Segment> plan)
       throws IOException {
@@ -21,6 +22,7 @@ public final class RenderJournal {
       List<NarrationDirector.Segment> plan,
       String speechIdentity)
       throws IOException {
+    expectedRate = voice.tiny() ? 24000 : 22050;
     StringBuilder identity =
         new StringBuilder(
                 voice.tiny() ? "tiny-java-v2-duration-ort1.31/" : "sherpa-1.12.26/pcm-v1/")
@@ -57,6 +59,7 @@ public final class RenderJournal {
     if (!receipt(i).isFile() || !chunk(i).isFile()) return false;
     try {
       PcmWave.validate(chunk(i));
+      if (PcmWave.sampleRate(chunk(i)) != expectedRate) return false;
       return FileIntegrity.matches(chunk(i), FileIntegrity.read(receipt(i)));
     } catch (IOException e) {
       return false;
@@ -65,6 +68,8 @@ public final class RenderJournal {
 
   public void complete(int i) throws IOException {
     PcmWave.validate(chunk(i));
+    if (PcmWave.sampleRate(chunk(i)) != expectedRate)
+      throw new IOException("Engine PCM sample rate does not match selected voice");
     FileIntegrity.write(receipt(i), FileIntegrity.sha256(chunk(i)));
   }
 }

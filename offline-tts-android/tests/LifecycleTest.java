@@ -31,14 +31,14 @@ public final class LifecycleTest {
     words.put("click", "క్లిక్");
     check(
         PronunciationLexicon.apply("friends click myfriends", words, false)
-            .equals("ఫ్రెండ్స్ క్లిక్ myfriends"),
+            .equals("ఫ్రెండ్స్ క్లిక్ " + DynamicEnglishPhonetizer.apply("myfriends")),
         "word boundaries");
     check(
-        PronunciationLexicon.apply("నమస్కారం 15", words, true).equals("నమస్కారం ఒకటి ఐదు"),
+        PronunciationLexicon.apply("నమస్కారం 15", words, true).equals("నమస్కారం పదిహేను"),
         "explicit digit reading");
     check(
-        PronunciationLexicon.apply("నమస్కారం 15", words, false).equals("నమస్కారం 15"),
-        "numbers not silently rewritten");
+        PronunciationLexicon.apply("నమస్కారం 15", words, false).equals("నమస్కారం పదిహేను"),
+        "speech-only cardinal reading is mandatory");
     check(
         PronunciationLexicon.apply(
                 "\uFEFF\u200C\u200D\u200Bనమస్కారం", Collections.emptyMap(), false)

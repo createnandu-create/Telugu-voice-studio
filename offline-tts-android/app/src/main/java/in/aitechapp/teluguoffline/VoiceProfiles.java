@@ -6,7 +6,7 @@ import java.io.*;
 import java.util.*;
 import org.json.*;
 
-/** App-private references and metadata. Never interpreted as trained/cloned voices. */
+/** App-private recordings. A separate verified preview is required for tone conversion. */
 public final class VoiceProfiles {
   private final File root;
 
@@ -21,6 +21,15 @@ public final class VoiceProfiles {
 
   public File audio(String id) {
     validateId(id);
+    try {
+      JSONObject p = new JSONObject(FileIntegrity.read(new File(root, id + ".json")));
+      String active = p.optString("activeAudio");
+      if (active.matches("[a-zA-Z0-9-]+\\.wav")) {
+        File cleaned = new File(root, active);
+        if (cleaned.isFile()) return cleaned;
+      }
+    } catch (Exception ignored) {
+    }
     File wav = wave(id);
     return wav.isFile() ? wav : new File(root, id + ".m4a");
   }
@@ -80,7 +89,8 @@ public final class VoiceProfiles {
                     ? "Interrupted reference"
                     : duration < 15000
                         ? "Short reference · under 15 seconds"
-                        : "Recorded reference only — cloning not installed");
+                        : "Recorded reference · create a voice preview");
+    p.put("displayStem", AudioNames.stem(p.getString("name"), "", p.getLong("created")));
     FileIntegrity.write(new File(root, id + ".json"), p.toString());
     return p;
   }
@@ -89,6 +99,12 @@ public final class VoiceProfiles {
       throws Exception {
     JSONObject p = get(id);
     p.put("name", clean(name)).put("label", clean(label)).put("description", description);
+    p.put(
+        "displayStem",
+        AudioNames.stem(
+            p.getString("name"),
+            p.optInt("cleanCount", 0) > 0 ? "Cleaned" : "",
+            p.optLong("cleanedAt", p.getLong("created"))));
     FileIntegrity.write(new File(root, id + ".json"), p.toString());
   }
 
@@ -114,17 +130,24 @@ public final class VoiceProfiles {
   public synchronized void delete(String id) throws Exception {
     get(id);
     java.nio.file.Files.deleteIfExists(audio(id).toPath());
+    java.nio.file.Files.deleteIfExists(wave(id).toPath());
+    java.nio.file.Files.deleteIfExists(new File(root, id + ".m4a").toPath());
+    File[] cleaned = root.listFiles((d, n) -> n.startsWith(id + "-cleaned-") && n.endsWith(".wav"));
+    if (cleaned != null)
+      for (File file : cleaned) java.nio.file.Files.deleteIfExists(file.toPath());
     java.nio.file.Files.deleteIfExists(new File(root, id + "-capture.wav").toPath());
     java.nio.file.Files.deleteIfExists(new File(root, id + ".json").toPath());
-    File enrollmentRoot = new File(root, id + "-enrollments");
-    if (enrollmentRoot.isDirectory())
-      try (java.util.stream.Stream<java.nio.file.Path> paths =
-          java.nio.file.Files.walk(enrollmentRoot.toPath())) {
-        for (java.nio.file.Path path :
-            (Iterable<java.nio.file.Path>)
-                paths.sorted(java.util.Comparator.reverseOrder())::iterator)
-          java.nio.file.Files.deleteIfExists(path);
-      }
+    for (String suffix : new String[] {"-enrollments", "-clones"}) {
+      File enrollmentRoot = new File(root, id + suffix);
+      if (enrollmentRoot.isDirectory())
+        try (java.util.stream.Stream<java.nio.file.Path> paths =
+            java.nio.file.Files.walk(enrollmentRoot.toPath())) {
+          for (java.nio.file.Path path :
+              (Iterable<java.nio.file.Path>)
+                  paths.sorted(java.util.Comparator.reverseOrder())::iterator)
+            java.nio.file.Files.deleteIfExists(path);
+        }
+    }
     if (selected().equals(id)) new File(root, "selected.txt").delete();
   }
 

@@ -17,7 +17,7 @@ public final class SpeakerEnrollment {
     JSONObject metadata = profiles.get(id);
     SpeakerModelStore store = new SpeakerModelStore(context.getFilesDir());
     if (!store.ready())
-      throw new IOException("Install the speaker encoder in Settings → Offline models → Cloning.");
+      throw new IOException("Install the speaker encoder in Settings → Advanced recording tools.");
     File source = profiles.audio(id);
     progress.update("Enrolling · reading reference…");
     float[] audio = ReferenceAudio.read(source, cancel);

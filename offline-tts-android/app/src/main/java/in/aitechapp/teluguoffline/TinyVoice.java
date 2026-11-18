@@ -42,6 +42,8 @@ public final class TinyVoice implements AutoCloseable {
 
   static String normalized(String original) {
     return PronunciationLexicon.apply(original, Collections.emptyMap(), false)
+        .replace("\u200C", "")
+        .replace("\u200D", "")
         .replaceAll("\\s+", " ")
         .trim()
         .replace('’', '\'')

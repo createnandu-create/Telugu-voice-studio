@@ -5,10 +5,19 @@ import org.json.*;
 
 public final class PlanStorage {
   public final String script;
+  public final String cloneProfile;
   public final int voice;
   public final List<NarrationDirector.Segment> segments;
 
   public PlanStorage(String script, int voice, List<NarrationDirector.Segment> segments) {
+    this(script, voice, segments, "");
+  }
+
+  public PlanStorage(
+      String script, int voice, List<NarrationDirector.Segment> segments, String cloneProfile) {
+    if (cloneProfile == null || (!cloneProfile.isEmpty() && !cloneProfile.matches("[a-zA-Z0-9-]+")))
+      throw new IllegalArgumentException("Invalid clone reference");
+    this.cloneProfile = cloneProfile;
     if (voice < 0 || voice >= ModelCatalog.VOICES.length)
       throw new IllegalArgumentException("Unknown voice.");
     DirectionContract.validate(script, segments);
@@ -29,6 +38,7 @@ public final class PlanStorage {
               .put("pause", s.pauseAfterMs));
     return new JSONObject()
         .put("schema", 1)
+        .put("cloneProfile", cloneProfile)
         .put("script", script)
         .put("voice", voice)
         .put("segments", rows)
@@ -50,6 +60,7 @@ public final class PlanStorage {
               (float) s.getDouble("pitch"),
               s.getInt("pause")));
     }
-    return new PlanStorage(o.getString("script"), o.getInt("voice"), segments);
+    return new PlanStorage(
+        o.getString("script"), o.getInt("voice"), segments, o.optString("cloneProfile", ""));
   }
 }

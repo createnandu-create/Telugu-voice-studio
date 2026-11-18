@@ -1,0 +1,18 @@
+[
+  {
+    "voice": "Padmavathi",
+    "native_rate": 22050,
+    "seconds": 14.64185941043084,
+    "host_seconds": 3.6604942840058357,
+    "peak": 0.6817291975021362,
+    "clipped_samples": 0
+  },
+  {
+    "voice": "Venkatesh",
+    "native_rate": 22050,
+    "seconds": 12.0518820861678,
+    "host_seconds": 2.8124313419975806,
+    "peak": 0.5869473814964294,
+    "clipped_samples": 0
+  }
+]

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package `in`.aitechapp.teluguoffline
 
 import android.Manifest
@@ -98,7 +100,14 @@ class StudioActivity : ComponentActivity() {
                 ),
         )
         savedInstanceState?.getString("export")?.let { exportFile = File(it) }
-        setContent { StudioTheme { StudioApp(model, ::play, ::export, ::record) } }
+        setContent {
+            LaunchedEffect(model.playbackEpoch) {
+                player?.release()
+                player = null
+                playingFile = null
+            }
+            StudioTheme { StudioApp(model, ::play, ::export, ::record) }
+        }
     }
 
     private fun play(file: File) {
@@ -146,7 +155,7 @@ class StudioActivity : ComponentActivity() {
                 type = mime
                 putExtra(
                     android.content.Intent.EXTRA_TITLE,
-                    "${model.exportLabel}-${System.currentTimeMillis()}.${file.extension}",
+                    "${model.exportLabel}.${file.extension}",
                 )
             }
         )
@@ -304,7 +313,9 @@ fun StudioApp(
                         Text("Voice Studio", style = MaterialTheme.typography.titleMedium)
                     }
                     StatusPill(
-                        if (vm.loading) "CHECKING" else if (vm.busy) "WORKING" else "LOCAL",
+                        if (vm.loading) "CHECKING"
+                        else if (vm.busy) "WORKING"
+                        else if (AppIdentity.fresh(LocalContext.current)) "FRESH" else "LOCAL",
                         if (vm.busy) Sun else Color(0xFFE9F0E4),
                     )
                 }
@@ -316,6 +327,9 @@ fun StudioApp(
             when {
                 vm.page == "models" -> ModelsScreen(vm, play)
                 vm.page == "dictionary" -> DictionaryScreen(vm)
+                vm.page == "samples" -> SamplesScreen(vm, play)
+                vm.page == "reference-tools" -> ReferenceToolsScreen(vm)
+                vm.page == "cloning" -> CloningScreen(vm)
                 vm.tab == "Studio" -> StudioScreen(vm, play, requestExport)
                 vm.tab == "Voices" -> VoicesScreen(vm, play, requestExport, record)
                 vm.tab == "Projects" -> ProjectsScreen(vm, play, requestExport)
@@ -467,10 +481,10 @@ private fun Primary(
         onClick = action,
         enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(50),
         colors = ButtonDefaults.buttonColors(containerColor = Sun, contentColor = Ink),
     ) {
-        Text(label)
+        Text(label, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -485,14 +499,14 @@ private fun Secondary(
         onClick = action,
         enabled = enabled,
         modifier = Modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(50),
         border = BorderStroke(1.dp, Line),
     ) {
         if (icon != null) {
             Icon(icon, null, Modifier.size(18.dp))
             Spacer(Modifier.width(7.dp))
         }
-        Text(label)
+        Text(label, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -600,7 +614,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 items(vm.models, key = { it.index }) { m ->
                     VoiceChoice(
                         m,
-                        vm.voice == m.index,
+                        vm.voice == m.index && vm.activeClone.isEmpty(),
                         { vm.choose(m.index) },
                         { vm.previewVoice(m.index) },
                         {
@@ -608,6 +622,38 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                             vm.page = "models"
                         },
                     )
+                }
+                items(
+                    vm.profiles.filter { it.cloneReady && vm.cloneModelReady },
+                    key = { "clone-" + it.id },
+                ) { p ->
+                    Surface(
+                        onClick = { vm.chooseClone(p.id) },
+                        color = if (vm.activeClone == p.id) Sun.copy(alpha = .3f) else Color.White,
+                        shape = RoundedCornerShape(18.dp),
+                        border = BorderStroke(1.dp, Line),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Outlined.Mic, null, tint = Color(0xFFC08A00))
+                            Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                                Text(
+                                    "${p.name} · Cloned",
+                                    maxLines = 1,
+                                    modifier = Modifier.basicMarquee(),
+                                    softWrap = false,
+                                    fontSize = 14.sp,
+                                )
+                                Text("OpenVoice · experimental", fontSize = 10.sp, color = Muted)
+                            }
+                            IconButton(onClick = { p.clonePreview?.let(play) }) {
+                                Icon(Icons.Outlined.PlayArrow, "Preview cloned ${p.name}")
+                            }
+                            RadioButton(selected = vm.activeClone == p.id, onClick = null)
+                        }
+                    }
                 }
                 item {
                     var showTests by rememberSaveable { mutableStateOf(false) }
@@ -652,13 +698,43 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                             color = Muted,
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        Row {
-                            TextButton(onClick = vm::neutral, enabled = !vm.busy) {
-                                Text("Neutral delivery")
-                            }
-                            TextButton(onClick = vm::autoDirection, enabled = !vm.busy) {
-                                Text("Auto direction")
-                            }
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            FilterChip(
+                                selected = !vm.youtuber,
+                                onClick = vm::neutral,
+                                enabled = !vm.busy,
+                                label = {
+                                    Text(
+                                        if (!vm.youtuber) "✓ Neutral delivery"
+                                        else "Neutral delivery",
+                                        maxLines = 1,
+                                        fontSize = 11.sp,
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(50),
+                            )
+                            FilterChip(
+                                selected = vm.youtuber,
+                                onClick = vm::autoDirection,
+                                enabled = !vm.busy,
+                                label = {
+                                    Text(
+                                        if (vm.youtuber) "✓ Auto direction" else "Auto direction",
+                                        maxLines = 1,
+                                        fontSize = 11.sp,
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(50),
+                                colors =
+                                    FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Sun
+                                    ),
+                            )
                         }
                     }
                 }
@@ -714,7 +790,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            if (vm.status.startsWith("Ready ·")) "Completed · saved in Projects"
+                            if (vm.latest != null && vm.status.startsWith("Ready ·")) "Completed · saved in Projects"
                             else vm.status,
                             color = Muted,
                             fontSize = 12.sp,
@@ -733,7 +809,11 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 item {
                     vm.latest?.let { file ->
                         Panel {
-                            AudioIdentityPanel(file, ModelCatalog.VOICES[vm.voice].id)
+                            AudioIdentityPanel(
+                                file,
+                                if (vm.activeClone.isEmpty()) ModelCatalog.VOICES[vm.voice].id
+                                else "clone-" + vm.activeClone,
+                            )
                             Text(
                                 "${String.format(Locale.US,"%.1f",file.length()/1_000_000.0)} MB · lossless WAV",
                                 color = Muted,
@@ -839,16 +919,33 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                             )
                     }
                 }
-
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        TextButton(onClick = { vm.step = 2 }) { Text("← Review direction") }
-                        if (vm.inlineExport && !vm.exportBusy && vm.exportMessage.isNotBlank())
-                            TextButton(onClick = { vm.exportMessage = "" }) { Text("Close") }
-                    }
-                }
             }
         }
+        if (vm.step == 3)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = { vm.step = 2 },
+                    modifier = Modifier.weight(.45f).height(48.dp),
+                    contentPadding = PaddingValues(4.dp),
+                    shape = RoundedCornerShape(50),
+                ) {
+                    Text("← Review direction", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                }
+                Button(
+                    onClick = vm::openSavedFolder,
+                    modifier = Modifier.weight(.55f).height(48.dp),
+                    contentPadding = PaddingValues(4.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sun, contentColor = Ink),
+                ) {
+                    Icon(Icons.Outlined.FolderOpen, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Open Saved Folder", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                }
+            }
         if (vm.step == 1 || vm.step == 2) {
             Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                 StepNavigation(
@@ -1097,7 +1194,14 @@ private fun VoicesScreen(
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { PageTitle("Your voice library", "A private place for your personal references.") }
+        item {
+            PageTitle("Your recordings", "Record, clean and export your own audio.")
+            Text(
+                "To narrate in your voice, create and listen to an OpenVoice preview first.",
+                fontSize = 12.sp,
+                color = Muted,
+            )
+        }
         item {
             Panel {
                 Row {
@@ -1174,113 +1278,183 @@ private fun VoicesScreen(
                 }
             }
         items(vm.profiles, key = { it.id }) { p ->
-            Panel {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(p.name, style = MaterialTheme.typography.titleMedium)
+            Surface(
+                Modifier.animateItem(),
+                color = Color.White,
+                shape = RoundedCornerShape(18.dp),
+                border = BorderStroke(1.dp, Line),
+            ) {
+                Column(
+                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    var more by remember(p.id) { mutableStateOf(false) }
+                    var cleanup by remember(p.id) { mutableStateOf(false) }
+                    var roomTail by remember(p.id) { mutableStateOf(false) }
+                    var create by remember(p.id) { mutableStateOf(false) }
+                    var consent by remember(p.id) { mutableStateOf(false) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                p.displayStem,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.basicMarquee(),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                "${duration(p.duration)} · ${p.status}",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                fontSize = 11.sp,
+                                color = Muted,
+                            )
+                        }
+                        IconButton(onClick = { more = !more }) {
+                            Icon(Icons.Outlined.MoreVert, "Recording actions")
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth()) {
+                        TextButton(
+                            onClick = { play(p.file) },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                        ) {
+                            Text("Play", maxLines = 1, softWrap = false)
+                        }
+                        TextButton(
+                            onClick = { vm.selectProfile(p.id) },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                        ) {
+                            Text(
+                                if (vm.selectedReference == p.id) "✓ Selected" else "Select",
+                                maxLines = 1,
+                                softWrap = false,
+                                fontSize = 12.sp,
+                            )
+                        }
+                        TextButton(
+                            onClick = { cleanup = true },
+                            enabled = !vm.busy,
+                            modifier = Modifier.weight(1f).height(48.dp),
+                        ) {
+                            Text("Enhance", maxLines = 1, softWrap = false, fontSize = 12.sp)
+                        }
+                    }
+                    if (more) {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                            TextButton(onClick = { edit = p }, enabled = !vm.busy) {
+                                Text("Rename", maxLines = 1)
+                            }
+                            TextButton(onClick = { trim = p }, enabled = !vm.busy) {
+                                Text("Trim", maxLines = 1)
+                            }
+                            TextButton(onClick = { export(p.file) }) {
+                                Text("Export", maxLines = 1)
+                            }
+                            IconButton(onClick = { deleting = p }, enabled = !vm.busy) {
+                                Icon(Icons.Outlined.DeleteOutline, "Delete ${p.name}")
+                            }
+                        }
                         Text(
-                            "${p.label} · ${duration(p.duration)}",
-                            fontSize = 12.sp,
+                            "Original recording is retained. Select marks a reference; it does not change the narrator.",
+                            fontSize = 11.sp,
                             color = Muted,
                         )
                     }
-                    if (vm.selectedReference == p.id) StatusPill("SELECTED", Color(0xFFE9F0E4))
-                }
-                Text(p.status, fontSize = 12.sp, color = Muted)
-                if (p.description.isNotBlank()) Text(p.description, fontSize = 12.sp)
-                var cleanupDialog by remember(p.id) { mutableStateOf(false) }
-                var roomTail by remember(p.id) { mutableStateOf(false) }
-                if (cleanupDialog)
-                    AlertDialog(
-                        onDismissRequest = { cleanupDialog = false },
-                        title = { Text("Enhance a copy") },
-                        text = {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(
-                                    "Reduce noise locally with RNNoise. Your original stays in the library. Compare both before using the result."
-                                )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(
-                                        checked = roomTail,
-                                        onCheckedChange = { roomTail = it },
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = {
+                                if (vm.cloneModelReady) create = true
+                                else {
+                                    vm.navigate("Settings")
+                                    vm.page = "cloning"
+                                }
+                            },
+                            enabled = !vm.busy,
+                        ) {
+                            Text(
+                                if (p.cloneReady) "Recreate voice preview"
+                                else "Create voice preview",
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                            )
+                        }
+                        if (p.cloneReady)
+                            IconButton(onClick = { p.clonePreview?.let(play) }) {
+                                Icon(Icons.Outlined.PlayArrow, "Play cloned preview")
+                            }
+                        if (p.cloneReady && vm.cloneModelReady)
+                            TextButton(
+                                onClick = {
+                                    vm.chooseClone(p.id)
+                                    vm.navigate("Studio")
+                                    vm.step = 1
+                                }
+                            ) {
+                                Text("Use", maxLines = 1)
+                            }
+                    }
+                    if (cleanup)
+                        AlertDialog(
+                            onDismissRequest = { cleanup = false },
+                            title = { Text("Enhance recording") },
+                            text = {
+                                Column {
+                                    Text(
+                                        "Updates this card. The original stays saved; repeated cleanup starts from the original."
                                     )
-                                    Text("Reduce room tail · experimental WPE")
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(roomTail, { roomTail = it })
+                                        Text("Reduce room tail · experimental")
+                                    }
+                                    Text("Noise and echo may remain.", fontSize = 12.sp)
                                 }
-                                Text(
-                                    "Strong wind, clipping and overlapping voices may remain. This does not create a cloned narrator.",
-                                    fontSize = 12.sp,
-                                )
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    cleanupDialog = false
-                                    vm.enhanceProfile(p.id, roomTail)
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        cleanup = false
+                                        vm.enhanceProfile(p.id, roomTail)
+                                    }
+                                ) {
+                                    Text("Enhance")
                                 }
-                            ) {
-                                Text("Enhance")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { cleanupDialog = false }) { Text("Cancel") }
-                        },
-                    )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Secondary("Play", Icons.Outlined.PlayArrow) { play(p.file) }
-                    Secondary("Select", Icons.Outlined.Check) { vm.selectProfile(p.id) }
-                    TextButton(
-                        onClick = { cleanupDialog = true },
-                        enabled = !vm.busy && !vm.recording,
-                    ) {
-                        Text("Enhance")
-                    }
-                }
-                var enrollDialog by remember(p.id) { mutableStateOf(false) }
-                var consent by remember(p.id) { mutableStateOf(false) }
-                TextButton(
-                    onClick = { enrollDialog = true },
-                    enabled = !vm.busy && !vm.recording && vm.speakerReady,
-                ) {
-                    Text("Enroll speaker fingerprint")
-                }
-                if (enrollDialog)
-                    AlertDialog(
-                        onDismissRequest = { enrollDialog = false },
-                        title = { Text("Private speaker enrollment") },
-                        text = {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text(
-                                    "Create a 192-D ECAPA fingerprint from 10–15 seconds of cleaned speech. It stays on this device. This does not enable cloned narration."
-                                )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = consent, onCheckedChange = { consent = it })
-                                    Text("This is my voice, or I have the speaker's permission.")
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { cleanup = false }) { Text("Cancel") }
+                            },
+                        )
+                    if (create)
+                        AlertDialog(
+                            onDismissRequest = { create = false },
+                            title = { Text("Create my voice preview") },
+                            text = {
+                                Column {
+                                    Text(
+                                        "Uses 10–15 seconds of your recording to create a local OpenVoice preview. Listen first: clarity and similarity vary."
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(consent, { consent = it })
+                                        Text("This is my voice, or I have permission to clone it.")
+                                    }
                                 }
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(
-                                enabled = consent,
-                                onClick = {
-                                    enrollDialog = false
-                                    vm.speakerAction("speaker-enroll", p.id)
-                                },
-                            ) {
-                                Text("Enroll locally")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { enrollDialog = false }) { Text("Cancel") }
-                        },
-                    )
-                Row {
-                    TextButton(onClick = { edit = p }, enabled = !vm.busy) { Text("Rename") }
-                    TextButton(onClick = { trim = p }) { Text("Trim") }
-                    TextButton(onClick = { export(p.file) }) { Text("Export") }
-                    IconButton(onClick = { deleting = p }, enabled = !vm.busy) {
-                        Icon(Icons.Outlined.DeleteOutline, "Delete ${p.name}")
-                    }
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    enabled = consent,
+                                    onClick = {
+                                        create = false
+                                        vm.speakerAction("clone-create", p.id)
+                                    },
+                                ) {
+                                    Text("Create preview")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { create = false }) { Text("Cancel") }
+                            },
+                        )
                 }
             }
         }
@@ -1288,7 +1462,7 @@ private fun VoicesScreen(
             Panel {
                 SectionLabel("NARRATOR VOICES")
                 Text(
-                    "Downloadable neural voices live in Settings → Offline models. Saved references cannot be used as clones in this build.",
+                    "Download narrator models in Settings → Offline models. Personal voice previews use the separate OpenVoice pack.",
                     color = Muted,
                 )
                 Secondary("Manage offline models", Icons.Outlined.Tune) {
@@ -1418,7 +1592,7 @@ private fun ProfileDialog(
                         )
                     }
                     Text(
-                        "Reference recording only. Cloning is not installed.",
+                        "Recording alone is not a clone. Create a local voice preview after saving.",
                         fontSize = 12.sp,
                         color = Muted,
                     )
@@ -1442,51 +1616,77 @@ private fun ProjectsScreen(vm: StudioViewModel, play: (File) -> Unit, export: (F
     var rename by remember { mutableStateOf<ProjectRow?>(null) }
     var delete by remember { mutableStateOf<ProjectRow?>(null) }
     LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        Modifier.fillMaxSize().testTag("projects-list"),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item { PageTitle("Your projects", "Saved audio and resumable narration sessions.") }
         if (vm.projects.isEmpty())
             item {
-                Panel {
-                    Icon(Icons.Outlined.FolderOpen, null, tint = Muted)
-                    Text("A home for your stories", style = MaterialTheme.typography.titleMedium)
-                    Text("Your first rendered narration will appear here.", color = Muted)
-                    Primary("Create narration") { vm.navigate("Studio") }
-                }
+                Text("Your first narration will appear here.", color = Muted)
+                Primary("Create narration") { vm.navigate("Studio") }
             }
         items(vm.projects, key = { it.folder.path }) { p ->
-            Panel {
-                Row {
-                    Icon(Icons.Outlined.AudioFile, null, tint = Vermilion)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(p.name, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            if (p.ready) "${duration((p.duration*1000).toLong())} · WAV"
-                            else "Paused · segments saved",
-                            fontSize = 12.sp,
-                            color = Muted,
-                        )
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (p.ready) {
-                        Secondary("Play", Icons.Outlined.PlayArrow) {
+            Surface(
+                Modifier.fillMaxWidth().animateItem(),
+                color = Color.White,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, Line),
+            ) {
+                Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                    Text(
+                        p.name,
+                        modifier = Modifier.fillMaxWidth().basicMarquee(),
+                        maxLines = 1,
+                        softWrap = false,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        if (p.ready) "${duration((p.duration*1000).toLong())} · WAV"
+                        else "Paused · segments saved",
+                        fontSize = 10.sp,
+                        color = Muted,
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        ProjectAction(
+                            "Play",
+                            Icons.Outlined.PlayArrow,
+                            p.ready,
+                            Modifier.weight(1f),
+                        ) {
                             play(vm.projectAudio(p.folder))
                         }
-                        Secondary("Export", Icons.Outlined.FileDownload) {
+                        ProjectAction(
+                            "Export",
+                            Icons.Outlined.FileDownload,
+                            p.ready,
+                            Modifier.weight(1f),
+                        ) {
                             export(vm.projectAudio(p.folder))
                         }
-                    } else Secondary("Open / Resume", Icons.Outlined.Restore) { vm.openProject(p) }
-                }
-                Row {
-                    TextButton(onClick = { vm.openProject(p) }) { Text("Open script") }
-                    TextButton(onClick = { rename = p }) { Text("Rename") }
-                    Spacer(Modifier.weight(1f))
-                    IconButton(onClick = { delete = p }) {
-                        Icon(Icons.Outlined.DeleteOutline, "Delete ${p.name}")
+                        ProjectAction(
+                            "Open script",
+                            Icons.Outlined.Edit,
+                            true,
+                            Modifier.weight(1f),
+                        ) {
+                            vm.openProject(p)
+                        }
+                        ProjectAction("Rename", Icons.Outlined.Edit, true, Modifier.weight(1f)) {
+                            rename = p
+                        }
+                        ProjectAction(
+                            "Delete",
+                            Icons.Outlined.DeleteOutline,
+                            true,
+                            Modifier.weight(1f),
+                        ) {
+                            delete = p
+                        }
                     }
                 }
             }
@@ -1562,6 +1762,33 @@ private fun SettingsScreen(vm: StudioViewModel) {
             }
         }
         item {
+            SettingsTile(
+                "Sample audio",
+                "Bundled examples from the four narrator voices",
+                Icons.Outlined.PlayArrow,
+            ) {
+                vm.page = "samples"
+            }
+        }
+        item {
+            SettingsTile(
+                "Voice cloning",
+                "OpenVoice · create a local voice preview",
+                Icons.Outlined.Mic,
+            ) {
+                vm.page = "cloning"
+            }
+        }
+        item {
+            SettingsTile(
+                "Advanced recording tools",
+                "Private speaker fingerprints · not voice cloning",
+                Icons.Outlined.Tune,
+            ) {
+                vm.page = "reference-tools"
+            }
+        }
+        item {
             Panel {
                 SectionLabel("AUDIO QUALITY · EXPERIMENTAL")
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1571,7 +1798,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            "Optional 22.05 kHz warmth-only copy. OFF by default. Compare with Raw voice; this does not repair missing phonemes.",
+                            "Optional warmth EQ. OFF by default to preserve consonant clarity. Compare with original audio.",
                             fontSize = 12.sp,
                             color = Muted,
                         )
@@ -1583,7 +1810,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
                     )
                 }
                 Text(
-                    "The separate Studio master always uses the requested 44.1 kHz warmth/loudness preset. This switch adds a third native-rate comparison; it never processes the master twice.",
+                    "Studio master uses 44.1 kHz and balanced volume. Warmth is applied only when this switch is ON; it does not repair missing phonemes.",
                     fontSize = 11.sp,
                     color = Muted,
                 )
@@ -1594,11 +1821,9 @@ private fun SettingsScreen(vm: StudioViewModel) {
                 SectionLabel("ON THIS DEVICE")
                 Text("Piper + Indic Tiny Telugu", style = MaterialTheme.typography.titleMedium)
                 val context = LocalContext.current
-                val version = remember {
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                }
+                val version = remember { AppIdentity.version(context) }
                 Text(
-                    "App version $version",
+                    "App version $version · ${AppIdentity.channel(context)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Muted,
                 )
@@ -1606,9 +1831,17 @@ private fun SettingsScreen(vm: StudioViewModel) {
                     "Telugu neural voices · ARM64 CPU\n2 inference threads · no cloud generation",
                     color = Muted,
                 )
+                Text(
+                    if (AppIdentity.fresh(context))
+                        "Updates the 0.7 Fresh app. Your files stay in this app."
+                    else "Standard app storage is separate from the Fresh app.",
+                    fontSize = 12.sp,
+                    color = Muted,
+                )
+                Text(context.packageName, fontSize = 11.sp, color = Muted)
                 HorizontalDivider(color = Line)
                 Text(
-                    "Semantic LLM: not installed\nExpressive voice model: not installed\nPersonal voice cloning: not installed",
+                    "Four pretrained narrators. Personal voices require the optional OpenVoice pack and a successful local preview.",
                     fontSize = 13.sp,
                     color = Muted,
                 )
@@ -1621,9 +1854,12 @@ private fun SettingsScreen(vm: StudioViewModel) {
                     "Your scripts and recordings remain on this device. Model files download only when requested. Voice references are not uploaded or trained automatically.",
                     color = Muted,
                 )
-                Text("Version 0.5 · DSP testing build", fontSize = 12.sp)
                 Text(
-                    "GPL-3.0-or-later · sherpa Apache-2.0 · ONNX Runtime 1.31 MIT · Indic Tiny / Rasa CC BY 4.0 · Vocos MIT · Jump3r LGPL · eSpeak GPL · Piper voices CC BY 4.0 (PravalX / AI4Bharat). Manrope & DM Serif Display: OFL.",
+                    "Installed build: ${AppIdentity.label(LocalContext.current)}",
+                    fontSize = 12.sp,
+                )
+                Text(
+                    "GPL-3.0-or-later · sherpa Apache-2.0 · ONNX Runtime 1.31 MIT · Indic Tiny / Rasa CC BY 4.0 · Vocos MIT · Jump3r LGPL · eSpeak GPL · Piper voices CC BY 4.0 (PravalX / AI4Bharat). OpenVoice V2: MIT · RNNoise: BSD-3-Clause · CMU dictionary: BSD-style. Manrope & DM Serif Display: OFL.",
                     fontSize = 11.sp,
                     color = Muted,
                 )
@@ -1667,28 +1903,21 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
         item {
             TextButton(onClick = { vm.page = "" }) { Text("← Settings") }
             PageTitle("Offline models", "Download once. Keep creating without a connection.")
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                listOf(
-                        "Installed",
-                        "Telugu Narration",
-                        "Compare",
-                        "Expressive",
-                        "Cloning",
-                        "Updates",
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Installed", "All voices").forEach { item ->
+                    FilterChip(
+                        selected = category == item,
+                        onClick = { category = item },
+                        label = { Text(item) },
+                        modifier = Modifier.weight(1f),
                     )
-                    .forEach { item ->
-                        FilterChip(
-                            selected = category == item,
-                            onClick = { category = item },
-                            label = { Text(item) },
-                        )
-                    }
+                }
+            }
+            TextButton(onClick = vm::checkUpdates, enabled = !vm.busy) {
+                Text("Check model updates")
             }
         }
-        if (category == "Installed" || category == "Telugu Narration") {
+        if (category == "Installed" || category == "All voices") {
             val shown =
                 if (category == "Installed")
                     vm.models.filter {
@@ -1706,7 +1935,7 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                             "Piper: 63.5 MB per voice. Indic Tiny: 91 MB shared male/female pack.",
                             color = Muted,
                         )
-                        Primary("Browse Telugu voices") { category = "Telugu Narration" }
+                        Primary("Browse Telugu voices") { category = "All voices" }
                     }
                 }
             items(shown, key = { it.index }) { m ->
@@ -1728,14 +1957,26 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                             if (m.ready) Color(0xFFE9F0E4) else Paper,
                         )
                     }
+                    var details by rememberSaveable(m.index) { mutableStateOf(false) }
                     Text(
-                        if (ModelCatalog.VOICES[m.index].tiny())
-                            "Indic Tiny Telugu · experimental\n91 MB shared pack · 24 kHz · CC BY 4.0 + MIT\nRevision ${TinyModelStore.REVISION.take(12)}\nTelugu script only. Android phone validation pending."
-                        else
-                            "ID: te_IN-${ModelCatalog.VOICES[m.index].id}-medium\n63.5 MB · 22.05 kHz · CC BY 4.0\nStart-token repair v1 · Revision ${ModelCatalog.REVISION.take(12)}\nUpgraded installs keep a 63.5 MB backup.",
+                        if (ModelCatalog.VOICES[m.index].tiny()) "91 MB shared pack · 24 kHz"
+                        else "63.5 MB · 22.05 kHz",
                         fontSize = 12.sp,
                         color = Muted,
                     )
+                    TextButton(onClick = { details = !details }) {
+                        Text(if (details) "Hide details" else "Model details")
+                    }
+                    if (details) {
+                        Text(
+                            if (ModelCatalog.VOICES[m.index].tiny())
+                                "Indic Tiny Telugu · experimental\n91 MB shared pack · 24 kHz · CC BY 4.0 + MIT\nRevision ${TinyModelStore.REVISION.take(12)}\nTelugu script only. Android phone validation pending."
+                            else
+                                "ID: te_IN-${ModelCatalog.VOICES[m.index].id}-medium\n63.5 MB · 22.05 kHz · CC BY 4.0\nStart-token repair v1 · Revision ${ModelCatalog.REVISION.take(12)}\nUpgraded installs keep a 63.5 MB backup.",
+                            fontSize = 12.sp,
+                            color = Muted,
+                        )
+                    }
                     if (vm.verifying == m.index)
                         LinearProgressIndicator(Modifier.fillMaxWidth(), color = Vermilion)
                     vm.verification[m.index]?.let {
@@ -1809,108 +2050,6 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                     }
                 }
         }
-        if (category == "Compare") {
-            item {
-                Panel {
-                    StatusPill("HOST AUDIO · FIXED SCRIPT", Paper)
-                    Text(
-                        "Compare Telugu pronunciation",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text("నమస్కారం ఫ్రెండ్స్!")
-                    Text(
-                        "These unprocessed reference samples were generated locally on Linux. They are not new speech generated on this phone. You can install the experimental Indic Tiny engine under Telugu Narration to generate your own text. Phone validation remains pending.",
-                        color = Muted,
-                    )
-                }
-            }
-            items(vm.comparisons, key = { it.first }) { sample ->
-                Panel {
-                    Text(sample.first, style = MaterialTheme.typography.titleMedium)
-                    Secondary("Play / Pause sample", Icons.Outlined.PlayArrow) {
-                        play(sample.second)
-                    }
-                }
-            }
-        }
-        if (category == "Expressive")
-            item {
-                Panel {
-                    StatusPill("RESEARCH · NOT INSTALLED", Paper)
-                    Text("Indic-Mio + MioCodec", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Telugu emotion and voice-cloning research candidate. No verified Android runtime is installed. No download is offered until its pipeline works on the target phone.",
-                        color = Muted,
-                    )
-                    Text(
-                        "Indic Tiny TTS is a calm fixed-voice comparison model, not expressive cloning. Real host A/B samples are included with the release evidence.",
-                        fontSize = 13.sp,
-                        color = Muted,
-                    )
-                }
-            }
-        if (category == "Cloning")
-            item {
-                Panel {
-                    StatusPill("NOT AVAILABLE", Paper)
-                    Text("Personal voice cloning", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "You can record and organize consented references in Voices. Selecting a reference does not replace the narrator with your voice.",
-                        color = Muted,
-                    )
-                    Secondary("Open voice library", Icons.Outlined.Mic) { vm.navigate("Voices") }
-                    HorizontalDivider()
-                    Text(
-                        "Speaker fingerprint · ECAPA-TDNN",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    StatusPill(if (vm.speakerReady) "READY OFFLINE" else "NOT INSTALLED", Paper)
-                    Text(
-                        "79.7 MiB · Apache 2.0 · 192 dimensions. A speaker verification encoder; Piper and Indic Tiny cannot use this vector for cloning.",
-                        fontSize = 13.sp,
-                        color = Muted,
-                    )
-                    Text(
-                        "RNNoise cleanup is included in the app. WPE room-tail reduction is optional in Voices → Enhance.",
-                        fontSize = 13.sp,
-                    )
-                    if (!vm.speakerReady)
-                        Primary("Download speaker encoder", !vm.busy && !vm.recording) {
-                            vm.speakerAction("speaker-install")
-                        }
-                    else
-                        Row {
-                            TextButton(
-                                onClick = { vm.speakerAction("verify") },
-                                enabled = !vm.busy && !vm.loading,
-                            ) {
-                                Text("Verify files")
-                            }
-                            TextButton(
-                                onClick = { vm.speakerAction("remove") },
-                                enabled = !vm.busy && !vm.loading,
-                            ) {
-                                Text("Remove encoder")
-                            }
-                        }
-                    if (vm.busy && StudioJobService.enhancing) {
-                        Text(vm.status, fontSize = 12.sp)
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        TextButton(onClick = { StudioJobService.cancel() }) { Text("Cancel") }
-                    }
-                }
-            }
-        if (category == "Updates")
-            item {
-                Panel {
-                    Text("You control updates", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "No automatic checks or downloads. This checks repository metadata only. New weights require a reviewed model revision and checksum in an app update.",
-                        color = Muted,
-                    )
-                    Primary("Check updates", !vm.busy, action = vm::checkUpdates)
-                }
-            }
     }
     if (deleting >= 0)
         ConfirmDelete(
@@ -2194,7 +2333,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
                 }
             }
         Text(
-            "Question rise is rule-based, applied only to a stable voiced ending. Comma buffers are added to the engine’s own pauses. Careful pace slows complex clauses by 8%.",
+            "Question pitch and waveform effects apply to Indic Tiny and cloned output. Piper keeps its native pitch to protect consonant clarity. Pauses and model pacing remain editable.",
             style = MaterialTheme.typography.bodySmall,
             color = Muted,
         )
@@ -2203,5 +2342,171 @@ private fun DeliveryPanel(vm: StudioViewModel) {
             style = MaterialTheme.typography.bodySmall,
             color = Muted,
         )
+    }
+}
+
+@Composable
+private fun SamplesScreen(vm: StudioViewModel, play: (File) -> Unit) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item { TextButton(onClick = { vm.page = "" }) { Text("← Settings") } }
+
+        item {
+            Panel {
+                StatusPill("BUNDLED EXAMPLES", Paper)
+                Text("Compare Telugu pronunciation", style = MaterialTheme.typography.titleMedium)
+                Text("నమస్కారం ఫ్రెండ్స్!")
+                Text(
+                    "Pre-generated examples. To hear your own script, choose a narrator in Studio and generate it locally.",
+                    color = Muted,
+                )
+            }
+        }
+        items(vm.comparisons, key = { it.first }) { sample ->
+            Panel {
+                Text(sample.first, style = MaterialTheme.typography.titleMedium)
+                Secondary("Play / Pause sample", Icons.Outlined.PlayArrow) { play(sample.second) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReferenceToolsScreen(vm: StudioViewModel) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item { TextButton(onClick = { vm.page = "" }) { Text("← Settings") } }
+        item {
+            Panel {
+                Text(
+                    "Speaker fingerprint · ECAPA-TDNN",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                StatusPill(if (vm.speakerReady) "READY OFFLINE" else "NOT INSTALLED", Paper)
+                Text(
+                    "79.7 MiB · Apache 2.0 · 192 dimensions. A speaker verification encoder; Piper and Indic Tiny cannot use this vector for cloning.",
+                    fontSize = 13.sp,
+                    color = Muted,
+                )
+                Text(
+                    "RNNoise cleanup is included in the app. WPE room-tail reduction is optional in Voices → Enhance.",
+                    fontSize = 13.sp,
+                )
+                if (!vm.speakerReady)
+                    Primary("Download speaker encoder", !vm.busy && !vm.recording) {
+                        vm.speakerAction("speaker-install")
+                    }
+                else
+                    Row {
+                        TextButton(
+                            onClick = { vm.speakerAction("verify") },
+                            enabled = !vm.busy && !vm.loading,
+                        ) {
+                            Text("Verify files")
+                        }
+                        TextButton(
+                            onClick = { vm.speakerAction("remove") },
+                            enabled = !vm.busy && !vm.loading,
+                        ) {
+                            Text("Remove encoder")
+                        }
+                    }
+                if (vm.busy && StudioJobService.enhancing) {
+                    Text(vm.status, fontSize = 12.sp)
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    TextButton(onClick = { StudioJobService.cancel() }) { Text("Cancel") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CloningScreen(vm: StudioViewModel) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            TextButton(onClick = { vm.page = "" }) { Text("← Settings") }
+            PageTitle("Your voice, locally", "Create a preview before using a personal narrator.")
+        }
+        item {
+            Panel {
+                Text("OpenVoice V2", style = MaterialTheme.typography.titleMedium)
+                StatusPill(if (vm.cloneModelReady) "READY OFFLINE" else "NOT INSTALLED", Paper)
+                Text("41.1 MB · MIT · one-time download", fontSize = 12.sp, color = Muted)
+                Text(
+                    "Use at least 10 seconds of your own clear voice. A successful preview unlocks that voice in Studio. Telugu clarity and similarity need listening checks.",
+                    fontSize = 13.sp,
+                )
+                if (!vm.cloneModelReady)
+                    Primary("Download OpenVoice", !vm.busy) { vm.speakerAction("clone-install") }
+                else {
+                    Primary("Open my recordings", !vm.busy) { vm.navigate("Voices") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { vm.clonePackAction(false) },
+                            enabled = !vm.busy && !vm.loading,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Verify files", maxLines = 1)
+                        }
+                        OutlinedButton(
+                            onClick = { vm.clonePackAction(true) },
+                            enabled = !vm.busy && !vm.loading,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Remove pack", maxLines = 1)
+                        }
+                    }
+                }
+                if (vm.busy) {
+                    Text(vm.status, fontSize = 12.sp)
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    TextButton(onClick = vm::cancel) { Text("Cancel") }
+                }
+                Text(
+                    "Processing stays on this device. Zero echo and perfect voice similarity are not guaranteed.",
+                    fontSize = 11.sp,
+                    color = Muted,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProjectAction(
+    label: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    modifier: Modifier,
+    action: () -> Unit,
+) {
+    TextButton(
+        onClick = action,
+        enabled = enabled,
+        modifier = modifier.height(48.dp).semantics { contentDescription = label },
+        contentPadding = PaddingValues(0.dp),
+        shape = RoundedCornerShape(50),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, null, Modifier.size(17.dp))
+            Text(
+                label,
+                maxLines = 1,
+                softWrap = false,
+                fontSize = 9.sp,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }

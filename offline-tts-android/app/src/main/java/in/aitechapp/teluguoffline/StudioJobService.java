@@ -19,6 +19,7 @@ public final class StudioJobService extends Service {
   public static volatile boolean busy = false;
   public static volatile int downloadingVoice = -1;
   public static volatile boolean enhancing = false;
+  public static volatile String runId = "", resultRunId = "";
   public static volatile String status = "Ready · all generation is local";
   public static volatile File result;
   public static final AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -44,11 +45,21 @@ public final class StudioJobService extends Service {
     busy = true;
     cancelled.set(false);
     status = "Preparing…";
+    runId = intent.getStringExtra("runId");
+    if (runId == null) runId = "";
+    boolean cloneInstall = "clone-install".equals(intent.getAction());
+    boolean cloneCreate = "clone-create".equals(intent.getAction());
     boolean speakerInstall = "speaker-install".equals(intent.getAction());
     boolean enroll = "speaker-enroll".equals(intent.getAction());
-    boolean install = "install".equals(intent.getAction()) || speakerInstall;
-    enhancing = "enhance".equals(intent.getAction()) || enroll || speakerInstall;
-    downloadingVoice = install && !speakerInstall ? intent.getIntExtra("voice", 0) : -1;
+    boolean install = "install".equals(intent.getAction()) || speakerInstall || cloneInstall;
+    enhancing =
+        "enhance".equals(intent.getAction())
+            || enroll
+            || speakerInstall
+            || cloneCreate
+            || cloneInstall;
+    downloadingVoice =
+        install && !speakerInstall && !cloneInstall ? intent.getIntExtra("voice", 0) : -1;
     NotificationManager nm = getSystemService(NotificationManager.class);
     nm.createNotificationChannel(
         new NotificationChannel(
@@ -83,7 +94,22 @@ public final class StudioJobService extends Service {
         () -> {
           try {
             VoiceModelStore store = new VoiceModelStore(this);
-            if (speakerInstall) {
+            if (cloneInstall) {
+              new OpenVoiceModelStore(getFilesDir())
+                  .install(cancelled, message -> status = message);
+              status = "Completed · OpenVoice ready. Create a consented voice preview in Voices.";
+            } else if (cloneCreate) {
+              if (!intent.getBooleanExtra("consent", false))
+                throw new IOException("Speaker consent is required");
+              CloneProfiles.create(
+                  this,
+                  intent.getStringExtra("profile"),
+                  intent.getIntExtra("voice", 0),
+                  cancelled,
+                  message -> status = message);
+              status =
+                  "Completed · local voice preview created. Listen in Voices before selecting it.";
+            } else if (speakerInstall) {
               new SpeakerModelStore(getFilesDir()).install(cancelled, message -> status = message);
               status =
                   "Completed · speaker encoder READY OFFLINE. Enroll a consented reference in"
@@ -113,14 +139,14 @@ public final class StudioJobService extends Service {
             status =
                 speakerInstall
                     ? "Download paused · partial bytes kept. Tap Download speaker encoder to"
-                          + " resume."
+                        + " resume."
                     : enhancing
                         ? "Cleanup stopped · original kept. Tap Enhance or Enroll to retry."
                         : install
                             ? "Download paused · partial bytes saved. Tap Resume download in"
-                                  + " Settings."
+                                + " Settings."
                             : "Stopped · completed chunks saved. Tap Generate / Resume to"
-                                  + " continue.";
+                                + " continue.";
           } catch (Exception | LinkageError e) {
             android.util.Log.e("StudioJob", "Offline job failed", e);
             status =
@@ -157,14 +183,27 @@ public final class StudioJobService extends Service {
       throw new IOException("Install " + voice.name + " in Offline Models first.");
     if (!voice.tiny()) store.prepareAssets(cancelled);
     check();
+    DynamicEnglishPhonetizer.load(getAssets().open("english-cmudict.bin"));
     SpeechSettings speech = SpeechSettings.load(this);
+    boolean cloned = !plan.cloneProfile.isEmpty();
+    JSONObject clone = null;
+    File cloneDirectory = null;
+    if (cloned) {
+      VoiceProfiles profiles = new VoiceProfiles(this);
+      clone = profiles.get(plan.cloneProfile);
+      cloneDirectory = CloneProfiles.directory(profiles, clone);
+      if (!new OpenVoiceModelStore(getFilesDir()).ready())
+        throw new IOException("Install OpenVoice before generating a cloned voice");
+    }
     List<NarrationDirector.Segment> renderSegments =
         DeliveryControls.expand(plan.segments, speech.commaBuffer, speech.carefulDiction);
     if (speech.youtuber) renderSegments = DeliveryControls.accents(renderSegments);
     renderSegments = speech.audible(renderSegments);
-    boolean soft = speech.femaleSoftening && voice.gender.equals("Female");
+    boolean soft = voice.tiny() && speech.femaleSoftening && voice.gender.equals("Female");
+    boolean waveformDelivery = (voice.tiny() || cloned) && speech.youtuber;
+    boolean waveformQuestions = (voice.tiny() || cloned) && speech.questionLift;
     StringBuilder spokenIdentity =
-        new StringBuilder("delivery-v3-markup-question13-tiny-cv65/")
+        new StringBuilder("delivery-v4-math-english-piper-clean/")
             .append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
@@ -174,6 +213,11 @@ public final class StudioJobService extends Service {
             .append(speech.commaBuffer)
             .append('/')
             .append(speech.carefulDiction);
+    if (cloned)
+      spokenIdentity
+          .append("/openvoice/")
+          .append(OpenVoiceModelStore.REVISION)
+          .append(clone.getString("cloneToneSha"));
     org.json.JSONArray inputAudit = new org.json.JSONArray();
     for (NarrationDirector.Segment segment : renderSegments) {
       String spoken = speech.spoken(segment.text);
@@ -191,9 +235,14 @@ public final class StudioJobService extends Service {
     FileIntegrity.write(new File(journal.directory, "plan.json"), plan.json());
     JSONObject identity =
         new JSONObject()
-            .put("voice", voice.id)
-            .put("voice_name", voice.name)
-            .put("engine", voice.tiny() ? "Indic Tiny / Vocos" : "Piper / sherpa-onnx")
+            .put("voice", cloned ? "clone-" + plan.cloneProfile : voice.id)
+            .put("cloned", cloned)
+            .put("voice_name", cloned ? clone.getString("name") : voice.name)
+            .put(
+                "engine",
+                cloned
+                    ? "OpenVoice V2 tone conversion · " + voice.name
+                    : voice.tiny() ? "Indic Tiny / Vocos" : "Piper / sherpa-onnx")
             .put("model_sha", voice.installedSha)
             .put("question_lift", speech.questionLift)
             .put("youtuber_controls", speech.youtuber)
@@ -202,6 +251,7 @@ public final class StudioJobService extends Service {
             .put("comma_buffer_ms", speech.commaBuffer ? 180 : 0)
             .put("careful_diction", speech.carefulDiction);
     FileIntegrity.write(new File(journal.directory, "render-identity.json"), identity.toString(2));
+    AudioNames.project(journal.directory, voice.name);
     long need = 0;
     for (NarrationDirector.Segment s : renderSegments) need += s.text.length() * 7000L + 100000;
     if (getFilesDir().getUsableSpace() < need + 30_000_000)
@@ -257,6 +307,9 @@ public final class StudioJobService extends Service {
             }
             GeneratedAudio audio = tts.generate(speech.spoken(s.text), 0, s.rate);
             check();
+            if (audio.getSampleRate() != 22050)
+              throw new IOException(
+                  "Piper returned an unexpected sample rate: " + audio.getSampleRate());
             PcmWave.write(journal.chunk(i), audio.getSamples(), audio.getSampleRate());
           }
           journal.complete(i);
@@ -285,21 +338,57 @@ public final class StudioJobService extends Service {
       if (tiny != null) tiny.close();
     }
     check();
+    if (cloned) {
+      File converted = new File(journal.directory, "cloned");
+      converted.mkdirs();
+      List<File> convertedChunks = new ArrayList<>();
+      OpenVoiceModelStore pack = new OpenVoiceModelStore(getFilesDir());
+      try (OpenVoiceEngine engine = new OpenVoiceEngine(pack.root, cancelled)) {
+        float[] target = OpenVoiceEngine.loadEmbedding(new File(cloneDirectory, "tone256.bin"));
+        File reference = CloneProfiles.baseReference(this, plan.voice);
+        float[] source =
+            engine.embedding(OpenVoiceEngine.read(reference), PcmWave.sampleRate(reference));
+        for (int i = 0; i < chunks.size(); i++) {
+          check();
+          status = "Converting your voice · " + (i + 1) + " / " + chunks.size();
+          File file = new File(converted, i + ".wav"), receipt = new File(converted, i + ".sha256");
+          boolean ready =
+              receipt.isFile()
+                  && file.isFile()
+                  && FileIntegrity.matches(file, FileIntegrity.read(receipt));
+          if (!ready) {
+            float[] pcm =
+                engine.convert(
+                    OpenVoiceEngine.read(chunks.get(i)),
+                    PcmWave.sampleRate(chunks.get(i)),
+                    source,
+                    target);
+            PcmWave.write(file, pcm, 22050);
+            FileIntegrity.write(receipt, FileIntegrity.sha256(file));
+          }
+          PcmWave.validate(file);
+          if (PcmWave.sampleRate(file) != 22050)
+            throw new IOException("Converted voice has an invalid sample rate");
+          convertedChunks.add(file);
+        }
+      }
+      chunks = convertedChunks;
+    }
     status = "Joining audio…";
     File output = new File(journal.directory, "narration.wav");
     PcmWave.mergeRaw(chunks, renderSegments, output, cancelled);
     double seconds = PcmWave.validate(output) / (PcmWave.sampleRate(output) * 2.0);
     // Publish the untouched raw render first. A failed/cancelled master never loses the narration.
     result = output;
+    resultRunId = runId;
     FileIntegrity.write(new File(getFilesDir(), "last-result.txt"), output.getPath());
     File master = new File(journal.directory, "narration-studio.wav");
     StudioMastering.Report mastered =
-        voice.tiny()
-            ? null
-            : StudioMastering.process(output, master, cancelled, message -> status = message);
+        StudioMastering.process(
+            output, master, cancelled, message -> status = message, speech.warmthEq);
     if (mastered != null)
       FileIntegrity.write(new File(journal.directory, "mastering.json"), mastered.json());
-    if (speech.warmthEq && !voice.tiny()) {
+    if (speech.warmthEq && (!voice.tiny() || cloned)) {
       status = "Creating optional native-rate EQ comparison…";
       PcmWave.merge(
           chunks,
@@ -308,7 +397,7 @@ public final class StudioJobService extends Service {
           cancelled,
           true);
     }
-    if (voice.tiny()) {
+    if (voice.tiny() && !cloned) {
       status = "Preparing native-rate playback audio…";
       output = new File(journal.directory, "narration-playback.wav");
       PcmWave.merge(chunks, renderSegments, output, cancelled);
@@ -320,16 +409,16 @@ public final class StudioJobService extends Service {
     }
     int lifted = 0, requested = 0;
     org.json.JSONArray controlAudit = new org.json.JSONArray();
-    if (speech.questionLift || soft || speech.youtuber) {
+    if (waveformQuestions || soft || waveformDelivery) {
       List<File> controlled = new ArrayList<>();
       File controlledDir = new File(journal.directory, "delivery");
       controlledDir.mkdirs();
       for (int i = 0; i < chunks.size(); i++) {
         check();
         boolean question =
-            speech.questionLift && DeliveryControls.question(renderSegments.get(i).text);
+            waveformQuestions && DeliveryControls.question(renderSegments.get(i).text);
         if (question) requested++;
-        if (question || soft || speech.youtuber) {
+        if (question || soft || waveformDelivery) {
           status = "Applying offline voice controls · " + (i + 1) + " / " + chunks.size();
           File f = new File(controlledDir, i + ".wav");
           VoiceDeliveryDsp.Result applied =
@@ -338,7 +427,7 @@ public final class StudioJobService extends Service {
                   f,
                   question,
                   soft,
-                  speech.youtuber ? renderSegments.get(i) : null,
+                  waveformDelivery ? renderSegments.get(i) : null,
                   cancelled);
           if (question && applied.lifted) lifted++;
           controlAudit.put(
@@ -352,11 +441,17 @@ public final class StudioJobService extends Service {
           controlled.add(f);
         } else controlled.add(chunks.get(i));
       }
-      if (requested > 0 || soft || speech.youtuber) {
+      if (requested > 0 || soft || waveformDelivery) {
         File adjusted = new File(journal.directory, "narration-directed.wav");
         PcmWave.merge(controlled, renderSegments, adjusted, cancelled);
-        output = adjusted;
-        seconds = PcmWave.validate(output) / (PcmWave.sampleRate(output) * 2.0);
+        File directedRaw = new File(journal.directory, "narration-directed-raw.wav");
+        PcmWave.mergeRaw(controlled, renderSegments, directedRaw, cancelled);
+        mastered =
+            StudioMastering.process(
+                directedRaw, master, cancelled, message -> status = message, speech.warmthEq);
+        FileIntegrity.write(new File(journal.directory, "mastering.json"), mastered.json());
+        output = master;
+        seconds = mastered.frames / (double) StudioMastering.RATE;
       }
     }
     FileIntegrity.write(
@@ -368,11 +463,16 @@ public final class StudioJobService extends Service {
             .put("device", Build.MODEL)
             .put(
                 "engine",
-                voice.tiny()
-                    ? "Indic Tiny / ONNX Runtime 1.31 / Vocos"
-                    : "sherpa-onnx 1.12.26 / Piper")
-            .put("voice", voice.id)
-            .put("warmth_eq", !voice.tiny())
+                cloned
+                    ? "OpenVoice V2 tone conversion / " + voice.name
+                    : voice.tiny()
+                        ? "Indic Tiny / ONNX Runtime 1.31 / Vocos"
+                        : "sherpa-onnx 1.12.26 / Piper")
+            .put("voice", cloned ? "clone-" + plan.cloneProfile : voice.id)
+            .put("voice_name", cloned ? clone.getString("name") : voice.name)
+            .put("cloned", cloned)
+            .put("base_voice", voice.id)
+            .put("warmth_eq", speech.warmthEq)
             .put("native_warmth_comparison", speech.warmthEq)
             .put("head_padding_ms", PcmWave.HEAD_PADDING_MS)
             .put("tail_padding_ms", PcmWave.TAIL_PADDING_MS)
@@ -394,6 +494,7 @@ public final class StudioJobService extends Service {
     FileIntegrity.write(new File(journal.directory, "metrics.json"), stats.toString(2));
     FileIntegrity.write(new File(getFilesDir(), "last-result.txt"), output.getPath());
     result = output;
+    resultRunId = runId;
     status =
         String.format(
             Locale.US,

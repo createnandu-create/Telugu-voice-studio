@@ -19,6 +19,11 @@ public final class AudioIdentity {
         JSONObject value =
             new JSONObject(FileIntegrity.read(new File(audio.getParentFile(), file)));
         String id = value.optString("voice", "");
+        if (value.optBoolean("cloned", false))
+          return new AudioIdentity(
+              id,
+              value.optString("voice_name", "MyVoice") + " · Cloned",
+              value.optString("engine", "OpenVoice V2"));
         for (ModelCatalog.Voice v : ModelCatalog.VOICES)
           if (v.id.equals(id))
             return new AudioIdentity(id, v.name, value.optString("engine", "Engine not recorded"));

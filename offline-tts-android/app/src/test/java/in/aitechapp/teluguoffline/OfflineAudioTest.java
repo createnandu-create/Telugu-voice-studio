@@ -16,7 +16,7 @@ public class OfflineAudioTest {
     assertArrayEquals(TinyVoice.tokens("నమస్కారం"), TinyVoice.tokens("\\(నమస్కారం\\)"));
     assertArrayEquals(TinyVoice.tokens("ఒకటి బై రెండు"), TinyVoice.tokens("$\\frac{1}{2}$"));
     assertArrayEquals(
-        TinyVoice.tokens("ఎక్స్ ఘాతం రెండు ప్లస్ ఒకటి సమానం మూడు"),
+        TinyVoice.tokens("ఎక్స్ ఘాతం రెండు ప్లస్ ఒకటి ఈక్వల్స్ టు మూడు"),
         TinyVoice.tokens("$x^{2}+1=3$"));
     String original = "({నమస్కారం})";
     var plan = NarrationDirector.planExact(original, NarrationDirector.Style.AUTO);
@@ -30,8 +30,9 @@ public class OfflineAudioTest {
     assertArrayEquals(namaskaram, TinyVoice.tokens("నమస్కారం"));
     assertArrayEquals(namaskaram, TinyVoice.tokens("\uFEFF\u200Cనమస్కారం"));
     assertEquals(13, TinyVoice.tokens("అమస్కారం")[1]);
-    assertThrows(IllegalArgumentException.class, () -> TinyVoice.tokens("నమస్కారం YouTube"));
-    assertThrows(IllegalArgumentException.class, () -> TinyVoice.tokens("2026"));
+    assertArrayEquals(TinyVoice.tokens("నమస్కారం యూట్యూబ్"), TinyVoice.tokens("నమస్కారం YouTube"));
+    assertArrayEquals(TinyVoice.tokens("రెండు వేల ఇరవై ఆరు"), TinyVoice.tokens("2026"));
+    assertThrows(IllegalArgumentException.class, () -> TinyVoice.tokens("నమస్కారం 😀"));
   }
 
   @Test
@@ -45,11 +46,13 @@ public class OfflineAudioTest {
     PcmWave.mergeRaw(List.of(a), plan, out, new AtomicBoolean());
     assertArrayEquals(Files.readAllBytes(a.toPath()), Files.readAllBytes(out.toPath()));
     assertEquals(24000, PcmWave.sampleRate(out));
-    assertThrows(
-        IOException.class,
-        () ->
-            StudioMastering.process(
-                out, new File(dir, "master.wav"), new AtomicBoolean(), m -> {}));
+    File master = new File(dir, "master.wav");
+    StudioMastering.process(out, master, new AtomicBoolean(), m -> {}, false);
+    assertEquals(
+        44100,
+        java.nio.ByteBuffer.wrap(Files.readAllBytes(master.toPath()))
+            .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            .getInt(24));
     PcmWave.write(b, samples, 22050);
     var two = NarrationDirector.planExact("నమస్కారం. నమస్కారం.", NarrationDirector.Style.AUTO);
     assertThrows(

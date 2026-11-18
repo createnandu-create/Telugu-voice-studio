@@ -1,3 +1,7 @@
+## Current v0.8.0 work — 2026-11-17
+
+See [v0.8.0 implementation and actual audio evidence](evaluation/v080/README.md). This supersedes old UI/status and cloning descriptions below: OpenVoice V2 256-D conversion now has a real Java ONNX path and local-preview gate, with physical-phone acceptance outstanding. Preserve models/recordings/Projects and stay on telugu-voice-testing. Both APK package variants are versionCode58; normal/fresh data remain separate. Never claim 0% echo, corrected pronunciation or verified personal similarity from host fixtures.
+
 ## Version 0.6 follow-up
 
 Read [Piper BOS/PAD repair, Indic Tiny Java engine and export evidence](evaluation/pronunciation-v06/README.md). The new Piper graph adapter is required only with the current sherpa frontend. Repaired model hashes must never be applied twice. Speech quality and physical-phone acceptance remain unverified.

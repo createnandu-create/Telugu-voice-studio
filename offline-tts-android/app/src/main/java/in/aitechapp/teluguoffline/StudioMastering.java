@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class StudioMastering {
   public static final int RATE = 44100, HEAD = 6615, TAIL = 4410;
-  public static final String VERSION = "warm-v1";
+  public static final String VERSION = "studio-v2";
   public static final double TARGET_LUFS = -14.0, CEILING_DBTP = -1.0;
   // A small reconstruction/PCM rounding margin below the requested ceiling.
   private static final double LIMIT = Math.pow(10, -1.10 / 20.0);
@@ -23,13 +23,16 @@ public final class StudioMastering {
   public static final class Report {
     public double inputLufs, outputLufs, truePeakDbtp, driveDb;
     public long frames;
-    public int iterations;
+    public int iterations, sourceRate;
+    public boolean warmth;
 
     public String json() {
       return String.format(
           Locale.US,
-          "{\"preset\":\"%s\",\"sample_rate\":44100,\"channels\":2,\"head_frames\":6615,\"tail_frames\":4410,\"pre_limit_lufs\":%.4f,\"output_lufs\":%.4f,\"true_peak_dbtp_4x\":%.4f,\"drive_db\":%.4f,\"iterations\":%d,\"frames\":%d}",
+          "{\"preset\":\"%s\",\"source_rate\":%d,\"warmth_eq\":%s,\"fade_in_ms\":15,\"sample_rate\":44100,\"channels\":2,\"head_frames\":6615,\"tail_frames\":4410,\"pre_limit_lufs\":%.4f,\"output_lufs\":%.4f,\"true_peak_dbtp_4x\":%.4f,\"drive_db\":%.4f,\"iterations\":%d,\"frames\":%d}",
           VERSION,
+          sourceRate,
+          warmth,
           inputLufs,
           outputLufs,
           truePeakDbtp,
@@ -307,7 +310,7 @@ public final class StudioMastering {
           local = Math.max(local, peaks[j]);
         double target = Math.min(1, LIMIT / (local * drive + 1e-20));
         envelope = target < envelope ? target : envelope + (target - envelope) * release;
-        double value = signal.get(n) * drive * envelope * guard;
+        double value = signal.get(n) * drive * envelope * guard * Math.min(1.0, n / (RATE * .015));
         if (!Double.isFinite(value) || Math.abs(value) > 1)
           throw new IOException("Mastering produced out-of-range PCM.");
         int pcm = (int) Math.round(value * 32767);
@@ -320,24 +323,55 @@ public final class StudioMastering {
 
   public static Report process(File raw, File destination, AtomicBoolean cancel, Progress progress)
       throws IOException {
-    if (PcmWave.sampleRate(raw) != 22050)
-      throw new IOException(
-          "Studio preset supports Piper 22.05 kHz only; keep native audio for this voice.");
+    return process(raw, destination, cancel, progress, true);
+  }
+
+  public static Report process(
+      File raw, File destination, AtomicBoolean cancel, Progress progress, boolean warmth)
+      throws IOException {
+    int sourceRate = PcmWave.sampleRate(raw);
+    if (sourceRate != 22050 && sourceRate != 24000)
+      throw new IOException("Unsupported native synthesis rate: " + sourceRate);
     long samples = PcmWave.validate(raw) / 2;
-    long frames = samples * 2;
+    long frames = Math.round(samples * (double) RATE / sourceRate);
+    double[][] phases = new double[147][32];
+    if (sourceRate == 24000)
+      for (int p = 0; p < 147; p++) {
+        double sum = 0;
+        for (int k = 0; k < 32; k++) {
+          double x = p / 147.0 - (k - 15);
+          double w = .42 + .5 * Math.cos(Math.PI * x / 16) + .08 * Math.cos(2 * Math.PI * x / 16);
+          double v = Math.abs(x) < 1e-10 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x) * w;
+          phases[p][k] = v;
+          sum += v;
+        }
+        for (int k = 0; k < 32; k++) phases[p][k] /= sum;
+      }
     File floats = new File(destination.getPath() + ".float-work"),
         part = new File(destination.getPath() + ".part");
     if (destination.getParentFile().getUsableSpace() < frames * 8 + 10_000_000)
       throw new IOException("Free storage for the stereo master; raw audio is retained.");
     try {
-      progress.update("Mastering · sinc resampling and warmth EQ");
+      progress.update(
+          warmth
+              ? "Mastering · sinc resampling and warmth EQ"
+              : "Mastering · sinc resampling and loudness");
       try (Samples input = new Samples(raw, 44, 2, false, samples);
           DataOutputStream out =
               new DataOutputStream(new BufferedOutputStream(new FileOutputStream(floats), 65536))) {
         Biquad low = Biquad.shelf(180, 3, false), high = Biquad.shelf(6000, -2.5, true);
         for (long n = 0; n < frames; n++) {
           if ((n & 4095) == 0) check(cancel);
-          double v = high.next(low.next(sinc(input, n / 2, n % 2 == 0 ? 0 : 2)));
+          double v;
+          if (sourceRate == 22050) v = sinc(input, n / 2, n % 2 == 0 ? 0 : 2);
+          else {
+            long pos = n * 80;
+            int phase = (int) (pos % 147);
+            long frame = pos / 147;
+            v = 0;
+            for (int k = 0; k < 32; k++) v += input.get(frame + k - 15) * phases[phase][k];
+          }
+          if (warmth) v = high.next(low.next(v));
           if (!Double.isFinite(v)) throw new IOException("Invalid DSP output.");
           out.writeFloat((float) v);
         }
@@ -348,6 +382,8 @@ public final class StudioMastering {
           throw new IOException(
               "Audio is too short or silent for gated -14 LUFS mastering. Raw audio retained.");
         Report report = new Report();
+        report.sourceRate = sourceRate;
+        report.warmth = warmth;
         report.inputLufs = baseline.lufs;
         report.frames = frames + HEAD + TAIL;
         double driveDb = TARGET_LUFS - baseline.lufs;

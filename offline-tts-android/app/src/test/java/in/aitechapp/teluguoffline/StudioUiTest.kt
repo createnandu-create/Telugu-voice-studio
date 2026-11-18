@@ -132,6 +132,87 @@ class StudioUiTest {
         }
     }
 
+    @Test
+    fun voiceSwitchClearsPlaybackAndColdWorkspaceKeepsSavedProjects() {
+        val file =
+            File(compose.activity.filesDir, "old-result.wav").apply { writeBytes(byteArrayOf(1)) }
+        File(compose.activity.filesDir, "last-result.txt").writeText(file.path)
+        compose.runOnIdle {
+            val vm =
+                androidx.lifecycle.ViewModelProvider(compose.activity)[StudioViewModel::class.java]
+            vm.edit("") // No model invocation needed to test the reset boundary.
+            vm.latest = file
+            vm.playbackRequest = file
+            val epoch = vm.playbackEpoch
+            vm.choose((vm.voice + 1) % 4)
+            org.junit.Assert.assertNull(vm.latest)
+            org.junit.Assert.assertNull(vm.playbackRequest)
+            org.junit.Assert.assertTrue(vm.playbackEpoch > epoch)
+            org.junit.Assert.assertTrue(file.isFile)
+            val fresh = StudioViewModel(compose.activity.application)
+            org.junit.Assert.assertEquals(0, fresh.step)
+            org.junit.Assert.assertNull(fresh.latest)
+            org.junit.Assert.assertTrue(
+                fresh.youtuber &&
+                    fresh.durationGuard &&
+                    fresh.questionLift &&
+                    fresh.commaBuffer &&
+                    fresh.carefulDiction
+            )
+            org.junit.Assert.assertFalse(fresh.femaleSoftening)
+            org.junit.Assert.assertTrue(file.isFile)
+            androidx.lifecycle.ViewModelStore().apply {
+                put("fresh", fresh)
+                clear()
+            }
+        }
+    }
+
+    @Test(timeout = 60000)
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
+    fun compactProjectsShowAllFiveActionsAndSingleLineName() {
+        // AndroidViewModelFactory may retain an earlier Application in a Robolectric sandbox.
+        // Place the fixture in the actual ViewModel storage used by the production loader.
+        val storage =
+            androidx.lifecycle
+                .ViewModelProvider(compose.activity)[StudioViewModel::class.java]
+                .getApplication<android.app.Application>()
+                .filesDir
+        val directory = File(storage, "renders/ui-project").apply { mkdirs() }
+        val audio = File(directory, "narration.wav")
+        compose.activity.assets.open("comparison/piper-padmavathi-2.wav").use { input ->
+            audio.outputStream().use { input.copyTo(it) }
+        }
+        File(directory, "project-name.txt").writeText("Padmavathi_17Nov2026_1038AM")
+        compose.waitUntil(10000) {
+            !androidx.lifecycle
+                .ViewModelProvider(compose.activity)[StudioViewModel::class.java]
+                .loading
+        }
+        compose.runOnIdle {
+            val vm =
+                androidx.lifecycle.ViewModelProvider(compose.activity)[StudioViewModel::class.java]
+            vm.refresh()
+            vm.navigate("Projects")
+        }
+        compose.waitUntil(10000) {
+            !androidx.lifecycle
+                .ViewModelProvider(compose.activity)[StudioViewModel::class.java]
+                .loading
+        }
+        compose.mainClock.advanceTimeBy(1000)
+        compose.waitForIdle()
+        compose
+            .onNodeWithTag("projects-list")
+            .performScrollToNode(hasText("Padmavathi_17Nov2026_1038AM"))
+        compose.onNodeWithText("Padmavathi_17Nov2026_1038AM").assertIsDisplayed()
+        for (label in listOf("Play", "Export", "Open script", "Rename", "Delete")) compose
+            .onNodeWithContentDescription(label)
+            .assertIsDisplayed()
+        capture("10-compact-projects")
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val folder = File("build/reports/studio-screenshots").apply { mkdirs() }
@@ -190,7 +271,11 @@ class StudioUiTest {
         compose.onNodeWithContentDescription("Voices tab").performClick()
         compose.onNodeWithText("New voice recording").performClick()
         compose.onNodeWithText("Start recording").assertIsNotEnabled()
-        compose.onNodeWithText("Reference recording only. Cloning is not installed.").assertExists()
+        compose
+            .onNodeWithText(
+                "Recording alone is not a clone. Create a local voice preview after saving."
+            )
+            .assertExists()
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithContentDescription("Projects tab").performClick()
         compose.onNodeWithText("Your projects").assertExists()

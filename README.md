@@ -4,17 +4,15 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
-## v0.8.1 downloads
+## v0.8.2 downloads
 
-| File | Download |
-|---|---|
-| Unified Android APK | [TeluguVoiceStudio-v0.8.1.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.1-de279b22b331/TeluguVoiceStudio-v0.8.1.apk) |
-| Source ZIP | [TeluguVoiceStudio-v0.8.1-source.zip](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.1-de279b22b331/TeluguVoiceStudio-v0.8.1-source.zip) |
-| Four narrator WAVs and OpenVoice reference conversion | [TeluguVoiceStudio-v0.8.1-audio.zip](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.1-de279b22b331/TeluguVoiceStudio-v0.8.1-audio.zip) |
+[Unified Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.2-70656df20345/TeluguVoiceStudio-v0.8.2.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.2-70656df20345/TeluguVoiceStudio-v0.8.2-source.zip) · [Four-voice ON/OFF listening comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.2-70656df20345/TeluguVoiceStudio-v0.8.2-audio.zip)
 
-Install the APK over the existing v0.8.0 FRESH package. The package ID and signing certificate match that release. The Studio badge now reads LOCAL. Select **Generate with multiple voices** in the voice picker to queue a batch. Enable notifications to receive a message when each project is ready.
+Install over v0.8.1. The release workflow verified the package and signing certificate against that APK.
 
-The audio ZIP contains host-generated listening samples and loudness measurements. The OpenVoice sample uses a public pretrained reference. Phone playback, background behavior and personal voice similarity still need a physical-device check.
+In Studio → Direction, **YouTuber delivery** uses a phrase-duration model fitted to 4,641 recorded Telugu conversational utterances. For eligible phrases outside the target range, the offline narrator generates another take at a bounded speed and picks the closer duration. The setting persists after restart. Cloned voices inherit the base narrator’s timing.
+
+The audio ZIP includes matched ON/OFF pairs for four narrators, phrase timings, loudness measurements and a public-reference OpenVoice excerpt. The renders ran on a host CPU. Listener-rated naturalness and physical handset performance remain unmeasured.
 
 ## v0.8.0 workspace, clarity and personal voice previews
 

@@ -4,20 +4,17 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
-## Downloads
+## v0.8.1 downloads
 
-| File | Direct link | Availability |
-|---|---|---|
-| Android Debug APK | [TeluguVoiceStudio-debug.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-debug.apk) | Created by GitHub Actions **only after a successful build** |
-| **Fresh Install / Side-by-side APK** | [TeluguVoiceStudio-fresh-install.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-fresh-install.apk) | Created only after successful CI build; separate package preserves older app/data untouched |
-| Four voice comparison WAVs | [Download audio ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-four-voices.zip) | Locally generated host comparison, not a phone benchmark |
-| Android Source ZIP + project skill | [TeluguVoiceStudio-source.zip](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/debug-latest/TeluguVoiceStudio-source.zip) | Created by successful build |
-| Branch Source ZIP (works without build) | [Download current source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/archive/refs/heads/telugu-voice-testing.zip) | Always reflects the branch |
-| Source in browser | [offline-tts-android/](https://github.com/createnandu-create/Telugu-voice-studio/tree/telugu-voice-testing/offline-tts-android) | Browse files |
-| GitHub Actions build logs | [Open builds](https://github.com/createnandu-create/Telugu-voice-studio/actions/workflows/offline-tts-debug.yml) | Build status |
-| All Releases | [Releases page](https://github.com/createnandu-create/Telugu-voice-studio/releases) | APK appears here after CI succeeds |
+| File | Download |
+|---|---|
+| Unified Android APK | [TeluguVoiceStudio-v0.8.1.apk](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.1-de279b22b331/TeluguVoiceStudio-v0.8.1.apk) |
+| Source ZIP | [TeluguVoiceStudio-v0.8.1-source.zip](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.1-de279b22b331/TeluguVoiceStudio-v0.8.1-source.zip) |
+| Four narrator WAVs and OpenVoice reference conversion | [TeluguVoiceStudio-v0.8.1-audio.zip](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.1-de279b22b331/TeluguVoiceStudio-v0.8.1-audio.zip) |
 
-**If the APK link returns 404, the release has not been published yet; check Actions. Do not treat a source ZIP as an installable APK.** The debug APK is for testing, not Google Play Store distribution.
+Install the APK over the existing v0.8.0 FRESH package. The package ID and signing certificate match that release. The Studio badge now reads LOCAL. Select **Generate with multiple voices** in the voice picker to queue a batch. Enable notifications to receive a message when each project is ready.
+
+The audio ZIP contains host-generated listening samples and loudness measurements. The OpenVoice sample uses a public pretrained reference. Phone playback, background behavior and personal voice similarity still need a physical-device check.
 
 ## v0.8.0 workspace, clarity and personal voice previews
 

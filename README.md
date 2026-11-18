@@ -4,15 +4,15 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
-## v0.8.3 downloads
+## v0.8.4 downloads
 
-[Unified Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.3-e102ee25db83/TeluguVoiceStudio-v0.8.3.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.3-e102ee25db83/TeluguVoiceStudio-v0.8.3-source.zip) · [Five before/after audio comparisons](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.3-e102ee25db83/TeluguVoiceStudio-v0.8.3-audio.zip)
+[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.4-3cfb7168180a/TeluguVoiceStudio-v0.8.4.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.4-3cfb7168180a/TeluguVoiceStudio-v0.8.4-source.zip) · [Matched audio comparisons](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.4-3cfb7168180a/TeluguVoiceStudio-v0.8.4-audio.zip)
 
-Install over v0.8.2. In Voices, open a saved recording labeled Male or Female and create its preview. The dialog displays the base narrator before conversion. A preview previously made with a different label needs to be recreated once from the saved recording.
+Listen to a native render in compact MP3 format: [Padmavathi](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.4-3cfb7168180a/Padmavathi_Clean.mp3), [Venkatesh](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.4-3cfb7168180a/Venkatesh_Clean.mp3), [Indic Tiny Female](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.4-3cfb7168180a/Indic_Tiny_Female_Clean.mp3), [Indic Tiny Male](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.4-3cfb7168180a/Indic_Tiny_Male_Clean.mp3).
 
-The recorder displays elapsed captured PCM and microphone peak level. Saving preserves the full take and levels the playback copy. The original capture remains available. The regression fixture contains 49 seconds of quiet speech-like tone and 11 seconds of silence and saves as a 60-second WAV.
+Install over v0.8.3. With a script in Studio, tap an installed narrator to generate. Each narrator remembers its delivery switches, and each queued job snapshots its own settings. Studio exposes the finished master for playback. Compact narration MP3 uses 96 kbps mono. WAV export removes the duplicate channel of a studio master, preserving every original mono sample.
 
-The studio master uses offline RNNoise estimates to attenuate noise while preserving the phase of the original synthesis. The ZIP pairs the same takes before and after this stage for Venkatesh, Padmavathi, Indic Tiny Male, Indic Tiny Female and a public-reference OpenVoice conversion. The renders ran on a host CPU. Telugu listening quality, personal voice similarity and physical handset capture need device evaluation.
+The offline postfilter uses a gain table fitted on 559 Telugu recordings and synthetic interference, with a separate evaluation set of 40 clips. A periodicity detector reduces energy between harmonics during voiced speech. The source includes the reproducible fitting script and dataset attribution. Piper uses a lower sampling noise scale, and Indic Tiny uses eight flow integration steps. The APK runs these changes on the phone. The release listening comparisons are host renders. Perceptual naturalness, consonant intelligibility and latency on a physical phone remain unscored.
 
 ## v0.8.0 workspace, clarity and personal voice previews
 

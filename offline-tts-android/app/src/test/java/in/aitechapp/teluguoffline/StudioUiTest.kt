@@ -154,7 +154,7 @@ class StudioUiTest {
             org.junit.Assert.assertNull(fresh.latest)
             org.junit.Assert.assertTrue(
                 fresh.youtuber &&
-                    fresh.durationGuard &&
+                    !fresh.durationGuard &&
                     fresh.questionLift &&
                     fresh.commaBuffer &&
                     fresh.carefulDiction

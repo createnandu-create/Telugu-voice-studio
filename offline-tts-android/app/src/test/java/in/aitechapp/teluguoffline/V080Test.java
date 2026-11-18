@@ -22,7 +22,7 @@ public class V080Test {
     Context c = RuntimeEnvironment.getApplication();
     DynamicEnglishPhonetizer.load(c.getAssets().open("english-cmudict.bin"));
     String[][] cases = {
-      {"√25 = 5", "రూట్ ఇరవై ఐదు ఈక్వల్స్ టు ఐదు"},
+      {"√25 = 5", "రూట్ ఇరవై ఐదు సమానం ఐదు"},
       {"\\sqrt{25}", "రూట్ ఇరవై ఐదు"},
       {"16:9", "పదహారు ఈజ్ టు తొమ్మిది"},
       {"100%", "వంద శాతం"},
@@ -32,7 +32,7 @@ public class V080Test {
       {"PixelLab", "పిక్సెల్ ల్యాబ్"},
       {"Vocal DNA", "వోకల్ డీ ఎన్ ఏ"},
       {"VN", "వి ఎన్"},
-      {"mind-blowing tech update", "మైండ్ బ్లోయింగ్ టెక్ అప్ డేట్"},
+      {"mind-blowing tech update", "మైండ్ బ్లోయింగ్ టెక్ అప్‌డేట్"},
       {"శ్రావ్యమైన శ్రోతలకు కర్కశ", "శ్రావ్యమైన శ్రోతలకు కర్కశ"}
     };
     SpeechSettings settings = new SpeechSettings();
@@ -50,7 +50,7 @@ public class V080Test {
     assertFalse(settings.spoken("Qzxw hello computer").matches(".*[A-Za-z].*"));
     assertTrue(
         settings.youtuber
-            && settings.durationGuard
+            && !settings.durationGuard
             && settings.questionLift
             && settings.commaBuffer
             && settings.carefulDiction);

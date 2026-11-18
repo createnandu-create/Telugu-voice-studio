@@ -20,7 +20,7 @@ public final class AppIdentity {
   }
 
   public static String channel(Context context) {
-    return fresh(context) ? "Fresh" : "Standard";
+    return "Local";
   }
 
   public static String label(Context context) {

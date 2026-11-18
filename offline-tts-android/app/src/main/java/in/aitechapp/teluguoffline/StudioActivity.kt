@@ -87,6 +87,13 @@ class StudioActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent.action == "open-projects") model.navigate("Projects")
+        if (android.os.Build.VERSION.SDK_INT >= 33 && savedInstanceState == null &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            !getPreferences(0).getBoolean("askedNotification", false)) {
+            getPreferences(0).edit().putBoolean("askedNotification", true).apply()
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 81)
+        }
         enableEdgeToEdge(
             statusBarStyle =
                 SystemBarStyle.light(
@@ -315,7 +322,7 @@ fun StudioApp(
                     StatusPill(
                         if (vm.loading) "CHECKING"
                         else if (vm.busy) "WORKING"
-                        else if (AppIdentity.fresh(LocalContext.current)) "FRESH" else "LOCAL",
+                        else "LOCAL",
                         if (vm.busy) Sun else Color(0xFFE9F0E4),
                     )
                 }
@@ -610,7 +617,42 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 }
             }
             if (vm.step == 1) {
-                item { SectionLabel("NEURAL NARRATORS") }
+                item {
+                    SectionLabel("NEURAL NARRATORS")
+                    var batchDialog by rememberSaveable { mutableStateOf(false) }
+                    OutlinedButton(onClick = { batchDialog = true }, enabled = !vm.busy && !vm.recording) {
+                        Text("Generate with multiple voices")
+                    }
+                    if (batchDialog) {
+                        val ready = vm.models.filter { it.ready }
+                        val voices = ready.map { (it.index to "") to it.name } +
+                            vm.profiles.filter { p -> vm.cloneModelReady && p.cloneReady && ready.any { it.index == p.cloneBase } }
+                                .map { (it.cloneBase to it.id) to (it.name + " · Cloned") }
+                        var selected by remember { mutableStateOf(voices.map { it.first }.toSet()) }
+                        AlertDialog(onDismissRequest = { batchDialog = false },
+                            title = { Text("Queue voices") },
+                            text = {
+                                Column(Modifier.verticalScroll(rememberScrollState())) {
+                                    if (voices.isEmpty()) Text("Install a narrator in Settings first.")
+                                    voices.forEach { (key, label) ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(key in selected, onCheckedChange = { checked ->
+                                                selected = if (checked) selected + key else selected - key
+                                            })
+                                            Text(label)
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(enabled = selected.isNotEmpty(), onClick = {
+                                    batchDialog = false
+                                    vm.generateBatch(voices.map { it.first }.filter { it in selected })
+                                }) { Text("Generate (" + selected.size + ")") }
+                            },
+                            dismissButton = { TextButton(onClick = { batchDialog = false }) { Text("Cancel") } })
+                    }
+                }
                 items(vm.models, key = { it.index }) { m ->
                     VoiceChoice(
                         m,
@@ -1245,7 +1287,7 @@ private fun VoicesScreen(
                     )
                     Primary("New voice recording", !vm.busy) { showRecord = true }
                 }
-                Text(vm.recordingStatus, fontSize = 12.sp, color = Muted)
+                Text(vm.recordingStatus + if (vm.recording) "" else if (vm.cloneModelReady) " · OpenVoice ready offline" else " · Install OpenVoice in Settings", fontSize = 12.sp, color = Muted)
             }
         }
         item {
@@ -1832,9 +1874,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
                     color = Muted,
                 )
                 Text(
-                    if (AppIdentity.fresh(context))
-                        "Updates the 0.7 Fresh app. Your files stay in this app."
-                    else "Standard app storage is separate from the Fresh app.",
+                    "Updates keep your local recordings, models and projects.",
                     fontSize = 12.sp,
                     color = Muted,
                 )
@@ -2315,9 +2355,9 @@ private fun DeliveryPanel(vm: StudioViewModel) {
         Text("Tune the delivery", style = MaterialTheme.typography.titleMedium)
         listOf(
                 Triple("youtuber", "YouTuber delivery · rule based", vm.youtuber),
-                Triple("duration", "Indic Tiny · syllable duration guard", vm.durationGuard),
+
                 Triple("question", "Question endings · +13%", vm.questionLift),
-                Triple("comma", "Comma buffer · 180 ms", vm.commaBuffer),
+                Triple("comma", "Comma breath · 110 ms", vm.commaBuffer),
                 Triple("careful", "Careful pace · complex clauses", vm.carefulDiction),
                 Triple("soft", "Female tone · gentle EQ", vm.femaleSoftening),
             )

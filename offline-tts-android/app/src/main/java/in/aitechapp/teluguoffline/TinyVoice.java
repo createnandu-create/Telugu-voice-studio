@@ -125,11 +125,10 @@ public final class TinyVoice implements AutoCloseable {
       cond = data(r, "cond");
     }
     check();
-    float scale = (male ? 1.0022f : 0.9942f) / speed;
+    float scale = 1.04f / speed;
     float[] cumulative = new float[n];
     float[] duration = new float[n];
     for (int i = 0; i < n; i++) duration[i] = (float) Math.ceil((float) Math.exp(logw[i])) * scale;
-    if (guard) duration = TinyDurationGuard.apply(normalized(text), duration);
     double total = 0;
     for (int i = 0; i < n; i++) {
       total += duration[i];

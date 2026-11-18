@@ -4,7 +4,7 @@ import java.util.*;
 
 /** Deterministic, editable render controls; never rewrites the saved script or invents phonemes. */
 public final class DeliveryControls {
-  public static final int COMMA_MS = 180;
+  public static final int COMMA_MS = 110;
 
   public static boolean question(String text) {
     String end = text.trim().replaceAll("[\\\"'”’]+$", "");

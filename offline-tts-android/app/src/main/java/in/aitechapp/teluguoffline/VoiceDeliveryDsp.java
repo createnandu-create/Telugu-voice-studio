@@ -222,32 +222,6 @@ public final class VoiceDeliveryDsp {
         }
       }
     }
-    WarmthEq.Biquad shelf = null;
-    Biquad presence = null;
-    switch (segment.emotion) {
-      case WELCOME:
-        shelf = new WarmthEq.Biquad(rate, 140, 3, false);
-        break;
-      case EXCITED:
-      case SURPRISE:
-        presence = new Biquad(rate, 3500, 2, 1);
-        break;
-      case EMPATHY:
-        shelf = new WarmthEq.Biquad(rate, 6000, -2.5, true);
-        break;
-      default:
-        break;
-    }
-    double gain =
-        segment.emotion == NarrationDirector.Emotion.GUIDE && DeliveryControls.action(segment.text)
-            ? Math.pow(10, 2.5 / 20)
-            : 1;
-    for (int i = 0; i < audio.length; i++) {
-      double x = audio[i];
-      if (shelf != null) x = shelf.filter(x);
-      if (presence != null) x = presence.process(x);
-      audio[i] = (float) (x * gain);
-    }
     Result finish =
         apply(
             audio,
@@ -303,6 +277,12 @@ public final class VoiceDeliveryDsp {
       NarrationDirector.Segment direction,
       AtomicBoolean cancel)
       throws IOException {
+    return process(input, output, question, soft, direction, cancel, false, false);
+  }
+
+  static Result process(File input, File output, boolean question, boolean soft,
+      NarrationDirector.Segment direction, AtomicBoolean cancel, boolean studio, boolean tiny)
+      throws IOException {
     long bytes = PcmWave.validate(input);
     int rate = PcmWave.sampleRate(input);
     if (bytes > 16_000_000)
@@ -325,6 +305,15 @@ public final class VoiceDeliveryDsp {
             ? apply(samples, rate, question, soft, cancel)
             : directed(samples, rate, direction, question, soft, cancel);
     if (cancel.get()) throw new CancellationException();
+    if (studio) {
+      Biquad chest = new Biquad(rate, 160, 2, .85);
+      Biquad box = new Biquad(rate, 400, -2.5, .95);
+      Biquad deEss = new Biquad(rate, 7000, -2, 2);
+      for (int i = 0; i < r.samples.length; i++) {
+        double x = box.process(chest.process(r.samples[i]));
+        r.samples[i] = (float) (tiny ? deEss.process(x) : x);
+      }
+    }
     PcmWave.write(output, r.samples, rate);
     return r;
   }

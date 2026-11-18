@@ -70,5 +70,12 @@ public final class PronunciationLexicon {
     return DynamicEnglishPhonetizer.apply(text);
   }
 
+  /** The eSpeak Telugu frontend can coalesce adjacent letter names and the k-s boundary. */
+  public static String piperInput(String spoken) {
+    return spoken.replace("ఏఐ టెక్", "ఏ ఐ టెక్")
+        .replace("ఎక్స్‌పోర్ట్", "ఎక్‌స్‌పోర్ట్")
+        .replace("ఎక్స్‌ప్లనేషన్", "ఎక్‌స్‌ప్లనేషన్");
+  }
+
   private PronunciationLexicon() {}
 }

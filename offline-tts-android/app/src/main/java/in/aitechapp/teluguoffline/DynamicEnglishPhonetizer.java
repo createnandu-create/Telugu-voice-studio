@@ -25,7 +25,11 @@ public final class DynamicEnglishPhonetizer {
     WORDS.put("mind", "మైండ్");
     WORDS.put("blowing", "బ్లోయింగ్");
     WORDS.put("tech", "టెక్");
-    WORDS.put("update", "అప్ డేట్");
+    WORDS.put("update", "అప్‌డేట్");
+    WORDS.put("export", "ఎక్స్‌పోర్ట్");
+    WORDS.put("explanation", "ఎక్స్‌ప్లనేషన్");
+    WORDS.put("main", "మెయిన్");
+    WORDS.put("problem", "ప్రాబ్లమ్");
     WORDS.put("vocal", "వోకల్");
     WORDS.put("dna", "డీ ఎన్ ఏ");
     WORDS.put("ai", "ఏఐ");

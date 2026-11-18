@@ -31,6 +31,7 @@ data class ProfileRow(
     val displayStem: String = name,
     val cloneReady: Boolean = false,
     val clonePreview: File? = null,
+    val cloneBase: Int = 0,
 )
 
 data class ProjectRow(val folder: File, val name: String, val ready: Boolean, val duration: Double)
@@ -85,7 +86,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var entries by mutableStateOf<Map<String, String>>(emptyMap())
     private val speechMutex = Mutex()
     var youtuber by mutableStateOf(true)
-    var durationGuard by mutableStateOf(true)
+    var durationGuard by mutableStateOf(false)
     var questionLift by mutableStateOf(true)
     var commaBuffer by mutableStateOf(true)
     var femaleSoftening by mutableStateOf(false)
@@ -113,7 +114,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     SpeechSettings.load(app)
                 }
             speech.youtuber = true
-            speech.durationGuard = true
+            speech.durationGuard = false
             speech.questionLift = true
             speech.commaBuffer = true
             speech.carefulDiction = true
@@ -220,13 +221,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         activeClone = ""
         persist()
         switchJob?.cancel()
-        if (StudioJobService.busy) StudioJobService.cancel()
-        if (script.isBlank() || recording || models.none { it.index == index && it.ready }) return
-        switchJob =
-            viewModelScope.launch {
-                while (StudioJobService.busy || loading || generatePending) delay(100)
-                if (voice == index) generate()
-            }
     }
 
     fun chooseClone(id: String) {
@@ -238,17 +232,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         clearActiveAudio()
         activeClone = id
         switchJob?.cancel()
-        if (StudioJobService.busy) StudioJobService.cancel()
-        switchJob =
-            viewModelScope.launch {
-                while (StudioJobService.busy || loading || generatePending) delay(100)
-                if (
-                    activeClone == id &&
-                        script.isNotBlank() &&
-                        models.any { it.index == voice && it.ready }
-                )
-                    generate()
-            }
+        voice = p.cloneBase
+        persist()
     }
 
     fun selectOutput(master: Boolean) {
@@ -345,7 +330,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun autoDirection() {
-        durationGuard = true
+        durationGuard = false
         commaBuffer = true
         carefulDiction = true
         femaleSoftening = false
@@ -372,7 +357,9 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun generate() {
+    fun generate() = generateBatch(listOf(voice to activeClone))
+
+    fun generateBatch(voices: List<Pair<Int,String>>) {
         if (busy || generatePending || recording || verifying >= 0 || loading) {
             notice = "Finish the current task first."
             return
@@ -384,7 +371,13 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
         direct()
         if (plan.isEmpty()) return
-        val snapshot = PlanStorage(script, voice, plan, activeClone).json()
+        if (voices.isEmpty()) return
+        val jobs = org.json.JSONArray()
+        voices.distinct().forEach { (base, clone) ->
+            jobs.put(JSONObject(PlanStorage(script, base, plan, clone).json()))
+        }
+        val id = java.util.UUID.randomUUID().toString()
+        val batch = JSONObject().put("plans", jobs).put("next", 0)
         val desiredSpeech = currentSpeech()
         clearActiveAudio()
         val revision = workspaceRevision
@@ -393,15 +386,15 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 withContext(Dispatchers.IO) {
                     FileIntegrity.write(
-                        File(getApplication<Application>().filesDir, "render-plan.json"),
-                        snapshot,
+                        File(getApplication<Application>().filesDir, "batch-$id.json"),
+                        batch.put("speech", desiredSpeech.json()).toString(),
                     )
                     // Persist the A/B choice before the render service loads SpeechSettings.
                     val app = getApplication<Application>()
                     speechMutex.withLock { desiredSpeech.save(app) }
                 }
                 if (revision != workspaceRevision) return@work
-                startJob("render")
+                startJob("render", id = id)
                 step = 3
             } finally {
                 generatePending = false
@@ -409,7 +402,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun startJob(action: String, index: Int = voice) {
+    private fun startJob(action: String, index: Int = voice, id: String = java.util.UUID.randomUUID().toString()) {
         if (StudioJobService.busy) {
             notice = "A task is already running."
             return
@@ -417,7 +410,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         StudioJobService.busy = true
         busy = true
         StudioJobService.status = "Preparing…"
-        activeRunId = java.util.UUID.randomUUID().toString()
+        activeRunId = id
         try {
             getApplication<Application>()
                 .startForegroundService(
@@ -488,17 +481,19 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             }
         val snapshot = PlanStorage(text, voice, segments).json()
         val controls = currentSpeech()
+        val id = java.util.UUID.randomUUID().toString()
         work {
             try {
                 withContext(Dispatchers.IO) {
                     speechMutex.withLock { controls.save(getApplication()) }
                     FileIntegrity.write(
-                        File(getApplication<Application>().filesDir, "render-plan.json"),
-                        snapshot,
+                        File(getApplication<Application>().filesDir, "batch-$id.json"),
+                        JSONObject().put("plans", org.json.JSONArray().put(JSONObject(snapshot)))
+                            .put("next", 0).put("speech", controls.json()).toString(),
                     )
                 }
                 if (revision != workspaceRevision) return@work
-                startJob("render")
+                startJob("render", id = id)
                 step = 3
             } finally {
                 generatePending = false
@@ -1074,6 +1069,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                                 ),
                                 cloneFolder != null,
                                 cloneFolder?.let { folder -> File(folder, "preview.wav") },
+                                it.optInt("cloneBase", 0),
                             )
                         }
                     }

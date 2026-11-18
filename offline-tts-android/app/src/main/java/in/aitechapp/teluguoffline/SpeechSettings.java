@@ -8,7 +8,7 @@ import org.json.*;
 public final class SpeechSettings {
   public final Map<String, String> dictionary = new LinkedHashMap<>();
   public boolean youtuber = true;
-  public boolean durationGuard = true;
+  public boolean durationGuard = false;
   public boolean questionLift = true;
   public boolean commaBuffer = true;
   public boolean femaleSoftening = false;
@@ -20,9 +20,13 @@ public final class SpeechSettings {
     SpeechSettings s = new SpeechSettings();
     File file = new File(c.getFilesDir(), "pronunciation.json");
     if (!file.exists()) return s;
-    JSONObject o = new JSONObject(FileIntegrity.read(file));
+    return fromJson(new JSONObject(FileIntegrity.read(file)));
+  }
+
+  static SpeechSettings fromJson(JSONObject o) throws JSONException {
+    SpeechSettings s = new SpeechSettings();
     s.youtuber = o.optBoolean("youtuber", true);
-    s.durationGuard = o.optBoolean("durationGuard", true);
+    s.durationGuard = false;
     s.questionLift = o.optBoolean("questionLift", true);
     s.commaBuffer = o.optBoolean("commaBuffer", true);
     s.femaleSoftening = o.optBoolean("femaleSoftening", false);
@@ -39,11 +43,13 @@ public final class SpeechSettings {
   }
 
   public void save(Context c) throws Exception {
+    FileIntegrity.write(new File(c.getFilesDir(), "pronunciation.json"), json().toString());
+  }
+
+  public JSONObject json() throws JSONException {
     JSONObject entries = new JSONObject();
     for (Map.Entry<String, String> e : dictionary.entrySet()) entries.put(e.getKey(), e.getValue());
-    FileIntegrity.write(
-        new File(c.getFilesDir(), "pronunciation.json"),
-        new JSONObject()
+    return new JSONObject()
             .put("entries", entries)
             .put("youtuber", youtuber)
             .put("durationGuard", durationGuard)
@@ -52,8 +58,7 @@ public final class SpeechSettings {
             .put("femaleSoftening", femaleSoftening)
             .put("carefulDiction", carefulDiction)
             .put("readDigits", readDigits)
-            .put("warmthEq", warmthEq)
-            .toString());
+            .put("warmthEq", warmthEq);
   }
 
   public List<NarrationDirector.Segment> audible(List<NarrationDirector.Segment> segments) {

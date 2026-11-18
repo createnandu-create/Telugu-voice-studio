@@ -134,7 +134,7 @@ public final class StudioJobService extends Service {
                   cancelled,
                   message -> status = message);
               status = "Completed · cleaned recording saved in Voices. Original kept.";
-            } else render(store);
+            } else renderBatch(store);
           } catch (CancellationException e) {
             status =
                 speakerInstall
@@ -167,16 +167,66 @@ public final class StudioJobService extends Service {
                     });
           }
         });
-    return START_NOT_STICKY;
+    return "render".equals(intent.getAction()) ? START_REDELIVER_INTENT : START_NOT_STICKY;
+  }
+
+  private void renderBatch(VoiceModelStore store) throws Exception {
+    UUID.fromString(runId);
+    File state = new File(getFilesDir(), "batch-" + runId + ".json");
+    if (!state.isFile()) { status = "Queue finished"; return; }
+    JSONObject batch = new JSONObject(FileIntegrity.read(state));
+    org.json.JSONArray plans = batch.getJSONArray("plans");
+    SpeechSettings speech = SpeechSettings.fromJson(batch.getJSONObject("speech"));
+    NotificationManager manager = getSystemService(NotificationManager.class);
+    manager.createNotificationChannel(new NotificationChannel("completed", "Saved audio",
+        NotificationManager.IMPORTANCE_DEFAULT));
+    try {
+      for (int n = batch.getInt("next"); n < plans.length(); n++) {
+        check();
+        PlanStorage plan = PlanStorage.parse(plans.getJSONObject(n).toString());
+        String name = ModelCatalog.VOICES[plan.voice].name;
+        try {
+          if (!plan.cloneProfile.isEmpty())
+            name = new VoiceProfiles(this).get(plan.cloneProfile).optString("name", "Cloned voice");
+          String progress = "Generating audio " + (n + 1) + " of " + plans.length() + ": " + name;
+          manager.notify(41, message("render", progress, true));
+          render(store, plan, speech);
+          manager.notify(runId, n + 1, message("completed", "Audio ready: " + AudioNames.forAudio(result), false));
+        } catch (CancellationException e) {
+          throw e;
+        } catch (Exception e) {
+          if (cancelled.get()) throw new CancellationException();
+          batch.put("failure", name + " · " + JobFailure.message(e));
+          manager.notify(runId, n + 1, message("completed", batch.getString("failure"), false));
+        }
+        batch.put("next", n + 1);
+        FileIntegrity.write(state, batch.toString());
+      }
+      if (batch.has("failure")) status = "Queue finished · " + batch.getString("failure");
+      state.delete();
+    } catch (CancellationException e) {
+      state.delete();
+      throw e;
+    }
+  }
+
+  private Notification message(String channel, String text, boolean ongoing) {
+    Intent open = new Intent(this, StudioActivity.class);
+    if (!ongoing) open.setAction("open-projects");
+    PendingIntent tap = PendingIntent.getActivity(this, ongoing ? 0 : 1, open,
+        PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    return new Notification.Builder(this, channel)
+        .setContentTitle("Telugu Voice Studio").setContentText(text)
+        .setStyle(new Notification.BigTextStyle().bigText(text))
+        .setSmallIcon(android.R.drawable.ic_btn_speak_now).setContentIntent(tap)
+        .setOnlyAlertOnce(true).setOngoing(ongoing).setAutoCancel(!ongoing).build();
   }
 
   private void check() {
     if (cancelled.get()) throw new CancellationException();
   }
 
-  private void render(VoiceModelStore store) throws Exception {
-    File saved = new File(getFilesDir(), "render-plan.json");
-    PlanStorage plan = PlanStorage.parse(FileIntegrity.read(saved));
+  private void render(VoiceModelStore store, PlanStorage plan, SpeechSettings speech) throws Exception {
     ModelCatalog.Voice voice = ModelCatalog.VOICES[plan.voice];
     status = "Checking voice integrity…";
     if (!store.verified(voice))
@@ -184,7 +234,6 @@ public final class StudioJobService extends Service {
     if (!voice.tiny()) store.prepareAssets(cancelled);
     check();
     DynamicEnglishPhonetizer.load(getAssets().open("english-cmudict.bin"));
-    SpeechSettings speech = SpeechSettings.load(this);
     boolean cloned = !plan.cloneProfile.isEmpty();
     JSONObject clone = null;
     File cloneDirectory = null;
@@ -197,14 +246,13 @@ public final class StudioJobService extends Service {
     }
     List<NarrationDirector.Segment> renderSegments =
         DeliveryControls.expand(plan.segments, speech.commaBuffer, speech.carefulDiction);
-    if (speech.youtuber) renderSegments = DeliveryControls.accents(renderSegments);
     renderSegments = speech.audible(renderSegments);
     boolean soft = voice.tiny() && speech.femaleSoftening && voice.gender.equals("Female");
-    boolean waveformDelivery = (voice.tiny() || cloned) && speech.youtuber;
-    boolean waveformQuestions = (voice.tiny() || cloned) && speech.questionLift;
+    boolean waveformDelivery = speech.youtuber;
+    boolean waveformQuestions = speech.questionLift;
     StringBuilder spokenIdentity =
-        new StringBuilder("delivery-v4-math-english-piper-clean/")
-            .append(speech.youtuber)
+        new StringBuilder("delivery-v081-native/")
+            .append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
             .append('/')
@@ -248,7 +296,7 @@ public final class StudioJobService extends Service {
             .put("youtuber_controls", speech.youtuber)
             .put("tiny_duration_guard", speech.durationGuard)
             .put("female_softening", soft)
-            .put("comma_buffer_ms", speech.commaBuffer ? 180 : 0)
+            .put("comma_buffer_ms", speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
             .put("careful_diction", speech.carefulDiction);
     FileIntegrity.write(new File(journal.directory, "render-identity.json"), identity.toString(2));
     AudioNames.project(journal.directory, voice.name);
@@ -305,7 +353,7 @@ public final class StudioJobService extends Service {
                           .setMaxNumSentences(1)
                           .build());
             }
-            GeneratedAudio audio = tts.generate(speech.spoken(s.text), 0, s.rate);
+            GeneratedAudio audio = tts.generate(PronunciationLexicon.piperInput(speech.spoken(s.text)), 0, s.rate);
             check();
             if (audio.getSampleRate() != 22050)
               throw new IOException(
@@ -383,11 +431,7 @@ public final class StudioJobService extends Service {
     resultRunId = runId;
     FileIntegrity.write(new File(getFilesDir(), "last-result.txt"), output.getPath());
     File master = new File(journal.directory, "narration-studio.wav");
-    StudioMastering.Report mastered =
-        StudioMastering.process(
-            output, master, cancelled, message -> status = message, speech.warmthEq);
-    if (mastered != null)
-      FileIntegrity.write(new File(journal.directory, "mastering.json"), mastered.json());
+    StudioMastering.Report mastered;
     if (speech.warmthEq && (!voice.tiny() || cloned)) {
       status = "Creating optional native-rate EQ comparison…";
       PcmWave.merge(
@@ -403,13 +447,9 @@ public final class StudioJobService extends Service {
       PcmWave.merge(chunks, renderSegments, output, cancelled);
       seconds = PcmWave.validate(output) / (24000.0 * 2);
     }
-    if (mastered != null) {
-      output = master;
-      seconds = mastered.frames / (double) StudioMastering.RATE;
-    }
     int lifted = 0, requested = 0;
     org.json.JSONArray controlAudit = new org.json.JSONArray();
-    if (waveformQuestions || soft || waveformDelivery) {
+    {
       List<File> controlled = new ArrayList<>();
       File controlledDir = new File(journal.directory, "delivery");
       controlledDir.mkdirs();
@@ -418,7 +458,7 @@ public final class StudioJobService extends Service {
         boolean question =
             waveformQuestions && DeliveryControls.question(renderSegments.get(i).text);
         if (question) requested++;
-        if (question || soft || waveformDelivery) {
+        {
           status = "Applying offline voice controls · " + (i + 1) + " / " + chunks.size();
           File f = new File(controlledDir, i + ".wav");
           VoiceDeliveryDsp.Result applied =
@@ -428,7 +468,7 @@ public final class StudioJobService extends Service {
                   question,
                   soft,
                   waveformDelivery ? renderSegments.get(i) : null,
-                  cancelled);
+                  cancelled, true, voice.tiny());
           if (question && applied.lifted) lifted++;
           controlAudit.put(
               new JSONObject()
@@ -439,9 +479,9 @@ public final class StudioJobService extends Service {
                   .put("voiced_start_frame", applied.start)
                   .put("voiced_end_frame", applied.end));
           controlled.add(f);
-        } else controlled.add(chunks.get(i));
+        }
       }
-      if (requested > 0 || soft || waveformDelivery) {
+      {
         File adjusted = new File(journal.directory, "narration-directed.wav");
         PcmWave.merge(controlled, renderSegments, adjusted, cancelled);
         File directedRaw = new File(journal.directory, "narration-directed-raw.wav");
@@ -488,7 +528,7 @@ public final class StudioJobService extends Service {
             .put("question_tails_requested", requested)
             .put("question_tails_lifted", lifted)
             .put("female_softening", soft)
-            .put("comma_buffer_ms", speech.commaBuffer ? 180 : 0)
+            .put("comma_buffer_ms", speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
             .put("output_file", output.getName())
             .put("quality_score", JSONObject.NULL);
     FileIntegrity.write(new File(journal.directory, "metrics.json"), stats.toString(2));

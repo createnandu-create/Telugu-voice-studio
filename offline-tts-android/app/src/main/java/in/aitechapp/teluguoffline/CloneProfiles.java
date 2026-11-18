@@ -56,16 +56,16 @@ public final class CloneProfiles {
     float[] target = ReferenceAudio.read(profiles.audio(id), cancel);
     if (target.length < 240000)
       throw new IOException("Use at least 10 seconds of your own clear voice");
-    target = Arrays.copyOf(target, Math.min(target.length, 24000 * 15));
-    if (!OfflineDenoiser.VERSION.equals(p.optString("enhancer")))
-      target =
-          OfflineDenoiser.process(
-              target, 24000, cancel, n -> progress.update("Creating voice · cleanup " + n + "%"));
-    double power = 0;
-    for (float x : target) power += x * x;
-    if (Math.sqrt(power / target.length) < .003)
-      throw new IOException(
-          "Reference is too quiet after cleanup. Record closer to the microphone.");
+    target = ReferenceLevel.excerpt(target);
+    if (p.optInt("cleanCount", 0) == 0 && !OfflineDenoiser.VERSION.equals(p.optString("enhancer"))) {
+      ReferenceLevel.normalize(target, false, cancel);
+      float[] cleaned = OfflineDenoiser.process(target, 24000, cancel,
+          n -> progress.update("Creating voice · cleanup " + n + "%"));
+      for (float x : cleaned) {
+        if (x != 0) { target = cleaned; break; }
+      }
+    }
+    ReferenceLevel.normalize(target, false, cancel);
     File folder = new File(new File(profiles.root(), id + "-clones"), UUID.randomUUID().toString());
     if (!folder.mkdirs()) throw new IOException("Cannot create voice preview storage");
     boolean committed = false;

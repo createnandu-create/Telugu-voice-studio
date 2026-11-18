@@ -245,7 +245,7 @@ public final class VoiceRecordingService extends Service {
                               "%02d:%02d",
                               cleaned.samples.length / 24000 / 60,
                               cleaned.samples.length / 24000 % 60)
-                          + " · Audio cleaned · cloning not installed";
+                          + " · Audio cleaned";
                 } else
                   status = failure.isEmpty() ? "No audio captured. Try recording again." : failure;
               } catch (Exception e) {

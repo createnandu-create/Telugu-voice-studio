@@ -84,7 +84,7 @@ public final class MathScienceNormalizer {
     s = replace(s, "(?i)(?<![A-Za-z0-9])4K(?![A-Za-z0-9])", m -> "ఫోర్ కే");
     s = replace(s, "(?i)([0-9]+)\\s*[-–]\\s*D\\b", m -> numeric(m.group(1)) + " డీ");
     s = replace(s, "\\\\sqrt\\s*\\{([^{}]*)\\}", m -> "రూట్ " + m.group(1));
-    s = s.replace("√", " రూట్ ").replace("=", " ఈక్వల్స్ టు ").replace("%", " శాతం ");
+    s = s.replace("√", " రూట్ ").replace("=", " సమానం ").replace("%", " శాతం ");
     s =
         replace(
             s,

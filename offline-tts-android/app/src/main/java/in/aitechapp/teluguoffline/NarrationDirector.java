@@ -85,57 +85,47 @@ public final class NarrationDirector {
       if (s.isEmpty()) continue;
       Emotion e = choose(s, style == null ? Style.AUTO : style);
       float rate = 1.0f, pitch = 1.0f;
-      int pause = 190;
+      int pause = 240;
       switch (e) {
         case WELCOME:
           rate = 1.08f;
-          pitch = 1.12f;
-          pause = 240;
+          pitch = 1.08f;
           break;
         case GUIDE:
           rate = 1.02f;
           pitch = 1.0f;
-          pause = 260;
           break;
         case EXCITED:
           rate = 1.10f;
-          pitch = 1.20f;
-          pause = 230;
+          pitch = 1.08f;
           break;
         case SURPRISE:
           rate = 1.03f;
-          pitch = 1.20f;
-          pause = 330;
+          pitch = 1.08f;
           break;
         case SERIOUS:
           rate = 0.88f;
           pitch = 0.94f;
-          pause = 370;
           break;
         case EMPATHY:
           rate = 0.92f;
           pitch = 0.92f;
-          pause = 320;
           break;
         case QUESTION:
           rate = 0.97f;
           pitch = 1.13f;
-          pause = 220;
           break;
         case CALL_TO_ACTION:
           rate = 1.06f;
           pitch = 1.10f;
-          pause = 290;
           break;
         case NEUTRAL:
         default:
           if (style == Style.NEWS) {
             rate = 0.95f;
-            pause = 250;
           }
           if (style == Style.STORY) {
             rate = 0.93f;
-            pause = 290;
           }
           break;
       }

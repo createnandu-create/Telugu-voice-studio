@@ -173,8 +173,8 @@ public final class StudioMastering {
           (a + 1) + (a - 1) * c - beta);
     }
 
-    static Biquad kShelf() {
-      double k = Math.tan(Math.PI * 1681.974450955533 / RATE),
+    static Biquad kShelf(int rate) {
+      double k = Math.tan(Math.PI * 1681.974450955533 / rate),
           q = .7071752369554196,
           vh = Math.pow(10, 3.999843853973347 / 20),
           vb = Math.pow(vh, .4996667741545416);
@@ -187,8 +187,8 @@ public final class StudioMastering {
           1 - k / q + k * k);
     }
 
-    static Biquad kHighpass() {
-      double k = Math.tan(Math.PI * 38.13547087602444 / RATE),
+    static Biquad kHighpass(int rate) {
+      double k = Math.tan(Math.PI * 38.13547087602444 / rate),
           q = .5003270373238773,
           a = 1 + k / q + k * k;
       return new Biquad(1, -2, 1, 1, 2 * (k * k - 1) / a, (1 - k / q + k * k) / a);
@@ -200,20 +200,32 @@ public final class StudioMastering {
    * signal is intentionally duplicated to stereo, so channel energy is multiplied by two.
    */
   static final class Meter {
-    final Biquad shelf = Biquad.kShelf(), highpass = Biquad.kHighpass();
-    final double[] ring = new double[RATE * 4 / 10];
+    final Biquad shelf, highpass;
+    final int rate, channels;
+    final double[] ring;
+
+    Meter() { this(RATE, 2); }
+
+    Meter(int rate, int channels) {
+      this.rate = rate;
+      this.channels = channels;
+      shelf = Biquad.kShelf(rate);
+      highpass = Biquad.kHighpass(rate);
+      ring = new double[rate * 4 / 10];
+    }
+
     final ArrayList<Double> blocks = new ArrayList<>();
     double sum;
     long count;
 
     void add(double x) {
       double y = highpass.next(shelf.next(x));
-      double e = 2 * y * y;
+      double e = channels * y * y;
       int i = (int) (count % ring.length);
       sum += e - ring[i];
       ring[i] = e;
       count++;
-      if (count >= ring.length && (count - ring.length) % (RATE / 10) == 0)
+      if (count >= ring.length && (count - ring.length) % (rate / 10) == 0)
         blocks.add(Math.max(0, sum / ring.length));
     }
 

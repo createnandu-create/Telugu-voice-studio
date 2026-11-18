@@ -42,7 +42,7 @@ public final class TargetedAudioTest {
     check(plan.get(3).emotion == NarrationDirector.Emotion.EMPATHY, "problem");
     check(
         plan.get(4).emotion == NarrationDirector.Emotion.QUESTION
-            && plan.get(4).pauseAfterMs == 220,
+            && plan.get(4).pauseAfterMs == 240,
         "question hold");
     var accented = DeliveryControls.accents(plan);
     DirectionContract.validate(script, plan);

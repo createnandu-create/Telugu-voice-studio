@@ -32,21 +32,12 @@ public final class ReferenceEnhancement {
     try {
       progress.update("Enhancing · decoding reference…");
       float[] audio = ReferenceAudio.read(input, cancel);
+      audio = OfflineDenoiser.process(audio, 24000, cancel,
+          p -> progress.update("Enhancing · noise reduction " + p + "%"));
       if (roomTail)
-        audio =
-            LateReverb.process(
-                audio, cancel, p -> progress.update("Enhancing · room tail " + p + "%"));
-      audio =
-          OfflineDenoiser.process(
-              audio, 24000, cancel, p -> progress.update("Enhancing · noise reduction " + p + "%"));
-      OfflineDenoiser.check(cancel);
-      WarmthEq.Biquad presence = new WarmthEq.Biquad(24000, 3500, 2.5, true);
-      double peak = 0;
-      for (int i = 0; i < audio.length; i++) {
-        audio[i] = (float) presence.filter(audio[i]);
-        peak = Math.max(peak, Math.abs(audio[i]));
-      }
-      if (peak > .97) for (int i = 0; i < audio.length; i++) audio[i] *= .97 / peak;
+        audio = LateReverb.process(audio, cancel,
+            p -> progress.update("Enhancing · room tail " + p + "%"));
+      ReferenceLevel.normalize(audio, true, cancel);
       PcmWave.write(output, audio, 24000);
       OfflineDenoiser.check(cancel);
       int count = original.optInt("cleanCount", 0) + 1;

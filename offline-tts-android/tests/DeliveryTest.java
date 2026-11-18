@@ -67,7 +67,7 @@ public final class DeliveryTest {
     var plan = NarrationDirector.planExact(script, NarrationDirector.Style.AUTO);
     var derived = DeliveryControls.expand(plan, true, false);
     DirectionContract.validate(script, plan);
-    check(derived.get(0).pauseAfterMs == 180, "comma buffer");
+    check(derived.get(0).pauseAfterMs == 110, "comma buffer");
     check(derived.get(1).text.contains("1,234"), "numeric comma is not a boundary");
     check(DeliveryControls.question("అంత సులభమా?”"), "quoted question");
     check(DeliveryControls.question("కాదు కదా!"), "rhetorical question");
@@ -87,7 +87,7 @@ public final class DeliveryTest {
       PcmWave.write(b, new float[] {.3f, .3f}, rate);
       PcmWave.mergeRaw(List.of(a, b), derived.subList(0, 2), out, new AtomicBoolean());
       byte[] bytes = Files.readAllBytes(out.toPath());
-      int zeros = rate * 180 / 1000 * 2;
+      int zeros = rate * 110 / 1000 * 2;
       check(bytes.length == 44 + 8 + zeros, "exact comma padding length");
       for (int i = 48; i < 48 + zeros; i++) check(bytes[i] == 0, "zero PCM comma buffer");
     }

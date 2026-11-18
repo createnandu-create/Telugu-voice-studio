@@ -2,7 +2,7 @@ plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android'; id 'o
 android {
     namespace 'in.aitechapp.teluguoffline'
     compileSdk 35
-    defaultConfig { applicationId 'in.aitechapp.teluguoffline'; minSdk 26; targetSdk 35; versionCode 58; versionName '0.8.0'; ndk { abiFilters 'arm64-v8a' } }
+    defaultConfig { applicationId 'in.aitechapp.teluguoffline.fresh'; minSdk 26; targetSdk 35; versionCode 59; versionName '0.8.1'; ndk { abiFilters 'arm64-v8a' } }
     defaultConfig { resValue 'string', 'app_name', 'Telugu Voice Studio' }
     buildFeatures { compose true }
     kotlinOptions { jvmTarget = '17' }
@@ -21,16 +21,6 @@ android {
     buildTypes {
         // Same package and pinned debug certificate: non-destructive update if signatures match.
         debug { signingConfig signingConfigs.debug }
-        // Side-by-side diagnostic install: never uninstalls or overwrites existing v0.6/data.
-        fresh {
-            initWith debug
-            applicationIdSuffix '.fresh'
-            resValue 'string', 'app_name', 'Telugu Voice Studio Fresh'
-            versionNameSuffix '-fresh'
-            debuggable true
-            signingConfig signingConfigs.debug
-            matchingFallbacks = ['debug']
-        }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }

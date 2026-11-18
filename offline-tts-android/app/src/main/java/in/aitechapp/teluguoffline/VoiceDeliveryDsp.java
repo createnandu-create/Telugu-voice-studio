@@ -289,6 +289,13 @@ public final class VoiceDeliveryDsp {
   static Result process(File input, File output, boolean question, boolean soft,
       NarrationDirector.Segment direction, AtomicBoolean cancel, boolean studio, boolean tiny, boolean cleanup)
       throws IOException {
+    return process(input, output, question, soft, direction, cancel, studio, tiny,
+        cleanup ? (samples, rate) -> RenderCleanup.apply(samples, rate, tiny, cancel) : null);
+  }
+
+  static Result process(File input, File output, boolean question, boolean soft,
+      NarrationDirector.Segment direction, AtomicBoolean cancel, boolean studio, boolean tiny, RenderCleanup.Cleaner cleaner)
+      throws IOException {
     long bytes = PcmWave.validate(input);
     int rate = PcmWave.sampleRate(input);
     if (bytes > 16_000_000)
@@ -320,7 +327,7 @@ public final class VoiceDeliveryDsp {
         r.samples[i] = (float) (tiny ? deEss.process(x) : x);
       }
     }
-    float[] pcm = cleanup ? RenderCleanup.apply(r.samples, rate, tiny, cancel) : r.samples;
+    float[] pcm = cleaner == null ? r.samples : cleaner.process(r.samples, rate);
     if (studio) {
       // Engines include their own quiet padding. Avoid stacking it with the planned breath.
       // Trim only sustained near-digital-silence and retain a soft consonant margin.

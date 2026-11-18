@@ -59,7 +59,17 @@ public final class ReleaseAudio {
       List<File> chunks = new ArrayList<>(), baseline = new ArrayList<>();
       int hz = voice.tiny() ? 24000 : 22050;
       int improved = 0;
+      RenderCleanup.Cleaner cleaner = RenderCleanup.forVoice(Arrays.asList(ModelCatalog.VOICES).indexOf(voice), false, cancel);
       try (TinyVoice tiny = voice.tiny() ? new TinyVoice(work, cancel) : null) {
+        if (tiny != null) {
+          String phrase = "ఈ రోజు ఒక ముఖ్యమైన విషయం తెలుసుకుందాం.";
+          boolean male = voice.gender.equals("Male");
+          float[] mel = tiny.acousticMel(phrase, male, 1, phrase.hashCode(), false);
+          String label = voice.name.replace(' ', '_');
+          PcmWave.write(new File(out, label + "_Native.wav"), tiny.vocode(mel), hz);
+          TinyVoice.restoreMelContrast(mel, mel.length / 100, male);
+          PcmWave.write(new File(out, label + "_Calibrated.wav"), tiny.vocode(mel), hz);
+        }
         for (int i = 0; i < voicePlan.size(); i++) {
           NarrationDirector.Segment s = voicePlan.get(i);
           String text = PronunciationLexicon.apply(s.text, Map.of(), false);
@@ -81,10 +91,10 @@ public final class ReleaseAudio {
           File chosen = new File(work, voice.id + "-selected-" + i + ".wav");
           PcmWave.write(chosen, selected, hz);
           File off = new File(work, voice.id + "-off-" + i + ".wav");
-          VoiceDeliveryDsp.process(chosen, off, !voice.tiny() && DeliveryControls.question(s.text), soft, s, cancel, true, voice.tiny(), false);
+          VoiceDeliveryDsp.process(chosen, off, false, soft, null, cancel, true, voice.tiny(), false);
           baseline.add(off);
           File processed = new File(work, voice.id + "-chunk-" + i + ".wav");
-          VoiceDeliveryDsp.process(chosen, processed, !voice.tiny() && DeliveryControls.question(s.text), soft, s, cancel, true, voice.tiny());
+          VoiceDeliveryDsp.process(chosen, processed, false, soft, null, cancel, true, voice.tiny(), cleaner);
           chunks.add(processed);
         }
       }
@@ -107,6 +117,7 @@ public final class ReleaseAudio {
     if (Math.abs(level + 16) > .3) throw new IOException("Quiet reference loudness: " + level);
     float[] target = ReferenceLevel.excerpt(quiet);
     File base = new File(work, "venkatesh-selected-1.wav");
+    RenderCleanup.Cleaner cleaner = RenderCleanup.forVoice(0, true, cancel);
     try (OpenVoiceEngine engine = new OpenVoiceEngine(work, cancel)) {
       float[] speech = OpenVoiceEngine.read(base);
       int rate = PcmWave.sampleRate(base);
@@ -114,7 +125,7 @@ public final class ReleaseAudio {
       PcmWave.write(raw, engine.convert(speech, rate, engine.embedding(speech, rate), engine.embedding(target, 24000)), 22050);
       for (boolean cleanup : new boolean[]{false,true}) {
         File stage = new File(work, "clone-stage.wav");
-        VoiceDeliveryDsp.process(raw, stage, false, false, null, cancel, true, true, cleanup);
+        VoiceDeliveryDsp.process(raw, stage, false, false, null, cancel, true, true, cleanup ? cleaner : null);
         StudioMastering.process(stage, new File(out, cleanup ? "OpenVoice_Clean.wav" : "OpenVoice_Before.wav"),
             cancel, msg -> {}, false);
       }

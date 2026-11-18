@@ -1860,7 +1860,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
                     )
                 }
                 Text(
-                    "Studio master uses 44.1 kHz and balanced volume. Warmth is applied only when this switch is ON; it does not repair missing phonemes.",
+                    "Studio master uses 44.1 kHz and balanced volume. Warmth applies to the comparison file only; it does not repair missing phonemes.",
                     fontSize = 11.sp,
                     color = Muted,
                 )
@@ -2360,7 +2360,8 @@ private fun AudioIdentityPanel(file: File, selected: String) {
 private fun DeliveryPanel(vm: StudioViewModel) {
     Panel {
         SectionLabel("OFFLINE DELIVERY CONTROLS")
-        Text("Tune the delivery", style = MaterialTheme.typography.titleMedium)
+        Text(if (vm.activeClone.isEmpty()) ModelCatalog.VOICES[vm.voice].name else vm.profiles.firstOrNull { it.id == vm.activeClone }?.name ?: "Cloned voice", style = MaterialTheme.typography.titleMedium)
+        Text("Offline speech cleanup · automatic", color = Muted)
         listOf(
                 Triple("youtuber", "YouTuber delivery · conversational timing", vm.youtuber),
 
@@ -2369,6 +2370,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
                 Triple("careful", "Careful pace · complex clauses", vm.carefulDiction),
                 Triple("soft", "Female tone · gentle EQ", vm.femaleSoftening),
             )
+            .filter { it.first != "soft" || (vm.activeClone.isEmpty() && ModelCatalog.VOICES[vm.voice].tiny() && ModelCatalog.VOICES[vm.voice].gender == "Female") }
             .forEach { (key, label, enabled) ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(label, Modifier.weight(1f))
@@ -2382,11 +2384,6 @@ private fun DeliveryPanel(vm: StudioViewModel) {
             }
         Text(
             "YouTuber delivery adapts phrase timing to recorded Telugu conversations. Each narrator can generate a second take. Cloned voices follow their base narrator’s timing.",
-            style = MaterialTheme.typography.bodySmall,
-            color = Muted,
-        )
-        Text(
-            "Female EQ is optional: gentle body at 250 Hz and a 4 kHz dip. Compare with Original; softer sound does not guarantee clearer శ / ష / స.",
             style = MaterialTheme.typography.bodySmall,
             color = Muted,
         )

@@ -79,7 +79,19 @@ final class RenderCleanup {
     return 0;
   }
 
+  interface Cleaner { float[] process(float[] samples, int rate); }
+
+  static Cleaner forVoice(int voice, boolean clone, AtomicBoolean cancel) {
+    // Protect onsets and fricatives; use a deeper tail reduction on Vocos than on Piper.
+    final double depth = clone ? .55 : new double[]{.36, .46, .62, .70}[voice];
+    return (samples, rate) -> apply(samples, rate, voice >= 2 || clone, cancel, depth);
+  }
+
   static float[] apply(float[] dry, int rate, boolean neuralVocoder, AtomicBoolean cancel) {
+    return apply(dry, rate, neuralVocoder, cancel, 0);
+  }
+
+  private static float[] apply(float[] dry, int rate, boolean neuralVocoder, AtomicBoolean cancel, double depth) {
     if (dry.length == 0) return dry;
     float[] estimate = new float[dry.length];
     for (int start = 0; start < dry.length; start += rate * 30) {
@@ -96,6 +108,11 @@ final class RenderCleanup {
     double[] correlations = new double[rate/280+1];
     for (int k=0; k<=HOP; k++) { bands[k]=band(k*rate/N); counts[bands[k]]++; }
     float[] out = new float[dry.length];
+    // Estimate delayed energy independently for each speech band from previous frames only.
+    double[][] delayed = new double[3][5];
+    double[] tail = new double[5], tailGain = new double[5];
+    int delaySlot = 0;
+    double release = Math.exp(-HOP / (.075 * rate));
     Arrays.fill(gain, 1);
     for (int i = 0; i < N; i++) window[i] = Math.sin(Math.PI * (i + .5) / N);
     for (int start = -HOP; start < dry.length; start += HOP) {
@@ -121,6 +138,14 @@ final class RenderCleanup {
       for (int b=0; b<5; b++) means[b] /= counts[b];
       double base = .35*means[0]+.5*means[1]+.15*means[2];
       boolean fricative = means[3]+means[4] > .20*base;
+      for (int b = 0; b < means.length; b++) {
+        tail[b] = Math.max(delayed[delaySlot][b], tail[b] * release);
+        delayed[delaySlot][b] = means[b];
+        // Attenuate a falling tail only after this band has lost at least 9 dB.
+        double decay = Math.max(0, 1 - 8 * means[b] / (tail[b] + 1e-16));
+        tailGain[b] = 1 - depth * decay * (b == 0 ? .45 : 1);
+      }
+      delaySlot = (delaySlot + 1) % delayed.length;
       double voiced = fricative ? 0 : periodicity(dry,start+HOP,rate,down,correlations);
       for (int k = 0; k <= HOP; k++) {
         int lo = Math.max(0,k-1), hi = Math.min(HOP,k+1);
@@ -144,8 +169,8 @@ final class RenderCleanup {
           // Preserve integer harmonics. Reduce diffuse energy between them during pitched speech.
           double phase = Math.PI*k*correlations[0]/N;
           double offHarmonic = Math.sin(phase);
-          double depth = group == 2 ? .45 : .64;
-          target *= 1 - voiced * depth * (.16 + .84*offHarmonic*offHarmonic);
+          double harmonicDepth = group == 2 ? .45 : .64;
+          target *= 1 - voiced * harmonicDepth * (.16 + .84*offHarmonic*offHarmonic);
         }
         // A sustained narrow upper-band peak gets a small extra cut. Broad consonant bursts pass.
         if (k >= 4 && k + 4 <= HOP && (long) k * rate >= 3200L * N) {
@@ -154,6 +179,7 @@ final class RenderCleanup {
           persistence[k] += .18 * (peak-persistence[k]);
           target *= 1 - (neuralVocoder ? .27 : .14) * persistence[k];
         }
+        if (!fricative) target *= tailGain[group];
         gain[k] += (target < gain[k] ? .32 : .55) * (target - gain[k]);
         re[k] *= gain[k]; im[k] *= gain[k];
         if (k > 0 && k < HOP) { re[N-k] = re[k]; im[N-k] = -im[k]; }

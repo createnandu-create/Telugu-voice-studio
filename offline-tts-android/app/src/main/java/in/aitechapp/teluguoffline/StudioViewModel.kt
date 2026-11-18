@@ -87,10 +87,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     private val speechMutex = Mutex()
     var youtuber by mutableStateOf(true)
     var durationGuard by mutableStateOf(false)
-    var questionLift by mutableStateOf(true)
+    var questionLift by mutableStateOf(false)
     var commaBuffer by mutableStateOf(true)
-    var femaleSoftening by mutableStateOf(false)
-    var carefulDiction by mutableStateOf(true)
+    var femaleSoftening by mutableStateOf(ModelCatalog.VOICES[voice].tiny() && ModelCatalog.VOICES[voice].gender == "Female")
+    var carefulDiction by mutableStateOf(!ModelCatalog.VOICES[voice].tiny())
     var readDigits by mutableStateOf(false)
     var warmthEq by mutableStateOf(false)
     var latest by mutableStateOf<File?>(null)
@@ -116,12 +116,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 }
             entries = speech.dictionary.toMap()
             readDigits = speech.readDigits
-            // A pre-profile install owned one settings file. Migrate it once to its saved narrator.
-            if (!prefs.contains("deliveryMigrated")) {
-                if (File(app.filesDir, "pronunciation.json").isFile)
-                    storeControls(prefs.getInt("voice", 0), "", speech)
-                prefs.edit().putBoolean("deliveryMigrated", true).apply()
-            }
             applyControls(controlsFor(voice, activeClone))
             settingsLoaded = true
             withContext(Dispatchers.IO) {
@@ -971,21 +965,13 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             s.carefulDiction = carefulDiction
         }
 
-    private fun controlKey(base: Int, clone: String) = "delivery/$base/$clone"
-
-    private fun storeControls(base: Int, clone: String, s: SpeechSettings) {
-        val json = s.json().apply { remove("entries"); remove("readDigits") }
-        prefs.edit().putString(controlKey(base, clone), json.toString()).apply()
-    }
-
     private fun controlsFor(base: Int, clone: String): SpeechSettings {
-        val raw = prefs.getString(controlKey(base, clone), null)
         val model = ModelCatalog.VOICES[base]
-        val s = if (raw == null) SpeechSettings().also {
-            it.questionLift = !model.tiny() && clone.isEmpty()
+        val s = SpeechSettings().also {
+            it.questionLift = false
             it.femaleSoftening = model.tiny() && model.gender == "Female" && clone.isEmpty()
             it.carefulDiction = !model.tiny()
-        } else SpeechSettings.fromJson(JSONObject(raw).put("entries", JSONObject()))
+        }
         s.dictionary.putAll(entries)
         s.readDigits = readDigits
         return s
@@ -1003,7 +989,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun saveSpeech() {
         val snapshot = currentSpeech()
-        storeControls(voice, activeClone, snapshot)
         work {
             withContext(Dispatchers.IO) { speechMutex.withLock { snapshot.save(getApplication()) } }
         }

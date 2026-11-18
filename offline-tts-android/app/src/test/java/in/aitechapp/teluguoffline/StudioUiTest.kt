@@ -133,23 +133,27 @@ class StudioUiTest {
     }
 
     @Test
-    fun narratorSwitchRestoresOnlyItsOwnDeliveryControls() {
+    fun switchLoadsRecommendedControlsEvenAfterManualOverrides() {
         compose.runOnIdle {
             // Saving and restoring controls works before an optional voice pack is installed.
             val vm = androidx.lifecycle.ViewModelProvider(compose.activity)[StudioViewModel::class.java]
             vm.edit("")
-            vm.choose(0)
+            vm.choose(3)
             vm.setDelivery("youtuber", false)
             vm.setDelivery("question", true)
-            vm.choose(2)
-            vm.setDelivery("youtuber", true)
-            vm.setDelivery("question", false)
-            vm.choose(0)
-            org.junit.Assert.assertFalse(vm.youtuber)
-            org.junit.Assert.assertTrue(vm.questionLift)
-            vm.choose(2)
+            vm.toggleWarmthEq(true)
+            vm.choose(1)
             org.junit.Assert.assertTrue(vm.youtuber)
             org.junit.Assert.assertFalse(vm.questionLift)
+            org.junit.Assert.assertFalse(vm.femaleSoftening)
+            org.junit.Assert.assertFalse(vm.warmthEq)
+            vm.choose(3)
+            org.junit.Assert.assertTrue(vm.youtuber)
+            org.junit.Assert.assertTrue(vm.femaleSoftening)
+            org.junit.Assert.assertFalse(vm.carefulDiction)
+            org.junit.Assert.assertFalse(vm.questionLift)
+            vm.choose(2)
+            org.junit.Assert.assertFalse(vm.femaleSoftening)
             org.junit.Assert.assertTrue(vm.plan.isEmpty())
             org.junit.Assert.assertNull(vm.latest)
         }
@@ -178,11 +182,11 @@ class StudioUiTest {
             org.junit.Assert.assertTrue(
                 fresh.youtuber &&
                     !fresh.durationGuard &&
-                    fresh.questionLift &&
+                    !fresh.questionLift &&
                     fresh.commaBuffer &&
-                    fresh.carefulDiction
+                    (fresh.carefulDiction == !ModelCatalog.VOICES[fresh.voice].tiny())
             )
-            org.junit.Assert.assertFalse(fresh.femaleSoftening)
+            org.junit.Assert.assertEquals(fresh.voice == 3, fresh.femaleSoftening)
             org.junit.Assert.assertTrue(file.isFile)
             androidx.lifecycle.ViewModelStore().apply {
                 put("fresh", fresh)

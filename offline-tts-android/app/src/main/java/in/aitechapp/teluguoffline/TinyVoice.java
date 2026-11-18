@@ -8,7 +8,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Indic Tiny Telugu r55cfc68: character encoder, 4-step flow, Vocos + Hann ISTFT. Fixed pretrained
+ * Indic Tiny Telugu r55cfc68: character encoder, 8-step flow, Vocos + Hann ISTFT. Fixed pretrained
  * speakers, not a clone. No network, no silent unknown-character substitution. Port of upstream
  * indic_tiny_tts/export/onnx_infer.py (MIT).
  */
@@ -96,6 +96,23 @@ public final class TinyVoice implements AutoCloseable {
   public float[] generate(
       String text, boolean male, float speed, long seed, boolean zeroNoise, boolean guard)
       throws Exception {
+    float[] mel = acousticMel(text, male, speed, seed, zeroNoise);
+    int length = mel.length / 100;
+    restoreMelContrast(mel, length, male);
+    return vocode(mel);
+  }
+
+  float[] vocode(float[] mel) throws OrtException {
+    try (OnnxTensor m = floats(mel, 1, 100, mel.length / 100);
+        OrtSession.Result r = vocoder.run(Map.of("mel", m))) {
+      float[] re = data(r, "real"), im = data(r, "imag");
+      check();
+      return istft(re, im);
+    }
+  }
+
+  // Exposed to the host evaluation so the native acoustic model can be compared with studio speech.
+  float[] acousticMel(String text, boolean male, float speed, long seed, boolean zeroNoise) throws Exception {
     check();
     if (!Float.isFinite(speed) || speed < .5f || speed > 2f)
       throw new IllegalArgumentException("Speaking speed must be between 0.5 and 2.");
@@ -146,7 +163,8 @@ public final class TinyVoice implements AutoCloseable {
       for (int c = 0; c < 100; c++) mu[c * padded + j] = muX[c * n + token];
     }
     Random random = new Random(seed);
-    for (int i = 0; i < x.length; i++) x[i] = zeroNoise ? 0 : (float) random.nextGaussian() * .667f;
+    float temperature = male ? .50f : .35f;
+    for (int i = 0; i < x.length; i++) x[i] = zeroNoise ? 0 : (float) random.nextGaussian() * temperature;
     try (OnnxTensor m = floats(mask, 1, 1, padded);
         OnnxTensor u = floats(mu, 1, 100, padded);
         OnnxTensor co = floats(cond, 1, 112)) {
@@ -166,11 +184,38 @@ public final class TinyVoice implements AutoCloseable {
     for (int c = 0; c < 100; c++)
       for (int j = 0; j < length; j++)
         mel[c * length + j] = x[c * padded + j] * 2.3824615950834365f - 2.425986101096874f;
-    try (OnnxTensor m = floats(mel, 1, 100, length);
-        OrtSession.Result r = vocoder.run(Map.of("mel", m))) {
-      float[] re = data(r, "real"), im = data(r, "imag");
-      check();
-      return istft(re, im);
+    return mel;
+  }
+
+  // Calibrated on 36 matched studio utterances per speaker. Work within one mel frame at
+  // a time: no temporal smoothing, waveform pitch shifting, or syllable retiming.
+  private static final float[] FEMALE_CONTRAST = {.009f,-.007f,.050f,.127f,.255f,.304f,.346f,.335f,.450f,.290f};
+  private static final float[] MALE_CONTRAST = {.009f,.142f,.331f,.360f,.385f,.202f,.450f,.202f,.450f,.389f};
+  private static final double[] KERNEL = contrastKernel();
+
+  private static double[] contrastKernel() {
+    double[] weights = new double[25];
+    double sum = 0;
+    for (int j = -12; j <= 12; j++) { weights[j+12] = Math.exp(-j*j/18.0); sum += weights[j+12]; }
+    for (int j = 0; j < weights.length; j++) weights[j] /= sum;
+    return weights;
+  }
+
+  static void restoreMelContrast(float[] mel, int frames, boolean male) {
+    float[] strengths = male ? MALE_CONTRAST : FEMALE_CONTRAST;
+    float[] band = new float[100];
+    for (int t = 0; t < frames; t++) {
+      for (int c = 0; c < 100; c++) band[c] = mel[c*frames+t];
+      for (int c = 0; c < 100; c++) {
+        double position = Math.max(0,Math.min(9,(c-4.5)/10));
+        int left = (int) position;
+        double blend = position-left;
+        double strength = strengths[left]*(1-blend) + strengths[Math.min(9,left+1)]*blend;
+        double envelope = 0;
+        for (int j = -12; j <= 12; j++)
+          envelope += KERNEL[j+12] * band[Math.max(0,Math.min(99,c+j))];
+        mel[c*frames+t] += (float)Math.max(-.85,Math.min(.85,strength*(band[c]-envelope)));
+      }
     }
   }
 

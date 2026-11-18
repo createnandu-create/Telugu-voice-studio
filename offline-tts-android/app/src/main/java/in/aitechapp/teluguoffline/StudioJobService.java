@@ -257,10 +257,9 @@ public final class StudioJobService extends Service {
         DeliveryControls.expand(plan.segments, speech.commaBuffer, speech.carefulDiction);
     renderSegments = speech.audible(renderSegments);
     boolean soft = voice.tiny() && speech.femaleSoftening && voice.gender.equals("Female");
-    boolean waveformDelivery = speech.youtuber;
     boolean waveformQuestions = speech.questionLift;
     StringBuilder spokenIdentity =
-        new StringBuilder("delivery-v084-mask/")
+        new StringBuilder("delivery-v085-acoustic/")
             .append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
@@ -445,7 +444,7 @@ public final class StudioJobService extends Service {
     // Keep the raw file in Projects for recovery; expose the master only when it is complete.
     File master = new File(journal.directory, "narration-studio.wav");
     StudioMastering.Report mastered;
-    if (speech.warmthEq && (!voice.tiny() || cloned)) {
+    if (speech.warmthEq) {
       status = "Creating optional native-rate EQ comparison…";
       PcmWave.merge(
           chunks,
@@ -463,6 +462,7 @@ public final class StudioJobService extends Service {
     int lifted = 0, requested = 0;
     org.json.JSONArray controlAudit = new org.json.JSONArray();
     {
+      RenderCleanup.Cleaner enhancer = RenderCleanup.forVoice(plan.voice, cloned, cancelled);
       List<File> controlled = new ArrayList<>();
       File controlledDir = new File(journal.directory, "delivery");
       controlledDir.mkdirs();
@@ -480,8 +480,8 @@ public final class StudioJobService extends Service {
                   f,
                   question,
                   soft,
-                  waveformDelivery ? renderSegments.get(i) : null,
-                  cancelled, true, voice.tiny() || cloned);
+                  null,
+                  cancelled, true, voice.tiny() || cloned, enhancer);
           if (question && applied.lifted) lifted++;
           controlAudit.put(
               new JSONObject()
@@ -501,7 +501,7 @@ public final class StudioJobService extends Service {
         PcmWave.mergeRaw(controlled, renderSegments, directedRaw, cancelled);
         mastered =
             StudioMastering.process(
-                directedRaw, master, cancelled, message -> status = message, speech.warmthEq);
+                directedRaw, master, cancelled, message -> status = message, false);
         FileIntegrity.write(new File(journal.directory, "mastering.json"), mastered.json());
         output = master;
         seconds = mastered.frames / (double) StudioMastering.RATE;
@@ -525,7 +525,8 @@ public final class StudioJobService extends Service {
             .put("voice_name", cloned ? clone.getString("name") : voice.name)
             .put("cloned", cloned)
             .put("base_voice", voice.id)
-            .put("warmth_eq", speech.warmthEq)
+            .put("warmth_eq", false)
+            .put("speech_cleanup", "speech-decay-v1")
             .put("native_warmth_comparison", speech.warmthEq)
             .put("head_padding_ms", PcmWave.HEAD_PADDING_MS)
             .put("tail_padding_ms", PcmWave.TAIL_PADDING_MS)

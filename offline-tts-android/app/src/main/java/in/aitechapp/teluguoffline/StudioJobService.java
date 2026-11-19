@@ -357,8 +357,7 @@ public final class StudioJobService extends Service {
             AlternativeVoice engine = alternative;
             String expanded = speech.spoken(s.text);
             String spoken = voice.hima() ? HimaVoice.spokenForm(expanded) : expanded;
-            float[] samples = PronunciationCheck.render(checker,spoken,s.rate,voice.sampleRate(),speech.youtuber,
-                rate -> engine.render(spoken,rate));
+            float[] samples = PronunciationCheck.renderNamed(checker,spoken,s.rate,voice.sampleRate(),speech.youtuber,engine);
             check();
             PcmWave.write(journal.chunk(i),samples,voice.sampleRate());
           } else if (voice.tiny()) {

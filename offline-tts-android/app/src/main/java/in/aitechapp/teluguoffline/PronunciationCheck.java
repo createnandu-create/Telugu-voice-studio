@@ -125,17 +125,46 @@ final class PronunciationCheck implements AutoCloseable {
     if(checker==null || best.length<hz/3 || best.length>hz*30) return best;
     double loss=error(text,checker.recognize(best,hz));
     // Do not spend extra inference on minor spelling variations in recognized Telugu.
-    for(float ratio:new float[]{.95f,1.04f}) {
+    boolean sensitive = letters(text).contains("ఏఐటెక్") || letters(text).contains("వాట్ఏపర్ఫెక్ట్");
+    float[] rates = sensitive ? new float[]{1.02f, rate*.95f, rate*1.04f, 1f} : new float[]{rate*.95f,rate*1.04f};
+    for(float nextRate : rates) {
       if(loss<.22) break;
       OfflineDenoiser.check(checker.cancel);
       float[] other;
-      try {other=synth.generate(Math.max(.5f,Math.min(2f,rate*ratio)));}
+      try {other=synth.generate(Math.max(.5f,Math.min(2f,nextRate)));}
       catch(ConversationTiming.UnusableTake rejected){continue;}
       if(other.length<hz/3 || other.length>hz*30) continue;
       double next=error(text,checker.recognize(other,hz));
       if(next+.015<loss){best=ConversationTiming.trimPadding(other,hz);loss=next;}
     }
     return best;
+  }
+
+  /** Keep the entire channel name in one utterance when a long clause swallows its initials. */
+  static float[] renderNamed(PronunciationCheck checker, String text, float rate, int hz,
+                             boolean directed, AlternativeVoice voice) throws Exception {
+    float[] full = render(checker, text, rate, hz, directed, speed -> voice.render(text, speed));
+    if (checker == null || full.length > 30 * hz) return full;
+    java.util.regex.Matcher name = java.util.regex.Pattern.compile("ఏ\\s*ఐ టెక్ యాప్(?:స్)?").matcher(text);
+    if (!name.find()) return full;
+    String tail = text.substring(name.end()).trim();
+    if (tail.isEmpty() || !Character.isLetter(tail.charAt(0))) return full;
+    String heard = checker.recognize(full, hz);
+    if (letters(heard).contains("ఏఐటె")) return full;
+    String lead = text.substring(0, name.end()).trim() + ".";
+    try {
+      float[] first = render(checker, lead, rate, hz, directed, speed -> voice.render(lead, speed));
+      float[] last = render(checker, tail, rate, hz, directed, speed -> voice.render(tail, speed));
+      int gap = hz * 35 / 1000;
+      if (first.length + last.length + gap > 30 * hz) return full;
+      float[] joined = Arrays.copyOf(first, first.length + gap + last.length);
+      System.arraycopy(last, 0, joined, first.length + gap, last.length);
+      String candidate = checker.recognize(joined, hz);
+      if (letters(candidate).contains("ఏఐటె") && error(text, candidate) < error(text, heard)) return joined;
+    } catch (ConversationTiming.UnusableTake ignored) {
+      // Optional alternate phrasing exhausted its native takes. The full take remains playable.
+    }
+    return full;
   }
 
   public void close() throws OrtException {session.close();}

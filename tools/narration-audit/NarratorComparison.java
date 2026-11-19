@@ -32,7 +32,7 @@ public final class NarratorComparison {
           String expanded=PronunciationLexicon.apply(segment.text,Map.of(),false);
           String input=voice.hima() ? HimaVoice.spokenForm(expanded) : expanded;
           System.out.println(voice.name+" · "+input);
-          float[] pcm=PronunciationCheck.render(checker,input,segment.rate,voice.sampleRate(),true,rate->engine.render(input,rate));
+          float[] pcm=PronunciationCheck.renderNamed(checker,input,segment.rate,voice.sampleRate(),true,engine);
           File raw=new File(work,"raw.wav"), processed=new File(work,voice.id+"-"+pieces.size()+".wav");
           PcmWave.write(raw,pcm,voice.sampleRate());
           VoiceDeliveryDsp.process(raw,processed,!fullScript && DeliveryControls.question(segment.text),false,null,cancel,true,false,clean);

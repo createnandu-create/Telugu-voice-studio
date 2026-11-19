@@ -4,6 +4,14 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
+## v0.8.8 downloads
+
+[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.8.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.8-source.zip) · [Narrator comparisons](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/YouTube-Voice-Comparison.zip)
+
+Hear the full editor script with [Karthik](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/karthik-full-demo.mp3), [Srinivas](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/srinivas-full-demo.mp3) or [Bhavana](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/bhavana-full-demo.mp3).
+
+For pronunciation checking, install the optional Telugu recognizer in **Settings → Offline models**. Once downloaded, the switch enables local checking for new renders. It compares an eligible phrase with what the engine generated and can choose a clearer native take. The checks can increase generation time. For a personal Hima voice, install Hima cloning in Settings and select a recording in Voices.
+
 ## v0.8.7 downloads
 
 [Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.7-34570eefc9a9/TeluguVoiceStudio-v0.8.7.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.7-34570eefc9a9/TeluguVoiceStudio-v0.8.7-source.zip) · [Eight alternative narrator comparisons](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.7-34570eefc9a9/YouTube-Voice-Comparison.zip)

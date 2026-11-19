@@ -14,7 +14,7 @@ with wave.open(str(root/'docs/evaluation/delivery-v07/samples/tiny-female-youtub
 x=np.interp(np.arange(16000*12)*1.5,np.arange(len(x)),x).astype('<f4');x.tofile(out/'speaker-input.f32')
 src=root/'offline-tts-android/app/src/main/java/in/aitechapp/teluguoffline'
 subprocess.run(['bash',str(root/'offline-tts-android/native/rnnoise/build.sh'),'host',str(out/'librnnoise_offline.so')],check=True)
-subprocess.run(['javac','-cp',str(jar),'-d',str(out),*[str(src/(n+'.java')) for n in ['OfflineDenoiser','SpeakerFeatures','SpeakerEncoder']],str(root/'offline-tts-android/tools/SpeakerEncoderAudit.java')],check=True)
+subprocess.run(['javac','-cp',str(jar),'-d',str(out),*[str(src/(n+'.java')) for n in ['OfflineDenoiser','SpeakerFeatures','LocalOnnx','SpeakerEncoder']],str(root/'offline-tts-android/tools/SpeakerEncoderAudit.java')],check=True)
 subprocess.run(['java','-Djava.library.path='+str(out),'-cp',str(jar)+os.pathsep+str(out),'in.aitechapp.teluguoffline.SpeakerEncoderAudit',str(out/'speaker-input.f32'),str(model),str(out)],check=True)
 bank=np.fromfile(model/'fbank-80x201-f32.bin',dtype='<f4').reshape(201,80)
 frames=np.lib.stride_tricks.sliding_window_view(np.pad(x,(200,200)),400)[::160];window=.54-.46*np.cos(2*np.pi*np.arange(400)/400)

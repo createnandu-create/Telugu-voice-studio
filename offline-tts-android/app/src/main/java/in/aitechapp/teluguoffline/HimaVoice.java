@@ -124,9 +124,12 @@ final class HimaVoice extends AlternativeVoice {
     int chars=(int)text.codePoints().filter(c -> Character.isLetterOrDigit(c) || (c>=0xc00 && c<=0xc7f)).count();
     int limit=Math.min(LIMIT,Math.max(40,(int)Math.ceil((.184*chars+1)*12.5)));
     Random random=new Random(31L*text.hashCode()+name.hashCode()+Float.floatToIntBits(rate)-Float.floatToIntBits(1f));
-    for(int attempt=0;attempt<3;attempt++) {
+    for(int attempt=0;attempt<6;attempt++) {
       float[] pcm=take(rows,head,Math.min(LIMIT,limit + attempt * 12),random);
-      if (pcm!=null && audible(pcm)) return pcm;
+      if (pcm != null) {
+        float[] spoken = ConversationTiming.trimPadding(pcm, 24000);
+        if (audible(spoken)) return spoken;
+      }
     }
     throw new ConversationTiming.UnusableTake("Hima could not finish this phrase clearly. Shorten the sentence and retry.");
   }

@@ -242,7 +242,10 @@ public final class NarrationDirector {
   static ArrayList<String> split(String value, int maxChars) {
     ArrayList<String> out = new ArrayList<>();
     StringBuilder current = new StringBuilder();
+    java.util.regex.Matcher brand = DynamicEnglishPhonetizer.BRAND.matcher(value);
+    boolean hasBrand = brand.find();
     for (int i = 0; i < value.length(); i++) {
+      while (hasBrand && i >= brand.end()) hasBrand = brand.find();
       char c = value.charAt(i);
       if (c == '\n') {
         addCapped(out, current.toString(), maxChars);
@@ -256,7 +259,7 @@ public final class NarrationDirector {
               && i + 1 < value.length()
               && !Character.isWhitespace(value.charAt(i - 1))
               && !Character.isWhitespace(value.charAt(i + 1));
-      if ((c == '.' && !innerDot) || c == '!' || c == '?' || c == '।' || c == '॥') {
+      if ((c == '.' && !innerDot && !(hasBrand && i >= brand.start())) || c == '!' || c == '?' || c == '।' || c == '॥') {
         // Preserve punctuation and next sentence independence.
         addCapped(out, current.toString(), maxChars);
         current.setLength(0);

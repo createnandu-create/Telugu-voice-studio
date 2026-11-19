@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * OpenVoice V2 tone conversion. Uses its own 256-D embedding, never ECAPA's unrelated 192-D vector.
  */
 public final class OpenVoiceEngine implements AutoCloseable {
-  private final OrtEnvironment env = OrtEnvironment.getEnvironment();
+  private final OrtEnvironment env = LocalOnnx.environment();
   private OrtSession encoder, converter;
   private final AtomicBoolean cancel;
 

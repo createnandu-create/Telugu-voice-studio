@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class TinyVoice implements AutoCloseable {
   private static final String SYMBOLS =
       " !\"',.?।ఁంఃఅఆఇఈఉఊఋఎఏఐఒఓఔకఖగఘఙచఛజఝఞటఠడఢణతథదధనపఫబభమయరఱలళవశషసహాిీుూృౄెేైొోౌ్ౖౙౠ";
-  private final OrtEnvironment env = OrtEnvironment.getEnvironment();
+  private final OrtEnvironment env = LocalOnnx.environment();
   private OrtSession encoder, flow, vocoder;
   private final AtomicBoolean cancel;
 

@@ -179,9 +179,16 @@ public final class DynamicEnglishPhonetizer {
     return b.toString();
   }
 
+  static final Pattern BRAND = Pattern.compile(
+      "(?iu)(?<![\\p{L}\\p{M}\\p{N}])a[.\\s]*i[.\\s-]*tech[\\s-]*app(s?)(?![A-Za-z])");
+
   public static String apply(String source) {
-    source=source.replaceAll("(?iu)(?<![\\p{L}\\p{M}\\p{N}])a[.\\s]*i[.\\s-]*tech[\\s-]*apps(?![A-Za-z])","ఏఐ టెక్ యాప్స్")
-                 .replaceAll("(?iu)(?<![\\p{L}\\p{M}\\p{N}])a[.\\s]*i[.\\s-]*tech[\\s-]*app(?![A-Za-z])","ఏఐ టెక్ యాప్");
+    Matcher brand = BRAND.matcher(source);
+    StringBuffer branded = new StringBuffer();
+    while (brand.find()) {
+      brand.appendReplacement(branded, brand.group(1).isEmpty() ? "ఏఐ టెక్ యాప్" : "ఏఐ టెక్ యాప్స్");
+    }
+    source = brand.appendTail(branded).toString();
     Matcher m = Pattern.compile("[A-Za-z]+(?:'[A-Za-z]+)?").matcher(source);
     StringBuffer b = new StringBuffer();
     while (m.find()) {

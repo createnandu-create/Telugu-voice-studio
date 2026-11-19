@@ -26,7 +26,7 @@ final class HimaCondition {
       if(i>=SAMPLES) energy-=(double)audio[i-SAMPLES]*audio[i-SAMPLES];
       if(i>=SAMPLES-1 && energy>best) { best=energy; start=i-SAMPLES+1; }
     }
-    OrtEnvironment env=OrtEnvironment.getEnvironment();
+    OrtEnvironment env=LocalOnnx.environment();
     try(OrtSession.SessionOptions opts=new OrtSession.SessionOptions()) {
       opts.setIntraOpNumThreads(2); opts.setInterOpNumThreads(1);
       try(OrtSession session=env.createSession(encoder.getPath(),opts);

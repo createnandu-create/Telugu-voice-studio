@@ -11,7 +11,7 @@ import org.json.JSONArray;
 
 /** Independent Telugu CTC check. Selects complete native takes; never edits their waveform. */
 final class PronunciationCheck implements AutoCloseable {
-  private final OrtEnvironment env=OrtEnvironment.getEnvironment();
+  private final OrtEnvironment env=LocalOnnx.environment();
   private final OrtSession session;
   private final String[] vocabulary;
   private final AtomicBoolean cancel;

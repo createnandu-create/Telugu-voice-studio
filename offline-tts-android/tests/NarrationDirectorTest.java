@@ -11,6 +11,10 @@ public final class NarrationDirectorTest {
   }
 
   public static void main(String[] args) {
+    String dotted = "Welcome to A.I. Tech Apps!";
+    if (NarrationDirector.split(dotted, 175).size() != 1 ||
+        !PronunciationLexicon.apply(dotted, java.util.Collections.emptyMap(), false).contains("ఏఐ టెక్ యాప్స్"))
+      throw new AssertionError("The full channel name must reach every engine in one segment");
     verify("వావ్!", NarrationDirector.Emotion.SURPRISE);
     verify("ఇక్కడ క్లిక్ చేయండి.", NarrationDirector.Emotion.GUIDE);
     verify("జాగ్రత్తగా ఉపయోగించండి.", NarrationDirector.Emotion.SERIOUS);

@@ -12,7 +12,7 @@ public final class SpeakerEncoder {
   public static float[] encode(File root, float[] audio16k, AtomicBoolean cancel) throws Exception {
     float[][] features =
         SpeakerFeatures.compute(audio16k, new File(root, "fbank-80x201-f32.bin"), cancel);
-    OrtEnvironment env = OrtEnvironment.getEnvironment();
+    OrtEnvironment env = LocalOnnx.environment();
     try (OrtSession.SessionOptions opts = new OrtSession.SessionOptions()) {
       opts.setIntraOpNumThreads(2);
       opts.setInterOpNumThreads(1);

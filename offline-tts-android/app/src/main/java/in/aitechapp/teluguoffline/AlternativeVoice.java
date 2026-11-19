@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Owned by a single render job. Graph outputs stay alive until their consumer finishes. */
 abstract class AlternativeVoice implements AutoCloseable {
-  final OrtEnvironment env = OrtEnvironment.getEnvironment();
+  final OrtEnvironment env = LocalOnnx.environment();
   final AtomicBoolean cancel;
   final List<OrtSession> sessions = new ArrayList<>();
 

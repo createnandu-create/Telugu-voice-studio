@@ -21,6 +21,10 @@ public final class ConversationTimingTest {
       throw new AssertionError("On should select the closer intact native take");
     if (ConversationTiming.render(phrase, 1, hz, true, r -> r == 1 ? first : new float[better.length]) != first)
       throw new AssertionError("A silent retry must never replace speech");
+    if (ConversationTiming.render(phrase, 1, hz, true, rate -> {
+      if (rate == 1) return first;
+      throw new ConversationTiming.UnusableTake("No stop token");
+    }) != first) throw new AssertionError("Preserve speech when the optional take fails");
     if (ConversationTiming.targetSeconds("hello world", 1) != 0)
       throw new AssertionError("Do not estimate unexpanded English");
     System.out.println("PASS conversational timing, bypass, alternate take and silence guard");

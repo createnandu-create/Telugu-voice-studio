@@ -4,6 +4,10 @@ import java.util.Arrays;
 
 /** Selects intact neural takes using Telugu conversational utterance durations. */
 final class ConversationTiming {
+  static final class UnusableTake extends java.io.IOException {
+    UnusableTake(String message) { super(message); }
+  }
+
   interface Synthesizer {
     float[] generate(float rate) throws Exception;
   }
@@ -55,7 +59,12 @@ final class ConversationTiming {
     double seconds = first.length / (double) hz;
     float next = candidateRate(target, seconds, rate);
     if (Math.abs(next - rate) < .001f) return first;
-    float[] second = trimPadding(synth.generate(next), hz);
+    float[] second;
+    try {
+      second = trimPadding(synth.generate(next), hz);
+    } catch (UnusableTake rejected) {
+      return first;
+    }
     double revised = second.length / (double) hz;
     // Reject truncated/runaway candidates even when their duration is nominally nearer.
     if (!audible(second)) return first;

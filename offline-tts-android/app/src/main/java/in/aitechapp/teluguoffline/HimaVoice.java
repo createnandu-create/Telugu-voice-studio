@@ -102,19 +102,23 @@ final class HimaVoice extends AlternativeVoice {
   }
 
   float[] render(String text, float rate) throws Exception {
-    int[] ids=tokenizer.encode(text);
+    // The planner inserts the following breath when merging segments. A standalone
+    // prompt must also tell the autoregressive model where the utterance ends.
+    String prompt=text.trim().replaceFirst("[,;:，；：]+$", ".");
+    if (!prompt.matches("(?s).*[.!?।！？…]$")) prompt+=".";
+    int[] ids=tokenizer.encode(prompt);
     float[] vec=condition==null?voices.get("vec_"+name):condition.speaker;
     float[] ref=condition==null?voices.get("ref_"+name):condition.ref;
     if (vec==null || ref==null) throw new IOException("Missing Hima speaker "+name);
     float[] rows=prefix(ids,vec,ref), head=project("head_voice.weight",vec,0,192,null);
     int chars=(int)text.codePoints().filter(c -> Character.isLetterOrDigit(c) || (c>=0xc00 && c<=0xc7f)).count();
-    int limit=Math.min(LIMIT,(int)Math.ceil((.184*chars+1)*12.5));
+    int limit=Math.min(LIMIT,Math.max(40,(int)Math.ceil((.184*chars+1)*12.5)));
     Random random=new Random(31L*text.hashCode()+name.hashCode()+Float.floatToIntBits(rate)-Float.floatToIntBits(1f));
     for(int attempt=0;attempt<3;attempt++) {
       float[] pcm=take(rows,head,limit,random);
       if (pcm!=null && audible(pcm)) return pcm;
     }
-    throw new IOException("Hima could not finish this phrase clearly. Shorten the sentence and retry.");
+    throw new ConversationTiming.UnusableTake("Hima could not finish this phrase clearly. Shorten the sentence and retry.");
   }
 
   private static boolean audible(float[] pcm) {

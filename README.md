@@ -4,7 +4,17 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
-## v0.8.6 downloads
+## v0.8.7 downloads
+
+[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.7-34570eefc9a9/TeluguVoiceStudio-v0.8.7.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.7-34570eefc9a9/TeluguVoiceStudio-v0.8.7-source.zip) · [Eight alternative narrator comparisons](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.7-34570eefc9a9/YouTube-Voice-Comparison.zip)
+
+The editor opens the AiTechApp pronunciation script on a new install or when upgrading the old default. It retains custom drafts. After generation, **Reset & back** returns to that script and releases the active take. Completed audio stays in Projects.
+
+Listen to the complete script with [Srinivas MP3](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.7-34570eefc9a9/srinivas-full-demo.mp3) or [Bhavana MP3](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.7-34570eefc9a9/bhavana-full-demo.mp3). Lakshmi, Sravani, Karthik and Pranay use the already-installed Hima pack. Both Indic-TTS voices and the Hima cloning encoder now read the exact graph assets verified inside the signed APK.
+
+On the three supplied mono 44.1 kHz phone exports, integrated loudness measured −17.0 LUFS and true peak measured −1.1 dBTP. The subscribe clause occurs near 1:24 in the original Srinivas recording and 1:21 in Bhavana. In the new full-script CPU renders, independent Telugu recognition recovered సబ్స్క్రైబ్ and గగనాన for both. Recognition of ఎక్స్‌ప్లనేషన్ still varied. Speaker naturalness on the phone requires listening.
+
+## Previous v0.8.6 downloads
 
 [Unified Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.6-f910a7050d62/TeluguVoiceStudio-v0.8.6.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.6-f910a7050d62/TeluguVoiceStudio-v0.8.6-source.zip) · [Four new voices reading the same tech script](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.6-f910a7050d62/YouTube-Voice-Comparison.zip) · [All listening samples](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.6-f910a7050d62/TeluguVoiceStudio-v0.8.6-audio.zip)
 

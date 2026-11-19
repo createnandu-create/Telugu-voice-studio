@@ -8,7 +8,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class FastPitchVoice extends AlternativeVoice {
-  static final String TOPOLOGY_SHA="eef9df52e8f79606c47054abd8fbc2b913c611ba4474f2e03059da26f4a5531c";
+  static final String TOPOLOGY_SHA="0b25a3e0ac90d65e74915fd6bf25221f9e5f31bf1362e185aa331550fe4b558e";
   // VitsCharacters: pad, punctuation, graphemes, blank. Duplicate symbols use the last ID.
   private static final String SYMBOLS = "!¡'(),-.:;¿?  !',.:;?oంఃఅఆఇఈఉఊఋఎఏఐఒఓఔకఖగఘఙచఛజఝఞటఠడఢణతథదధనపఫబభమయరఱలళవశషసహాిీుూృెేైొోౌ్”﻿";
   private final OrtSession acoustic, vocoder;
@@ -40,7 +40,7 @@ final class FastPitchVoice extends AlternativeVoice {
     if (ids.length == 0) throw new IOException("Empty spoken phrase");
     try (OnnxTensor tokens = OnnxTensor.createTensor(env, LongBuffer.wrap(ids), new long[]{1,ids.length});
          OnnxTensor voice = OnnxTensor.createTensor(env, new long[]{speaker});
-         OnnxTensor pace=floats(new float[]{1f/rate},1);
+         OnnxTensor pace=floats(new float[]{1f/rate});
          OrtSession.Result mel = acoustic.run(inputs(tokens,voice,pace))) {
       OfflineDenoiser.check(cancel);
       try (OrtSession.Result out = vocoder.run(Collections.singletonMap("mel",(OnnxTensor)mel.get(0)))) {

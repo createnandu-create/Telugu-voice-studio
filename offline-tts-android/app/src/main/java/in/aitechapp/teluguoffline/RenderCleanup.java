@@ -83,15 +83,15 @@ final class RenderCleanup {
 
   static Cleaner forVoice(int voice, boolean clone, AtomicBoolean cancel) {
     // Protect onsets and fricatives; use a deeper tail reduction on Vocos than on Piper.
-    final double depth = clone ? .55 : voice >= 4 ? .36 : new double[]{.36, .46, .62, .70}[voice];
-    return (samples, rate) -> apply(samples, rate, voice >= 2 || clone, cancel, depth);
+    final double depth = clone ? .32 : voice >= 4 ? .22 : new double[]{.36, .46, .62, .70}[voice];
+    return (samples, rate) -> apply(samples, rate, voice >= 2 || clone, cancel, depth, true);
   }
 
   static float[] apply(float[] dry, int rate, boolean neuralVocoder, AtomicBoolean cancel) {
-    return apply(dry, rate, neuralVocoder, cancel, 0);
+    return apply(dry, rate, neuralVocoder, cancel, 0, false);
   }
 
-  private static float[] apply(float[] dry, int rate, boolean neuralVocoder, AtomicBoolean cancel, double depth) {
+  private static float[] apply(float[] dry, int rate, boolean neuralVocoder, AtomicBoolean cancel, double depth, boolean preserveSpeech) {
     if (dry.length == 0) return dry;
     float[] estimate = new float[dry.length];
     for (int start = 0; start < dry.length; start += rate * 30) {
@@ -180,6 +180,13 @@ final class RenderCleanup {
           target *= 1 - (neuralVocoder ? .27 : .14) * persistence[k];
         }
         if (!fricative) target *= tailGain[group];
+        // Raised vowels carry the identity of a speaker. Keep most of their
+        // original harmonics even if the noise estimate treats them as ringing.
+        if (preserveSpeech) {
+          double activity=Math.min(1, energy/(N*.0016));
+          double dryMix=activity*(fricative ? .70 : .28+.55*voiced);
+          target+=dryMix*(1-target);
+        }
         gain[k] += (target < gain[k] ? .32 : .55) * (target - gain[k]);
         re[k] *= gain[k]; im[k] *= gain[k];
         if (k > 0 && k < HOP) { re[N-k] = re[k]; im[N-k] = -im[k]; }

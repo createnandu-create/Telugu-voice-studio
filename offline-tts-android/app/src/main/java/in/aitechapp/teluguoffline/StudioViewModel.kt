@@ -73,6 +73,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var loading by mutableStateOf(false)
     var models by mutableStateOf<List<ModelRow>>(emptyList())
     var speakerReady by mutableStateOf(false)
+    var checkerReady by mutableStateOf(false)
+    var renderingFolder by mutableStateOf<File?>(null)
     var himaCloneReady by mutableStateOf(false)
     fun clonePackReady(base: Int) = if (ModelCatalog.VOICES[base].hima()) himaCloneReady else cloneModelReady
     var cloneModelReady by mutableStateOf(false)
@@ -153,6 +155,11 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             var priorBusy = false
             var priorRecording = false
             while (isActive) {
+                val currentFolder = StudioJobService.activeProject
+                if (renderingFolder != currentFolder) {
+                    renderingFolder = currentFolder
+                    refresh()
+                }
                 busy = StudioJobService.busy
                 downloadingVoice = StudioJobService.downloadingVoice
                 if (busy && StudioJobService.runId.isEmpty()) observedServiceAction = true
@@ -445,6 +452,18 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             busy = false
             throw e
         }
+    }
+
+    var verifyWords by mutableStateOf(prefs.getBoolean("verifyWords", true))
+        private set
+
+    fun usePronunciationCheck(enabled: Boolean) {
+        verifyWords = enabled
+        prefs.edit().putBoolean("verifyWords", enabled).apply()
+    }
+
+    fun installChecker() {
+        if (!busy && !recording && !loading) startJob("check-install")
     }
 
     fun install(index: Int) {
@@ -1097,6 +1116,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                 models = loadedModels
+                checkerReady = withContext(Dispatchers.IO) { AlternativePack.pronunciation(VoiceModelStore(app).root).ready() }
                 val loadedClone =
                     withContext(Dispatchers.IO) { OpenVoiceModelStore(app.filesDir).ready() }
                 val loadedSpeaker =

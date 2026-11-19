@@ -1696,7 +1696,8 @@ private fun ProjectsScreen(vm: StudioViewModel, play: (File) -> Unit, export: (F
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        if (p.ready) "${duration((p.duration*1000).toLong())} · WAV"
+                        if (vm.renderingFolder == p.folder) "Generating audio…"
+                        else if (p.ready) "${duration((p.duration*1000).toLong())} · WAV"
                         else "Paused · segments saved",
                         fontSize = 10.sp,
                         color = Muted,
@@ -1708,7 +1709,7 @@ private fun ProjectsScreen(vm: StudioViewModel, play: (File) -> Unit, export: (F
                         ProjectAction(
                             "Play",
                             Icons.Outlined.PlayArrow,
-                            p.ready,
+                            p.ready && vm.renderingFolder != p.folder,
                             Modifier.weight(1f),
                         ) {
                             play(vm.projectAudio(p.folder))
@@ -1716,7 +1717,7 @@ private fun ProjectsScreen(vm: StudioViewModel, play: (File) -> Unit, export: (F
                         ProjectAction(
                             "Export",
                             Icons.Outlined.FileDownload,
-                            p.ready,
+                            p.ready && vm.renderingFolder != p.folder,
                             Modifier.weight(1f),
                         ) {
                             export(vm.projectAudio(p.folder))
@@ -1735,7 +1736,7 @@ private fun ProjectsScreen(vm: StudioViewModel, play: (File) -> Unit, export: (F
                         ProjectAction(
                             "Delete",
                             Icons.Outlined.DeleteOutline,
-                            true,
+                            vm.renderingFolder != p.folder,
                             Modifier.weight(1f),
                         ) {
                             delete = p
@@ -1954,6 +1955,17 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
         item {
             TextButton(onClick = { vm.page = "" }) { Text("← Settings") }
             PageTitle("Offline models", "Download once. Keep creating without a connection.")
+            Panel {
+                Text("Offline pronunciation check", style = MaterialTheme.typography.titleMedium)
+                Text(if (vm.checkerReady) "Ready · checks each phrase against the script and retries unclear speech."
+                     else "Optional Telugu speech recognition for all narrators. Downloads 281 MB once and keeps 197 MB.", color = Muted)
+                if (vm.checkerReady) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Check generated speech", modifier = Modifier.weight(1f))
+                        Switch(vm.verifyWords, vm::usePronunciationCheck, enabled = !vm.busy)
+                    }
+                } else Primary("Download pronunciation check", !vm.busy && !vm.loading) { vm.installChecker() }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Installed", "All voices").forEach { item ->
                     FilterChip(

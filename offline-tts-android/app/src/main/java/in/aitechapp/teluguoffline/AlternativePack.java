@@ -27,6 +27,10 @@ final class AlternativePack {
     new Asset("tts/fastpitch.onnx",108842190L,"37942087c650689e67c5aef4362da21a0a65ccc238b341541002e87dda5db1dd"),
     new Asset("tts/hifigan.onnx",27910570L,"81e03a670def1b06cacecd008a4c81ed3d93bc1b2dc62510c4ec69540173ca1d")
   };
+  private static final Asset[] CHECKER = {
+    new Asset("stt/indicconformer_int8.onnx",197021597L,"cb60980a93a6ed8fdcd875a4be1dfa5fd050eee95a6db94bfd461feb45cabdfc"),
+    new Asset("stt/vocab.json",68706L,"69fb197067f139f7961e70fed986274f366c7d1c26f777aada635f6237b75d43")
+  };
   private static final Asset ARCHIVE = new Asset("te-IN-1.0.0.itantra",280580175L,"79fa256cac907c2e86a8093f9c1d1bcab14d9ee1c7cc1f0b4b578386c07bf68b");
 
   final File root;
@@ -34,10 +38,15 @@ final class AlternativePack {
   private final String revision, url;
   private final Asset[] assets;
   AlternativePack(File parent, ModelCatalog.Voice v) {
-    hima=v.hima();
+    this(parent,v.hima(),false);
+  }
+  static AlternativePack pronunciation(File parent) { return new AlternativePack(parent,false,true); }
+
+  private AlternativePack(File parent, boolean hima, boolean check) {
+    this.hima=hima;
     revision=hima?HIMA_REV:INDIC_REV;
-    assets=hima?HIMA:INDIC;
-    root=new File(parent,(hima?"hima-":"indic-fastpitch-")+revision.substring(0,12));
+    assets=check?CHECKER:hima?HIMA:INDIC;
+    root=new File(parent,(check?"indic-check-":hima?"hima-":"indic-fastpitch-")+revision.substring(0,12));
     url="https://huggingface.co/"+(hima?"Prahaladha/hima-tts-nano-te-ONNX":"helo-ayush/itantra-models")+"/resolve/"+revision+"/";
   }
 
@@ -78,7 +87,7 @@ final class AlternativePack {
   void install(AtomicBoolean cancel, VoiceModelStore.Progress progress) throws Exception {
     if (ready()) return;
     if (!root.isDirectory() && !root.mkdirs()) throw new IOException("Cannot create model folder");
-    if (root.getUsableSpace() < (hima?110_000_000L:430_000_000L)) throw new IOException("Insufficient storage for the model pack");
+    if (root.getUsableSpace() < (hima?110_000_000L:assets==CHECKER?490_000_000L:430_000_000L)) throw new IOException("Insufficient storage for the model pack");
     if (hima) {
       for(Asset a:assets) {
         if(installed(a)) continue;
@@ -110,6 +119,6 @@ final class AlternativePack {
       Files.deleteIfExists(new File(archive+".properties").toPath());
     }
     if(!verify()) throw new IOException("Model pack integrity check failed");
-    progress.update("Ready offline · male and female voices installed");
+    progress.update(assets==CHECKER ? "Offline pronunciation check ready" : "Male and female voices ready offline");
   }
 }

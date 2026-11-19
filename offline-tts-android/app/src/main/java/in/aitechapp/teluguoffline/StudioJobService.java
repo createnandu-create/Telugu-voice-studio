@@ -19,6 +19,7 @@ public final class StudioJobService extends Service {
   public static volatile boolean busy = false;
   public static volatile int downloadingVoice = -1;
   public static volatile boolean enhancing = false;
+  public static volatile File activeProject;
   public static volatile String runId = "", resultRunId = "";
   public static volatile String status = "Ready · all generation is local";
   public static volatile File result;
@@ -47,12 +48,13 @@ public final class StudioJobService extends Service {
     status = "Preparing…";
     runId = intent.getStringExtra("runId");
     if (runId == null) runId = "";
+    boolean checkerInstall = "check-install".equals(intent.getAction());
     boolean himaInstall = "hima-install".equals(intent.getAction());
     boolean cloneInstall = himaInstall || "clone-install".equals(intent.getAction());
     boolean cloneCreate = "clone-create".equals(intent.getAction());
     boolean speakerInstall = "speaker-install".equals(intent.getAction());
     boolean enroll = "speaker-enroll".equals(intent.getAction());
-    boolean install = "install".equals(intent.getAction()) || speakerInstall || cloneInstall;
+    boolean install = checkerInstall || "install".equals(intent.getAction()) || speakerInstall || cloneInstall;
     enhancing =
         "enhance".equals(intent.getAction())
             || enroll
@@ -60,7 +62,7 @@ public final class StudioJobService extends Service {
             || cloneCreate
             || cloneInstall;
     downloadingVoice =
-        install && !speakerInstall && !cloneInstall ? intent.getIntExtra("voice", 0) : -1;
+        install && !checkerInstall && !speakerInstall && !cloneInstall ? intent.getIntExtra("voice", 0) : -1;
     NotificationManager nm = getSystemService(NotificationManager.class);
     nm.createNotificationChannel(
         new NotificationChannel(
@@ -95,7 +97,10 @@ public final class StudioJobService extends Service {
         () -> {
           try {
             VoiceModelStore store = new VoiceModelStore(this);
-            if (himaInstall) {
+            if (checkerInstall) {
+              AlternativePack.pronunciation(store.root).install(cancelled,message -> status=message);
+              status="Completed · offline pronunciation check installed";
+            } else if (himaInstall) {
               new HimaClonePack(this).install(cancelled,message -> status=message);
               status="Completed · Hima cloning ready offline";
             } else if (cloneInstall) {
@@ -162,6 +167,7 @@ public final class StudioJobService extends Service {
                 .post(
                     () -> {
                       if (wake != null && wake.isHeld()) wake.release();
+                      activeProject = null;
                       running.set(false);
                       busy = false;
                       downloadingVoice = -1;
@@ -203,6 +209,8 @@ public final class StudioJobService extends Service {
           if (cancelled.get()) throw new CancellationException();
           batch.put("failure", name + " · " + JobFailure.message(e));
           post(manager, runId, n + 1, message("completed", batch.getString("failure"), false));
+        } finally {
+          activeProject = null;
         }
         batch.put("next", n + 1);
         FileIntegrity.write(state, batch.toString());
@@ -263,9 +271,11 @@ public final class StudioJobService extends Service {
     renderSegments = speech.audible(renderSegments);
     boolean soft = voice.tiny() && speech.femaleSoftening && voice.gender.equals("Female");
     boolean waveformQuestions = speech.questionLift;
+    AlternativePack checkerPack=AlternativePack.pronunciation(store.root);
+    boolean checkWords=getSharedPreferences("StudioActivity", 0).getBoolean("verifyWords", true) && checkerPack.ready();
     StringBuilder spokenIdentity =
         new StringBuilder((voice.hima() ? "hima-diction-v087/" : "delivery-v085-acoustic/"))
-            .append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
+            .append("studio-v088/").append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
             .append('/')
@@ -328,8 +338,9 @@ public final class StudioJobService extends Service {
     int peakPss = 0, maxThermal = 0;
     float maxBattery = Float.NaN;
     List<File> chunks = new ArrayList<>();
+    activeProject = journal.directory;
     int reused = 0;
-    try {
+    try (PronunciationCheck checker=checkWords ? new PronunciationCheck(checkerPack.root,cancelled) : null) {
       for (int i = 0; i < renderSegments.size(); i++) {
         check();
         NarrationDirector.Segment s = renderSegments.get(i);
@@ -346,7 +357,7 @@ public final class StudioJobService extends Service {
             AlternativeVoice engine = alternative;
             String expanded = speech.spoken(s.text);
             String spoken = voice.hima() ? HimaVoice.spokenForm(expanded) : expanded;
-            float[] samples = ConversationTiming.render(spoken,s.rate,voice.sampleRate(),speech.youtuber,
+            float[] samples = PronunciationCheck.render(checker,spoken,s.rate,voice.sampleRate(),speech.youtuber,
                 rate -> engine.render(spoken,rate));
             check();
             PcmWave.write(journal.chunk(i),samples,voice.sampleRate());
@@ -354,7 +365,7 @@ public final class StudioJobService extends Service {
             if (tiny == null) tiny = new TinyVoice(new TinyModelStore(store.root).root, cancelled);
             TinyVoice engine = tiny;
             String spoken = speech.spoken(s.text);
-            float[] samples = ConversationTiming.render(spoken, s.rate, 24000, speech.youtuber,
+            float[] samples = PronunciationCheck.render(checker,spoken, s.rate, 24000, speech.youtuber,
                 rate -> {
                   check();
                   return engine.generate(spoken, voice.gender.equals("Male"), rate, s.text.hashCode(), false, false);
@@ -387,7 +398,7 @@ public final class StudioJobService extends Service {
             OfflineTts engine = tts;
             String spoken = speech.spoken(s.text);
             String input = PronunciationLexicon.piperInput(spoken);
-            float[] samples = ConversationTiming.render(spoken, s.rate, 22050, speech.youtuber,
+            float[] samples = PronunciationCheck.render(checker,spoken, s.rate, 22050, speech.youtuber,
                 rate -> {
                   check();
                   GeneratedAudio audio = engine.generate(input, 0, rate);

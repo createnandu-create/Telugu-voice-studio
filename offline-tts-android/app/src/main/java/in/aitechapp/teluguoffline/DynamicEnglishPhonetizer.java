@@ -15,6 +15,8 @@ public final class DynamicEnglishPhonetizer {
   private static final Map<String, String> WORDS = new LinkedHashMap<>();
 
   static {
+    WORDS.put("app","యాప్");
+    WORDS.put("apps","యాప్స్");
     WORDS.put("aitechapps", "ఏఐ టెక్ యాప్స్");
     WORDS.put("aitechapp", "ఏఐ టెక్ యాప్");
     WORDS.put("pixellab", "పిక్సెల్ ల్యాబ్");
@@ -178,6 +180,8 @@ public final class DynamicEnglishPhonetizer {
   }
 
   public static String apply(String source) {
+    source=source.replaceAll("(?iu)(?<![\\p{L}\\p{M}\\p{N}])a[.\\s]*i[.\\s-]*tech[\\s-]*apps(?![A-Za-z])","ఏఐ టెక్ యాప్స్")
+                 .replaceAll("(?iu)(?<![\\p{L}\\p{M}\\p{N}])a[.\\s]*i[.\\s-]*tech[\\s-]*app(?![A-Za-z])","ఏఐ టెక్ యాప్");
     Matcher m = Pattern.compile("[A-Za-z]+(?:'[A-Za-z]+)?").matcher(source);
     StringBuffer b = new StringBuffer();
     while (m.find()) {

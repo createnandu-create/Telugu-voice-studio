@@ -101,17 +101,21 @@ final class HimaVoice extends AlternativeVoice {
     }
   }
 
+  static String spokenForm(String text) {
+    // Telugu shaping controls render a glyph correctly in the editor, but the
+    // acoustic tokenizer may fall back to UTF-8 bytes for them.
+    return text.replace("‌","").replace("‍","")
+        .replace("సబ్స్క్రైబ్","సబ్ స్క్రైబ్").replace("ఆఫ్లైన్","ఆఫ్ లైన్")
+        .replace("ఎక్స్పోర్ట్","ఎక్స్ పోర్ట్").replace("ఎక్స్ప్లనేషన్","ఎక్స్ ప్లనేషన్")
+        .replace("ఏఐ టెక్","ఏ ఐ టెక్");
+  }
+
   float[] render(String text, float rate) throws Exception {
+    text=spokenForm(text);
     // The planner inserts the following breath when merging segments. A standalone
     // prompt must also tell the autoregressive model where the utterance ends.
     String prompt=text.trim().replaceFirst("[,;:，；：]+$", ".");
     if (!prompt.matches("(?s).*[.!?।！？…]$")) prompt+=".";
-    // Telugu shaping controls render a glyph correctly in the editor, but the
-    // acoustic tokenizer may fall back to UTF-8 bytes for them.
-    prompt=prompt.replace("‌","").replace("‍","")
-        .replace("సబ్స్క్రైబ్","సబ్ స్క్రైబ్").replace("ఆఫ్లైన్","ఆఫ్ లైన్")
-        .replace("ఎక్స్పోర్ట్","ఎక్స్ పోర్ట్").replace("ఎక్స్ప్లనేషన్","ఎక్స్ ప్లనేషన్")
-        .replace("ఏఐ టెక్","ఏ ఐ టెక్");
     int[] ids=tokenizer.encode(prompt);
     float[] vec=condition==null?voices.get("vec_"+name):condition.speaker;
     float[] ref=condition==null?voices.get("ref_"+name):condition.ref;

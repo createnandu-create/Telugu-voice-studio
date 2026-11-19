@@ -28,12 +28,13 @@ public final class NarratorComparison {
       try(AlternativeVoice engine=voice.hima() ? new HimaVoice(new File(work,"hima"),voice.name,cancel)
           : new FastPitchVoice(new File(work,"indic"),voice.gender.equals("Male"),cancel)) {
         for(NarrationDirector.Segment segment:plan) {
-          String input=PronunciationLexicon.apply(segment.text,Map.of(),false);
+          String expanded=PronunciationLexicon.apply(segment.text,Map.of(),false);
+          String input=voice.hima() ? HimaVoice.spokenForm(expanded) : expanded;
           System.out.println(voice.name+" · "+input);
           float[] pcm=ConversationTiming.render(input,segment.rate,voice.sampleRate(),true,rate->engine.render(input,rate));
           File raw=new File(work,"raw.wav"), processed=new File(work,voice.id+"-"+pieces.size()+".wav");
           PcmWave.write(raw,pcm,voice.sampleRate());
-          VoiceDeliveryDsp.process(raw,processed,DeliveryControls.question(segment.text),false,null,cancel,true,false,clean);
+          VoiceDeliveryDsp.process(raw,processed,!fullScript && DeliveryControls.question(segment.text),false,null,cancel,true,false,clean);
           pieces.add(processed); spoken.add(input);
         }
       }
@@ -41,7 +42,7 @@ public final class NarratorComparison {
       PcmWave.mergeRaw(pieces,plan,merged,cancel);
       StudioMastering.Report report=StudioMastering.process(merged,new File(out,voice.id+".wav"),cancel,msg->{},false);
       Files.writeString(new File(out,voice.id+"-levels.json").toPath(),report.json());
-      Files.writeString(new File(out,"spoken.txt").toPath(),String.join(" ",spoken));
+      Files.writeString(new File(out,voice.id+"-spoken.txt").toPath(),String.join(" ",spoken));
     }
   }
 }

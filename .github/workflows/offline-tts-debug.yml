@@ -13,7 +13,7 @@ on:
 
 concurrency:
   group: telugu-voice-testing-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: write

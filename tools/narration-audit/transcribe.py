@@ -60,9 +60,9 @@ def distance(a,b):
         row = nxt
     return row[-1]
 
-expected = words((out / "spoken.txt").read_text())
 audit = {}
 for wav in sorted(out.glob("*.wav")):
+    expected = words((out / (wav.stem + "-spoken.txt")).read_text())
     mp3 = wav.with_suffix(".mp3")
     subprocess.run([ffmpeg,"-loglevel","error","-y","-i",str(wav),"-ar","44100","-ac","1",
                     "-c:a","libmp3lame","-b:a","96k",str(mp3)],check=True)

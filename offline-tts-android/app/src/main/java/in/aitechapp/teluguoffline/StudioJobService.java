@@ -282,6 +282,7 @@ public final class StudioJobService extends Service {
     org.json.JSONArray inputAudit = new org.json.JSONArray();
     for (NarrationDirector.Segment segment : renderSegments) {
       String spoken = speech.spoken(segment.text);
+      if (voice.hima()) spoken = HimaVoice.spokenForm(spoken);
       if (voice.tiny()) TinyVoice.tokens(spoken);
       spokenIdentity.append(spoken.length()).append(':').append(spoken);
       inputAudit.put(new JSONObject().put("original", segment.text).put("spoken", spoken));
@@ -343,7 +344,8 @@ public final class StudioJobService extends Service {
                   : new FastPitchVoice(pack,voice.gender.equals("Male"),cancelled);
             }
             AlternativeVoice engine = alternative;
-            String spoken = speech.spoken(s.text);
+            String expanded = speech.spoken(s.text);
+            String spoken = voice.hima() ? HimaVoice.spokenForm(expanded) : expanded;
             float[] samples = ConversationTiming.render(spoken,s.rate,voice.sampleRate(),speech.youtuber,
                 rate -> engine.render(spoken,rate));
             check();

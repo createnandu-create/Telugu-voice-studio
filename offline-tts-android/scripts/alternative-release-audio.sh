@@ -22,9 +22,19 @@ fetch "$hf/helo-ayush/itantra-models/resolve/78f9e2ce6fc3a508e4d68a67146579adfd7
 unzip -j -q "$tmp/te.zip" tts/fastpitch.onnx tts/hifigan.onnx -d "$tmp/indic"
 gzip -dc "$assets/fastpitch-pace.pb.gz" > "$tmp/indic/fastpitch-pace.pb"
 gzip -dc "$assets/hima-encoder.pb.gz" > "$tmp/clone/encoder.pb"
-maven=https://repo.maven.apache.org/maven2
+maven=https://maven-central.storage-download.googleapis.com/maven2
 fetch "$maven/com/microsoft/onnxruntime/onnxruntime/1.31.0/onnxruntime-1.31.0.jar" "$tmp/ort.jar"
 fetch "$maven/org/json/json/20240303/json-20240303.jar" "$tmp/json.jar"
 bash native/rnnoise/build.sh host "$tmp/librnnoise_offline.so"
 javac -encoding UTF-8 -sourcepath app/src/main/java -cp "$tmp/ort.jar:$tmp/json.jar" -d "$tmp/classes" tools/AlternativeReleaseAudio.java
 java -Djava.library.path="$tmp" -cp "$tmp/classes:$tmp/ort.jar:$tmp/json.jar" in.aitechapp.teluguoffline.AlternativeReleaseAudio "$tmp" "$out"
+
+mkdir -p "$tmp/audition"
+unzip -q "$tmp/te.zip" stt/indicconformer_int8.onnx stt/vocab.json -d "$tmp"
+javac -encoding UTF-8 -sourcepath app/src/main/java -cp "$tmp/classes:$tmp/ort.jar:$tmp/json.jar" -d "$tmp/classes" ../tools/narration-audit/NarratorComparison.java
+java -Djava.library.path="$tmp" -cp "$tmp/classes:$tmp/ort.jar:$tmp/json.jar" in.aitechapp.teluguoffline.NarratorComparison "$tmp" "$assets" "$tmp/audition"
+python3 -m venv "$tmp/venv"
+"$tmp/venv/bin/pip" -q install 'onnxruntime>=1.23,<2' scipy soundfile numpy imageio-ffmpeg
+"$tmp/venv/bin/python" ../tools/narration-audit/transcribe.py "$tmp" "$tmp/audition"
+(cd "$tmp/audition" && sha256sum *.mp3 > SHA256SUMS.txt && zip -q "$out/YouTube-Voice-Comparison.zip" *.mp3 *.txt *.json)
+cp "$tmp/audition/recognition.json" "$out/narration-recognition.json"

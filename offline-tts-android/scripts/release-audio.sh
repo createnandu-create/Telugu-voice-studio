@@ -26,7 +26,7 @@ a523c39fe6b5df3a8cc76953fce9572ea6b7d3b8677d9232a4d5968fec75c40d  flow_decoder.o
 54ea73764c46cdbb74af2124e30cce42007045f1f5a60bd7520472f155eb6f4c  tone_converter_q8.onnx
 SUMS
 )
-fetch https://repo.maven.apache.org/maven2/com/microsoft/onnxruntime/onnxruntime/1.31.0/onnxruntime-1.31.0.jar ort.jar
+fetch https://maven-central.storage-download.googleapis.com/maven2/com/microsoft/onnxruntime/onnxruntime/1.31.0/onnxruntime-1.31.0.jar ort.jar
 bash native/rnnoise/build.sh host "$work/librnnoise_offline.so"
 javac -encoding UTF-8 -sourcepath "$src" -cp "$work/ort.jar" -d "$work/classes" tools/ReleaseAudio.java
 run=(java -Djava.library.path="$work" -cp "$work/classes:$work/ort.jar" in.aitechapp.teluguoffline.ReleaseAudio)
@@ -40,7 +40,7 @@ python3 -m venv "$work/venv"
 "${run[@]}" retime "$work" "$assets" "$out"
 "$work/venv/bin/python" tools/piper-delivery-audit.py --models "$work" --espeak-dir "$phones" --output "$work" --plan "$work/plan.tsv" --retry
 "${run[@]}" render "$work" "$assets" "$out"
-fetch https://repo.maven.apache.org/maven2/de/sciss/jump3r/1.0.5/jump3r-1.0.5.jar jump3r.jar
+fetch https://maven-central.storage-download.googleapis.com/maven2/de/sciss/jump3r/1.0.5/jump3r-1.0.5.jar jump3r.jar
 javac -encoding UTF-8 -sourcepath "$src" -cp "$work/classes:$work/jump3r.jar" -d "$work/classes" tools/ReleaseMp3.java
 java -cp "$work/classes:$work/jump3r.jar" in.aitechapp.teluguoffline.ReleaseMp3 "$out"
 "$work/venv/bin/pip" install -q imageio-ffmpeg==0.6.0

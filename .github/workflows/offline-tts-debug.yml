@@ -95,6 +95,7 @@ jobs:
           bash offline-tts-android/scripts/release-audio.sh "$RUNNER_TEMP/listening"
           cp "$RUNNER_TEMP/listening/"{Padmavathi,Venkatesh,Indic_Tiny_Male,Indic_Tiny_Female}_Clean.mp3 dist/
           bash offline-tts-android/scripts/alternative-release-audio.sh "$RUNNER_TEMP/listening"
+          cp "$RUNNER_TEMP/listening/"{YouTube-Voice-Comparison.zip,narration-recognition.json} dist/
           cp "$RUNNER_TEMP/listening/"{hima-srinivas,hima-bhavana,fastpitch-male,fastpitch-female}.wav dist/
           (cd "$RUNNER_TEMP/listening" && sha256sum *.wav *.mp3 > SHA256SUMS.txt)
           (cd "$RUNNER_TEMP/listening" && zip -q "$GITHUB_WORKSPACE/dist/TeluguVoiceStudio-v0.8.6-audio.zip" ./*)

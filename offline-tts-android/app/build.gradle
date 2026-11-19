@@ -41,7 +41,7 @@ dependencies {
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }
 tasks.withType(Test).configureEach {
-    systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
+    systemProperty 'robolectric.dependency.repo.url', 'https://maven-central.storage-download.googleapis.com/maven2'
     ['https.proxyHost','https.proxyPort','http.proxyHost','http.proxyPort'].each { key ->
         if (System.getProperty(key) != null) systemProperty key, System.getProperty(key)
     }

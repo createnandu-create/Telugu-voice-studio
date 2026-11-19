@@ -1,10 +1,18 @@
 # Telugu Voice Studio — Android Offline Telugu Narrator
 
-**Android 15 · Nothing Phone (1) · 8 GB RAM · Snapdragon 778G+**
+**Android 15 · Nothing Phone (1) · 6 GB RAM · Snapdragon 778G+**
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
-## v0.8.5 downloads
+## v0.8.6 downloads
+
+[Unified Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.6-f910a7050d62/TeluguVoiceStudio-v0.8.6.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.6-f910a7050d62/TeluguVoiceStudio-v0.8.6-source.zip) · [Four new voices reading the same tech script](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.6-f910a7050d62/YouTube-Voice-Comparison.zip) · [All listening samples](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.6-f910a7050d62/TeluguVoiceStudio-v0.8.6-audio.zip)
+
+Download a speaker pack once in Settings → Offline models. Hima Nano includes Srinivas and Bhavana. Indic-TTS includes male and female FastPitch voices with HiFi-GAN. For a personal voice, open Settings → Voice cloning → Download Hima cloning, then use Create my Hima voice with a recording you have permission to use.
+
+The comparison ZIP contains the final MP3s, source script, loudness measurements and independent Telugu speech-recognition results. On this mixed Telugu and English script the recognizer made errors on names and abbreviations. Physical Nothing Phone (1) playback, audible ringing and similarity to the recorded speaker still need a listening check.
+
+## Previous v0.8.5 downloads
 
 [Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.5-8d151ede31a2/TeluguVoiceStudio-v0.8.5.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.5-8d151ede31a2/TeluguVoiceStudio-v0.8.5-source.zip) · [Matched audio comparisons](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.5-8d151ede31a2/TeluguVoiceStudio-v0.8.5-audio.zip)
 

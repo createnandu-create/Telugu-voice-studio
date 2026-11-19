@@ -101,6 +101,14 @@ final class PronunciationCheck implements AutoCloseable {
     return java.text.Normalizer.normalize(text,java.text.Normalizer.Form.NFC).replaceAll("[^\\p{L}\\p{M}\\p{N}]","");
   }
 
+  private static boolean hasFullBrand(String heard) {
+    String transcript = letters(heard);
+    int start = transcript.indexOf("ఏఐటె");
+    if (start < 0) return false;
+    int app = transcript.indexOf("యాప్", start);
+    return app >= 0 && app - start <= 14;
+  }
+
   static double error(String expected,String heard) {
     String a=letters(expected), b=letters(heard);
     int[] row=new int[b.length()+1];
@@ -114,7 +122,7 @@ final class PronunciationCheck implements AutoCloseable {
       }
     }
     double cost=row[b.length()]/(double)Math.max(1,a.length());
-    if(a.contains("ఏఐటెక్") && !b.contains("ఏఐటె")) cost+=.45;
+    if(a.contains("ఏఐటెక్") && !hasFullBrand(b)) cost+=.45;
     if(a.contains("వాట్ఏపర్ఫెక్ట్") && !b.contains("వాట్ఏ")) cost+=.25;
     return cost;
   }
@@ -150,7 +158,7 @@ final class PronunciationCheck implements AutoCloseable {
     String tail = text.substring(name.end()).trim();
     if (tail.isEmpty() || !Character.isLetter(tail.charAt(0))) return full;
     String heard = checker.recognize(full, hz);
-    if (letters(heard).contains("ఏఐటె")) return full;
+    if (hasFullBrand(heard)) return full;
     String lead = text.substring(0, name.end()).trim() + ".";
     try {
       float[] first = render(checker, lead, rate, hz, directed, speed -> voice.render(lead, speed));
@@ -160,7 +168,7 @@ final class PronunciationCheck implements AutoCloseable {
       float[] joined = Arrays.copyOf(first, first.length + gap + last.length);
       System.arraycopy(last, 0, joined, first.length + gap, last.length);
       String candidate = checker.recognize(joined, hz);
-      if (letters(candidate).contains("ఏఐటె") && error(text, candidate) < error(text, heard)) return joined;
+      if (hasFullBrand(candidate) && error(text, candidate) < error(text, heard)) return joined;
     } catch (ConversationTiming.UnusableTake ignored) {
       // Optional alternate phrasing exhausted its native takes. The full take remains playable.
     }

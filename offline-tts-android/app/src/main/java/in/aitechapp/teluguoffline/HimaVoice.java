@@ -112,6 +112,8 @@ final class HimaVoice extends AlternativeVoice {
 
   float[] render(String text, float rate) throws Exception {
     text=spokenForm(text);
+    // Karthik tends to omit the initial consonants of this isolated app name in lists.
+    if (name.equals("Karthik") && text.trim().equals("పిక్సెల్ ల్యాబ్,")) text="పిక్సెల్ ల్యాబ్!";
     // The planner inserts the following breath when merging segments. A standalone
     // prompt must also tell the autoregressive model where the utterance ends.
     String prompt=text.trim().replaceFirst("[,;:，；：]+$", ".");

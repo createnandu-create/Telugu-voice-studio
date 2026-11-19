@@ -9,7 +9,7 @@ assets="$(realpath app/src/main/assets)"
 src=app/src/main/java
 mkdir "$work/classes"
 fetch() {
-  local url="$1" dest="$2" mirror="https://maven-central.storage-download.googleapis.com/maven2/"
+  local url="$1" dest="$work/$2" mirror="https://maven-central.storage-download.googleapis.com/maven2/"
   if curl --fail --location --silent --show-error --retry 3 "$url" -o "$dest"; then return; fi
   if [[ "$url" != "$mirror"* ]]; then return 1; fi
   curl --fail --location --silent --show-error --retry 3 "https://repo.maven.apache.org/maven2/${url#"$mirror"}" -o "$dest"

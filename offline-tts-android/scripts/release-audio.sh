@@ -8,7 +8,12 @@ trap 'rm -rf "$work"' EXIT
 assets="$(realpath app/src/main/assets)"
 src=app/src/main/java
 mkdir "$work/classes"
-fetch() { curl --fail --location --silent --show-error --retry 3 "$1" -o "$work/$2"; }
+fetch() {
+  local url="$1" dest="$2" mirror="https://maven-central.storage-download.googleapis.com/maven2/"
+  if curl --fail --location --silent --show-error --retry 3 "$url" -o "$dest"; then return; fi
+  if [[ "$url" != "$mirror"* ]]; then return 1; fi
+  curl --fail --location --silent --show-error --retry 3 "https://repo.maven.apache.org/maven2/${url#"$mirror"}" -o "$dest"
+}
 for v in venkatesh padmavathi; do
   fetch "https://huggingface.co/rhasspy/piper-voices/resolve/cf910fb59f1d79ab3b625a63993a108751c6c25d/te/te_IN/$v/medium/te_IN-$v-medium.onnx" "$v.onnx"
 done

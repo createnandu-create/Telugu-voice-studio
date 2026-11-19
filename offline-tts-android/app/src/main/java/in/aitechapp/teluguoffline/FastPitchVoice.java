@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 final class FastPitchVoice extends AlternativeVoice {
   static final String TOPOLOGY_SHA="0b25a3e0ac90d65e74915fd6bf25221f9e5f31bf1362e185aa331550fe4b558e";
   // VitsCharacters: pad, punctuation, graphemes, blank. Duplicate symbols use the last ID.
-  private static final String SYMBOLS = "!¡'(),-.:;¿?  !',.:;?oంఃఅఆఇఈఉఊఋఎఏఐఒఓఔకఖగఘఙచఛజఝఞటఠడఢణతథదధనపఫబభమయరఱలళవశషసహాిీుూృెేైొోౌ్”﻿";
+  private static final String SYMBOLS = "!¡'(),-.:;¿?  !',.:;?oంఃఅఆఇఈఉఊఋఎఏఐఒఓఔకఖగఘఙచఛజఝఞటఠడఢణతథదధనపఫబభమయరఱలళవశషసహాిీుూృెేైొోౌ్”\uFEFF";
   private final OrtSession acoustic, vocoder;
   private final long speaker;
 

@@ -6,7 +6,12 @@ assets="$(realpath app/src/main/assets)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp"/{hima,clone,ecapa,indic,classes} "$out"
-fetch() { curl --fail --location --silent --show-error --retry 3 "$1" -o "$2"; }
+fetch() {
+  local url="$1" dest="$2" mirror="https://maven-central.storage-download.googleapis.com/maven2/"
+  if curl --fail --location --silent --show-error --retry 3 "$url" -o "$dest"; then return; fi
+  if [[ "$url" != "$mirror"* ]]; then return 1; fi
+  curl --fail --location --silent --show-error --retry 3 "https://repo.maven.apache.org/maven2/${url#"$mirror"}" -o "$dest"
+}
 hf=https://huggingface.co
 hima="$hf/Prahaladha/hima-tts-nano-te-ONNX/resolve/8fd92e3956163815892f6adcf7e3aae91e70272b"
 for p in prefix.safetensors tokenizer.model voices/voices.safetensors onnx/decoder_int8.onnx onnx/voices/step_int8.onnx onnx/voices/frame_int8.onnx; do

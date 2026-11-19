@@ -207,7 +207,7 @@ public final class StudioJobService extends Service {
         batch.put("next", n + 1);
         FileIntegrity.write(state, batch.toString());
       }
-      if (batch.has("failure")) status = "Queue finished · " + batch.getString("failure");
+      if (batch.has("failure")) status = "Failed · " + batch.getString("failure");
       state.delete();
     } catch (CancellationException e) {
       state.delete();
@@ -264,7 +264,7 @@ public final class StudioJobService extends Service {
     boolean soft = voice.tiny() && speech.femaleSoftening && voice.gender.equals("Female");
     boolean waveformQuestions = speech.questionLift;
     StringBuilder spokenIdentity =
-        new StringBuilder("delivery-v085-acoustic/")
+        new StringBuilder((voice.hima() ? "hima-diction-v087/" : "delivery-v085-acoustic/"))
             .append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)

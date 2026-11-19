@@ -66,7 +66,11 @@ public final class ModelCatalog {
     new Voice("hima-srinivas","Srinivas","Male","","hima-srinivas-8fd92e39"),
     new Voice("hima-bhavana","Bhavana","Female","","hima-bhavana-8fd92e39"),
     new Voice("fastpitch-male","Indic-TTS Male","Male","","fastpitch-male-78f9e2ce"),
-    new Voice("fastpitch-female","Indic-TTS Female","Female","","fastpitch-female-78f9e2ce")
+    new Voice("fastpitch-female","Indic-TTS Female","Female","","fastpitch-female-78f9e2ce"),
+    new Voice("hima-lakshmi","Lakshmi","Female","","hima-lakshmi-8fd92e39"),
+    new Voice("hima-sravani","Sravani","Female","","hima-sravani-8fd92e39"),
+    new Voice("hima-karthik","Karthik","Male","","hima-karthik-8fd92e39"),
+    new Voice("hima-pranay","Pranay","Male","","hima-pranay-8fd92e39")
   };
 
   public static int previewBase(String label, int selected) {

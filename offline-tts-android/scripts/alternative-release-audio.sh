@@ -25,8 +25,14 @@ done
 fetch "$hf/helo-ayush/itantra-models/resolve/78f9e2ce6fc3a508e4d68a67146579adfd7add42/te-IN-1.0.0.itantra" "$tmp/te.zip"
 (cd "$tmp" && echo '79fa256cac907c2e86a8093f9c1d1bcab14d9ee1c7cc1f0b4b578386c07bf68b  te.zip' | sha256sum -c -)
 unzip -j -q "$tmp/te.zip" tts/fastpitch.onnx tts/hifigan.onnx -d "$tmp/indic"
-gzip -dc "$assets/fastpitch-pace.pb.gz" > "$tmp/indic/fastpitch-pace.pb"
-gzip -dc "$assets/hima-encoder.pb.gz" > "$tmp/clone/encoder.pb"
+# Exercise the graphs actually installed by Android's APK asset pipeline.
+if [[ -n ${2:-} ]]; then
+  unzip -p "$2" assets/fastpitch-pace.pb.bin | gzip -dc > "$tmp/indic/fastpitch-pace.pb"
+  unzip -p "$2" assets/hima-encoder.pb.bin | gzip -dc > "$tmp/clone/encoder.pb"
+else
+  gzip -dc "$assets/fastpitch-pace.pb.bin" > "$tmp/indic/fastpitch-pace.pb"
+  gzip -dc "$assets/hima-encoder.pb.bin" > "$tmp/clone/encoder.pb"
+fi
 maven=https://maven-central.storage-download.googleapis.com/maven2
 fetch "$maven/com/microsoft/onnxruntime/onnxruntime/1.31.0/onnxruntime-1.31.0.jar" "$tmp/ort.jar"
 fetch "$maven/org/json/json/20240303/json-20240303.jar" "$tmp/json.jar"
@@ -43,3 +49,13 @@ python3 -m venv "$tmp/venv"
 "$tmp/venv/bin/python" ../tools/narration-audit/transcribe.py "$tmp" "$tmp/audition"
 (cd "$tmp/audition" && sha256sum *.mp3 > SHA256SUMS.txt && zip -q "$out/YouTube-Voice-Comparison.zip" *.mp3 *.txt *.json)
 cp "$tmp/audition/recognition.json" "$out/narration-recognition.json"
+
+mkdir -p "$tmp/demo"
+java -Djava.library.path="$tmp" -cp "$tmp/classes:$tmp/ort.jar:$tmp/json.jar" in.aitechapp.teluguoffline.NarratorComparison "$tmp" "$assets" "$tmp/demo" --demo
+"$tmp/venv/bin/python" - "$tmp/demo" "$out" <<'PYTHON'
+import imageio_ffmpeg, pathlib, subprocess, sys
+work, out = map(pathlib.Path, sys.argv[1:])
+for voice in ("srinivas","bhavana"):
+    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-v", "error", "-y", "-i", str(work/f"hima-{voice}.wav"),
+                    "-ac","1","-b:a","96k",str(out/f"{voice}-full-demo.mp3")],check=True)
+PYTHON

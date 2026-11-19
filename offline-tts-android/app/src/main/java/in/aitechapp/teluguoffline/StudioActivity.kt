@@ -128,10 +128,12 @@ class StudioActivity : ComponentActivity() {
                 MediaPlayer().apply {
                     setDataSource(file.path)
                     prepare()
-                    setOnCompletionListener {
-                        playingFile = null
-                        player?.release()
-                        player = null
+                    setOnCompletionListener { finished ->
+                        if (player === finished) {
+                            playingFile = null
+                            player = null
+                        }
+                        finished.release()
                     }
                     start()
                 }
@@ -264,6 +266,7 @@ fun StudioApp(
         when {
             vm.page.isNotEmpty() -> vm.page = ""
             vm.tab != "Studio" -> vm.navigate("Studio")
+            vm.step == 3 && !vm.busy -> vm.resetToScript()
             else -> vm.step--
         }
     }
@@ -977,12 +980,12 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(
-                    onClick = { vm.step = 2 },
+                    onClick = { if (vm.busy) vm.step = 2 else vm.resetToScript() },
                     modifier = Modifier.weight(.45f).height(48.dp),
                     contentPadding = PaddingValues(4.dp),
                     shape = RoundedCornerShape(50),
                 ) {
-                    Text("← Review direction", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                    Text(if (vm.busy) "← Direction" else "Reset & back", fontSize = 11.sp, maxLines = 1, softWrap = false)
                 }
                 Button(
                     onClick = vm::openSavedFolder,

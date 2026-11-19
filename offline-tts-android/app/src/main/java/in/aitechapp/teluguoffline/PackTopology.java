@@ -10,7 +10,7 @@ final class PackTopology {
   static void prepare(Context context,File file,String digest) throws IOException {
     if(FileIntegrity.matches(file,digest)) return;
     File staged=new File(file+".staging");
-    try(InputStream in=new GZIPInputStream(context.getAssets().open(file.getName()+".gz"));
+    try(InputStream in=new GZIPInputStream(context.getAssets().open(file.getName()+".bin"));
         OutputStream out=new FileOutputStream(staged)) {
       byte[] b=new byte[32768]; int n;
       while((n=in.read(b))!=-1) out.write(b,0,n);

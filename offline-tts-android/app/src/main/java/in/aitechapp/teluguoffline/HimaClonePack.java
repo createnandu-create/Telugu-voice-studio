@@ -53,7 +53,7 @@ final class HimaClonePack {
         new ResumableDownload().fetch(URL[i],part,SIZE[i],SHA[i],cancel,
             (bytes,total)->progress.update("Downloading Hima cloning · "+name+" · "+(100*bytes/total)+"%"));
       } else {
-        try(InputStream in=new GZIPInputStream(context.getAssets().open("hima-encoder.pb.gz"));
+        try(InputStream in=new GZIPInputStream(context.getAssets().open("hima-encoder.pb.bin"));
             OutputStream out=new FileOutputStream(part)) {
           byte[] buffer=new byte[32768]; int n;
           while((n=in.read(buffer))!=-1) out.write(buffer,0,n);

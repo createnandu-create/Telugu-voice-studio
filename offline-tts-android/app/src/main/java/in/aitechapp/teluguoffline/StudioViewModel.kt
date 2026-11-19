@@ -42,7 +42,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var page by mutableStateOf("")
     var script by
         mutableStateOf(
-            prefs.getString("script", "నమస్కారం ఫ్రెండ్స్! ఇప్పుడు ఇక్కడ క్లిక్ చేయండి.") ?: ""
+            prefs.getString("script", null)?.takeUnless { it == "నమస్కారం ఫ్రెండ్స్! ఇప్పుడు ఇక్కడ క్లిక్ చేయండి." }
+                ?: app.assets.open("studio-demo.txt").bufferedReader().use { it.readText().trimEnd() }
         )
     var voice by
         mutableIntStateOf(prefs.getInt("voice", 0).coerceIn(0, ModelCatalog.VOICES.lastIndex))
@@ -52,7 +53,6 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var busy by mutableStateOf(false)
     var downloadingVoice by mutableIntStateOf(-1)
     var status by mutableStateOf("Ready · everything happens on your phone")
-    private var observedJob = false
     var notice by mutableStateOf("")
     var verifying by mutableIntStateOf(-1)
     var verification by mutableStateOf<Map<Int, String>>(emptyMap())
@@ -99,6 +99,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var comparisons by mutableStateOf<List<Pair<String, File>>>(emptyList())
     private var persistJob: Job? = null
     var playbackEpoch by mutableIntStateOf(0)
+    private var observedServiceAction = false
     private var activeRunId = ""
     private var workspaceRevision = 0
     private var generatePending = false
@@ -154,9 +155,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             while (isActive) {
                 busy = StudioJobService.busy
                 downloadingVoice = StudioJobService.downloadingVoice
-                if (busy) observedJob = true
+                if (busy && StudioJobService.runId.isEmpty()) observedServiceAction = true
                 status =
-                    if (busy || observedJob || activeRunId.isNotEmpty()) StudioJobService.status
+                    if ((activeRunId.isNotEmpty() && StudioJobService.runId == activeRunId) ||
+                        (observedServiceAction && StudioJobService.runId.isEmpty())) StudioJobService.status
                     else "Ready · everything happens on your phone"
                 recording = VoiceRecordingService.active
                 paused = VoiceRecordingService.clock.state() == RecordingClock.State.PAUSED
@@ -199,7 +201,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     private fun clearActiveAudio() {
         requestedSelection = null
         workspaceRevision++
-        observedJob = false
+        observedServiceAction = false
         status = "Ready · everything happens on your phone"
         activeRunId = ""
         latest = null
@@ -225,6 +227,19 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
         if (autoRender && script.isNotBlank() && models.any { it.index == index && it.ready } &&
             !(activeRunId.isNotEmpty() && busy)) requestedSelection = workspaceRevision
+    }
+
+    fun resetToScript() {
+        clearActiveAudio()
+        activeClone = ""
+        plan = emptyList()
+        plannedScript = ""
+        applyControls(controlsFor(voice, ""))
+        inlineExport = false
+        notice = ""
+        step = 0
+        navigate("Studio")
+        persist()
     }
 
     fun choose(index: Int, autoRender: Boolean = false) = selectNarrator(index, "", autoRender)
@@ -396,7 +411,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                         batch.toString(),
                     )
                 }
-                if (revision != workspaceRevision) return@work
+                if (revision != workspaceRevision) {
+                    withContext(Dispatchers.IO) { File(getApplication<Application>().filesDir, "batch-$id.json").delete() }
+                    return@work
+                }
                 startJob("render", id = id)
                 step = 3
             } finally {
@@ -495,7 +513,10 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                             .put("next", 0).put("speech", controls.json()).toString(),
                     )
                 }
-                if (revision != workspaceRevision) return@work
+                if (revision != workspaceRevision) {
+                    withContext(Dispatchers.IO) { File(getApplication<Application>().filesDir, "batch-$id.json").delete() }
+                    return@work
+                }
                 startJob("render", id = id)
                 step = 3
             } finally {
@@ -620,7 +641,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             if (started) {
                 while (StudioJobService.busy) delay(250)
                 val file = StudioJobService.result
-                if (file != null && StudioJobService.status.startsWith("Ready")) {
+                if (file != null && activeRunId.isNotEmpty() && StudioJobService.resultRunId == activeRunId && StudioJobService.status.startsWith("Ready")) {
                     val identity = withContext(Dispatchers.IO) { AudioIdentity.read(file) }
                     if (
                         workspaceRevision == previewRevision &&
@@ -1046,9 +1067,15 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private var refreshPending = false
+
     fun refresh() {
-        if (loading) return
+        if (loading) {
+            refreshPending = true
+            return
+        }
         val selectedAtStart = latest
+        val revisionAtStart = workspaceRevision
         loading = true
         work {
             try {
@@ -1147,12 +1174,16 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 if (
                     completed != null &&
-                        latest == selectedAtStart &&
+                        revisionAtStart == workspaceRevision && latest == selectedAtStart &&
                         latest?.parent != completed.parent
                 )
                     latest = completed
             } finally {
                 loading = false
+                if (refreshPending) {
+                    refreshPending = false
+                    refresh()
+                }
             }
         }
     }

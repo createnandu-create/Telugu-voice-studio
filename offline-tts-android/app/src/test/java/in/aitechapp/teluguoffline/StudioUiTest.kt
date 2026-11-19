@@ -160,6 +160,27 @@ class StudioUiTest {
     }
 
     @Test
+    fun resetReturnsToScriptAndDiscardsOnlyTheActiveTake() {
+        compose.runOnIdle {
+            val vm = androidx.lifecycle.ViewModelProvider(compose.activity)[StudioViewModel::class.java]
+            val saved = File(compose.activity.filesDir, "saved-take.wav").apply { writeBytes(byteArrayOf(1)) }
+            vm.edit("నా తెలుగు స్క్రిప్ట్")
+            vm.choose(9)
+            vm.latest = saved
+            vm.playbackRequest = saved
+            vm.step = 3
+            vm.resetToScript()
+            org.junit.Assert.assertEquals(0, vm.step)
+            org.junit.Assert.assertEquals("నా తెలుగు స్క్రిప్ట్", vm.script)
+            org.junit.Assert.assertNull(vm.latest)
+            org.junit.Assert.assertNull(vm.playbackRequest)
+            org.junit.Assert.assertTrue(saved.isFile)
+            vm.choose(10)
+            org.junit.Assert.assertEquals("Karthik", ModelCatalog.VOICES[vm.voice].name)
+        }
+    }
+
+    @Test
     fun voiceSwitchClearsPlaybackAndColdWorkspaceKeepsSavedProjects() {
         val file =
             File(compose.activity.filesDir, "old-result.wav").apply { writeBytes(byteArrayOf(1)) }

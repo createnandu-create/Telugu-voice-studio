@@ -13,11 +13,15 @@ public final class NarratorComparison {
     try (InputStream in=new FileInputStream(new File(assets,"english-cmudict.bin"))) {
       DynamicEnglishPhonetizer.load(in);
     }
-    Files.writeString(new File(out,"script.txt").toPath(),SCRIPT);
+    boolean fullScript=args.length==4 && args[3].equals("--demo");
+    String script=fullScript ? Files.readString(new File(assets,"studio-demo.txt").toPath()).trim() : SCRIPT;
+    Files.writeString(new File(out,"script.txt").toPath(),script);
     List<NarrationDirector.Segment> plan=DeliveryControls.expand(
-        NarrationDirector.planExact(SCRIPT,NarrationDirector.Style.AUTO),true,true);
+        NarrationDirector.planExact(script,NarrationDirector.Style.AUTO),true,true);
+    plan.removeIf(segment -> PronunciationLexicon.apply(segment.text,Map.of(),false).isBlank());
     for(int i=4;i<ModelCatalog.VOICES.length;i++) {
       ModelCatalog.Voice voice=ModelCatalog.VOICES[i];
+      if(fullScript && i!=4 && i!=5) continue;
       List<File> pieces=new ArrayList<>();
       List<String> spoken=new ArrayList<>();
       RenderCleanup.Cleaner clean=RenderCleanup.forVoice(i,false,cancel);
@@ -25,6 +29,7 @@ public final class NarratorComparison {
           : new FastPitchVoice(new File(work,"indic"),voice.gender.equals("Male"),cancel)) {
         for(NarrationDirector.Segment segment:plan) {
           String input=PronunciationLexicon.apply(segment.text,Map.of(),false);
+          System.out.println(voice.name+" · "+input);
           float[] pcm=ConversationTiming.render(input,segment.rate,voice.sampleRate(),true,rate->engine.render(input,rate));
           File raw=new File(work,"raw.wav"), processed=new File(work,voice.id+"-"+pieces.size()+".wav");
           PcmWave.write(raw,pcm,voice.sampleRate());

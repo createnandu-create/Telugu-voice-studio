@@ -33,6 +33,7 @@ public final class DynamicEnglishPhonetizer {
     WORDS.put("vocal", "వోకల్");
     WORDS.put("dna", "డీ ఎన్ ఏ");
     WORDS.put("ai", "ఏఐ");
+    WORDS.put("subscribe", "సబ్‌స్క్రైబ్");
     WORDS.put("youtube", "యూట్యూబ్");
     WORDS.put("hello", "హలో");
     WORDS.put("friends", "ఫ్రెండ్స్");

@@ -106,6 +106,12 @@ final class HimaVoice extends AlternativeVoice {
     // prompt must also tell the autoregressive model where the utterance ends.
     String prompt=text.trim().replaceFirst("[,;:，；：]+$", ".");
     if (!prompt.matches("(?s).*[.!?।！？…]$")) prompt+=".";
+    // Telugu shaping controls render a glyph correctly in the editor, but the
+    // acoustic tokenizer may fall back to UTF-8 bytes for them.
+    prompt=prompt.replace("‌","").replace("‍","")
+        .replace("సబ్స్క్రైబ్","సబ్ స్క్రైబ్").replace("ఆఫ్లైన్","ఆఫ్ లైన్")
+        .replace("ఎక్స్పోర్ట్","ఎక్స్ పోర్ట్").replace("ఎక్స్ప్లనేషన్","ఎక్స్ ప్లనేషన్")
+        .replace("ఏఐ టెక్","ఏ ఐ టెక్");
     int[] ids=tokenizer.encode(prompt);
     float[] vec=condition==null?voices.get("vec_"+name):condition.speaker;
     float[] ref=condition==null?voices.get("ref_"+name):condition.ref;
@@ -115,7 +121,7 @@ final class HimaVoice extends AlternativeVoice {
     int limit=Math.min(LIMIT,Math.max(40,(int)Math.ceil((.184*chars+1)*12.5)));
     Random random=new Random(31L*text.hashCode()+name.hashCode()+Float.floatToIntBits(rate)-Float.floatToIntBits(1f));
     for(int attempt=0;attempt<3;attempt++) {
-      float[] pcm=take(rows,head,limit,random);
+      float[] pcm=take(rows,head,Math.min(LIMIT,limit + attempt * 12),random);
       if (pcm!=null && audible(pcm)) return pcm;
     }
     throw new ConversationTiming.UnusableTake("Hima could not finish this phrase clearly. Shorten the sentence and retry.");

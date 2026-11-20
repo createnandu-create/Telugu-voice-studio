@@ -41,6 +41,10 @@ public class V080Test {
       {"శ్రావ్యమైన శ్రోతలకు కర్కశ", "శ్రావ్యమైన శ్రోతలకు కర్కశ"}
     };
     SpeechSettings settings = new SpeechSettings();
+    assertTrue(settings.explainTechnical);
+    assertEquals("పదహారు భాగాలకు తొమ్మిది భాగాలు", settings.spoken("16:9"));
+    assertEquals("ఇరవై ఐదు యొక్క వర్గమూలం ఐదు", settings.spoken("√25 = 5"));
+    settings.explainTechnical = false;
     for (String[] pair : cases) {
       String spoken = settings.spoken(pair[0]).trim().replaceAll("\\s+", " ");
       assertEquals(pair[0], pair[1], spoken);

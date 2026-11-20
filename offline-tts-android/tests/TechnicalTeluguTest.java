@@ -29,6 +29,20 @@ public final class TechnicalTeluguTest {
     contains("00:02:10", "రెండు నిమిషాలు పది సెకన్లు");
     contains("3 < 12", "మూడు అనేది పన్నెండు కంటే తక్కువ");
     contains("√25 = 6", "వర్గమూలం ఆరు");
+    contains("Temperature is -5°C.", "ఉష్ణోగ్రత మైనస్ ఐదు డిగ్రీల సెల్సియస్");
+    contains("37.5℃", "ముప్పై ఏడు పాయింట్ ఐదు డిగ్రీల సెల్సియస్");
+    contains("−40 °F", "మైనస్ నలభై డిగ్రీల ఫారన్‌హీట్");
+    contains("12 cm²", "పన్నెండు చదరపు సెంటీమీటర్లు");
+    contains("2 m³", "రెండు ఘనపు మీటర్లు");
+    contains("30 km/h", "ముప్పై కిలోమీటర్లు గంటకు");
+    contains("5 μs", "ఐదు మైక్రోసెకన్లు");
+    contains("220 Ω", "రెండు వందల ఇరవై ఓములు");
+    contains("V25 = 5", "వీ ఇరవై ఐదు సమానం ఐదు");
+    contains("2x = 10", "రెండు ఎక్స్ సమానం పది");
+    contains("9:16; √144 = 12; 8K", "తొమ్మిది భాగాలకు పదహారు భాగాలు");
+    contains("9:16; √144 = 12; 8K", "నూట నలభై నాలుగు యొక్క వర్గమూలం పన్నెండు");
+    contains("44.1 kHz", "నలభై నాలుగు పాయింట్ ఒకటి కిలోహెర్ట్జ్");
+    if (read("V25 = 5").contains("వర్గమూలం")) throw new AssertionError("Never guess a root from V");
     if (read("1/3?").contains("సమాధానం") || read("4+2*3?").contains("సమాధానం"))
       throw new AssertionError("Do not guess results outside the exact solver");
     if (!PronunciationLexicon.apply("16:9",Collections.emptyMap(),false,false).contains("ఈజ్ టు"))

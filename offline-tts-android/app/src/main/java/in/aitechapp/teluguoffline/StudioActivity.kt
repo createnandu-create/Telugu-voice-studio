@@ -2385,7 +2385,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
     Panel {
         SectionLabel("OFFLINE DELIVERY CONTROLS")
         Text(if (vm.activeClone.isEmpty()) ModelCatalog.VOICES[vm.voice].name else vm.profiles.firstOrNull { it.id == vm.activeClone }?.name ?: "Cloned voice", style = MaterialTheme.typography.titleMedium)
-        Text("Offline speech cleanup · automatic", color = Muted)
+        Text("Keep the model’s tone, or compare optional cleanup. Recording enhancement is separate.", color = Muted)
         listOf(
                 Triple("youtuber", "YouTuber delivery · conversational timing", vm.youtuber),
 
@@ -2394,6 +2394,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
                 Triple("comma", "Comma breath · 110 ms", vm.commaBuffer),
                 Triple("careful", "Careful pace · complex clauses", vm.carefulDiction),
                 Triple("soft", "Female tone · gentle EQ", vm.femaleSoftening),
+                Triple("cleanup", "Narration cleanup + tone EQ · optional", vm.synthesisCleanup),
             )
             .filter { it.first != "soft" || (vm.activeClone.isEmpty() && ModelCatalog.VOICES[vm.voice].tiny() && ModelCatalog.VOICES[vm.voice].gender == "Female") }
             .forEach { (key, label, enabled) ->

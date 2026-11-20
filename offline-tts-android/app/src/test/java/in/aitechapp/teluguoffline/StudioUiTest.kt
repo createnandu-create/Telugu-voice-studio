@@ -149,7 +149,8 @@ class StudioUiTest {
             org.junit.Assert.assertFalse(vm.warmthEq)
             vm.choose(3)
             org.junit.Assert.assertTrue(vm.youtuber)
-            org.junit.Assert.assertTrue(vm.femaleSoftening)
+            org.junit.Assert.assertFalse(vm.femaleSoftening)
+            org.junit.Assert.assertFalse(vm.synthesisCleanup)
             org.junit.Assert.assertFalse(vm.carefulDiction)
             org.junit.Assert.assertFalse(vm.questionLift)
             vm.choose(2)
@@ -207,7 +208,7 @@ class StudioUiTest {
                     fresh.commaBuffer &&
                     (fresh.carefulDiction == !ModelCatalog.VOICES[fresh.voice].tiny())
             )
-            org.junit.Assert.assertEquals(fresh.voice == 3, fresh.femaleSoftening)
+            org.junit.Assert.assertFalse(fresh.femaleSoftening)
             org.junit.Assert.assertTrue(file.isFile)
             androidx.lifecycle.ViewModelStore().apply {
                 put("fresh", fresh)

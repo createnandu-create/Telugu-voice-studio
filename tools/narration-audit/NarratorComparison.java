@@ -28,7 +28,7 @@ public final class NarratorComparison {
       if(fullScript && i!=4 && i!=5 && !voice.name.equals("Karthik")) continue;
       List<File> pieces=new ArrayList<>();
       List<String> spoken=new ArrayList<>();
-      RenderCleanup.Cleaner clean=RenderCleanup.forVoice(i,false,cancel);
+      RenderCleanup.Cleaner clean=null; // Current default: preserve the native tone.
       try(PronunciationCheck checker=new PronunciationCheck(new File(work,"stt"),cancel);
           AlternativeVoice engine=voice.hima() ? new HimaVoice(new File(work,"hima"),voice.name,cancel)
           : new FastPitchVoice(new File(work,"indic"),voice.gender.equals("Male"),cancel)) {
@@ -39,7 +39,7 @@ public final class NarratorComparison {
           float[] pcm=PronunciationCheck.renderNamed(checker,input,segment.rate,voice.sampleRate(),true,engine);
           File raw=new File(work,"raw.wav"), processed=new File(work,voice.id+"-"+pieces.size()+".wav");
           PcmWave.write(raw,pcm,voice.sampleRate());
-          VoiceDeliveryDsp.process(raw,processed,!technical && !fullScript && DeliveryControls.question(segment.text),false,null,cancel,true,false,clean);
+          VoiceDeliveryDsp.process(raw,processed,!technical && !fullScript && DeliveryControls.question(segment.text),false,null,cancel,false,false,clean);
           pieces.add(processed); spoken.add(input);
         }
       }

@@ -83,6 +83,8 @@ public final class MathScienceNormalizer {
             .replace("#", " హ్యాష్ ");
     s = replace(s, "(?i)(?<![A-Za-z0-9])4K(?![A-Za-z0-9])", m -> "ఫోర్ కే");
     s = replace(s, "(?i)([0-9]+)\\s*[-–]\\s*D\\b", m -> numeric(m.group(1)) + " డీ");
+    // Keep variable/model labels separate from their numeric values. V25 is not a square root.
+    s = s.replaceAll("(?<=[A-Za-z])(?=[0-9])|(?<=[0-9])(?=[A-Za-z])", " ");
     s = replace(s, "\\\\sqrt\\s*\\{([^{}]*)\\}", m -> "రూట్ " + m.group(1));
     s = s.replace("√", " రూట్ ").replace("=", " సమానం ").replace("%", " శాతం ");
     s =

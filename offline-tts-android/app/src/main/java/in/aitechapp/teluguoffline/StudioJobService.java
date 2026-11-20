@@ -275,7 +275,7 @@ public final class StudioJobService extends Service {
     boolean checkWords=getSharedPreferences("StudioActivity", 0).getBoolean("verifyWords", true) && checkerPack.ready();
     StringBuilder spokenIdentity =
         new StringBuilder((voice.hima() ? "hima-diction-v087/" : "delivery-v085-acoustic/"))
-            .append("studio-v089/").append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
+            .append("studio-v0810/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
             .append('/')
@@ -320,6 +320,7 @@ public final class StudioJobService extends Service {
             .put("youtuber_controls", speech.youtuber)
             .put("tiny_duration_guard", speech.durationGuard)
             .put("female_softening", soft)
+            .put("synthesis_cleanup", speech.synthesisCleanup)
             .put("comma_buffer_ms", speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
             .put("careful_diction", speech.carefulDiction);
     FileIntegrity.write(new File(journal.directory, "render-identity.json"), identity.toString(2));
@@ -367,7 +368,7 @@ public final class StudioJobService extends Service {
             float[] samples = PronunciationCheck.render(checker,spoken, s.rate, 24000, speech.youtuber,
                 rate -> {
                   check();
-                  return engine.generate(spoken, voice.gender.equals("Male"), rate, s.text.hashCode(), false, false);
+                  return engine.generate(spoken, voice.gender.equals("Male"), rate, s.text.hashCode(), false, false, speech.synthesisCleanup);
                 });
             check();
             PcmWave.write(journal.chunk(i), samples, 24000);
@@ -495,7 +496,8 @@ public final class StudioJobService extends Service {
     int lifted = 0, requested = 0;
     org.json.JSONArray controlAudit = new org.json.JSONArray();
     {
-      RenderCleanup.Cleaner enhancer = RenderCleanup.forVoice(plan.voice, cloned, cancelled);
+      RenderCleanup.Cleaner enhancer = speech.synthesisCleanup
+          ? RenderCleanup.forVoice(plan.voice, cloned, cancelled) : null;
       List<File> controlled = new ArrayList<>();
       File controlledDir = new File(journal.directory, "delivery");
       controlledDir.mkdirs();
@@ -514,7 +516,7 @@ public final class StudioJobService extends Service {
                   question,
                   soft,
                   null,
-                  cancelled, true, voice.tiny() || cloned, enhancer);
+                  cancelled, speech.synthesisCleanup, voice.tiny() || cloned, enhancer);
           if (question && applied.lifted) lifted++;
           controlAudit.put(
               new JSONObject()
@@ -557,7 +559,7 @@ public final class StudioJobService extends Service {
             .put("cloned", cloned)
             .put("base_voice", voice.id)
             .put("warmth_eq", false)
-            .put("speech_cleanup", "speech-decay-v1")
+            .put("speech_cleanup", speech.synthesisCleanup ? "speech-decay-v1" : "off")
             .put("native_warmth_comparison", speech.warmthEq)
             .put("head_padding_ms", PcmWave.HEAD_PADDING_MS)
             .put("tail_padding_ms", PcmWave.TAIL_PADDING_MS)

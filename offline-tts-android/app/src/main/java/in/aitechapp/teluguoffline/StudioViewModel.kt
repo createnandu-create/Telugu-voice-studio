@@ -93,7 +93,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var durationGuard by mutableStateOf(false)
     var questionLift by mutableStateOf(false)
     var commaBuffer by mutableStateOf(true)
-    var femaleSoftening by mutableStateOf(ModelCatalog.VOICES[voice].tiny() && ModelCatalog.VOICES[voice].gender == "Female")
+    var femaleSoftening by mutableStateOf(false)
+    var synthesisCleanup by mutableStateOf(false)
     var carefulDiction by mutableStateOf(!ModelCatalog.VOICES[voice].tiny())
     var explainTechnical by mutableStateOf(true)
         private set
@@ -123,6 +124,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 }
             entries = speech.dictionary.toMap()
             explainTechnical = speech.explainTechnical
+            synthesisCleanup = speech.synthesisCleanup
             readDigits = speech.readDigits
             applyControls(controlsFor(voice, activeClone))
             settingsLoaded = true
@@ -341,6 +343,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun neutral() {
+        synthesisCleanup = false
         durationGuard = false
         commaBuffer = false
         femaleSoftening = false
@@ -998,6 +1001,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             "question" -> questionLift = enabled
             "comma" -> commaBuffer = enabled
             "soft" -> femaleSoftening = enabled
+            "cleanup" -> synthesisCleanup = enabled
             "careful" -> carefulDiction = enabled
         }
         saveSpeech()
@@ -1014,6 +1018,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             s.questionLift = questionLift
             s.commaBuffer = commaBuffer
             s.femaleSoftening = femaleSoftening
+            s.synthesisCleanup = synthesisCleanup
             s.carefulDiction = carefulDiction
         }
 
@@ -1021,7 +1026,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         val model = ModelCatalog.VOICES[base]
         val s = SpeechSettings().also {
             it.questionLift = false
-            it.femaleSoftening = model.tiny() && model.gender == "Female" && clone.isEmpty()
+            it.femaleSoftening = false
+            it.synthesisCleanup = synthesisCleanup
             it.carefulDiction = !model.tiny()
         }
         s.dictionary.putAll(entries)
@@ -1036,6 +1042,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         questionLift = s.questionLift
         commaBuffer = s.commaBuffer
         femaleSoftening = s.femaleSoftening
+        synthesisCleanup = s.synthesisCleanup
         carefulDiction = s.carefulDiction
         warmthEq = s.warmthEq
     }

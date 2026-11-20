@@ -63,6 +63,43 @@ public class DeliveryIntegrationTest {
   }
 
   @Test
+  public void cleanupIsOptInAndSurvivesTheQueuedSpeechSnapshot() throws Exception {
+    SpeechSettings settings = new SpeechSettings();
+    assertFalse(settings.synthesisCleanup);
+    // Old settings without this key must not silently enable sound processing on upgrade.
+    assertFalse(SpeechSettings.fromJson(new JSONObject().put("entries", new JSONObject())).synthesisCleanup);
+    settings.synthesisCleanup = true;
+    SpeechSettings copy = SpeechSettings.fromJson(settings.json());
+    settings.synthesisCleanup = false;
+    assertTrue(copy.synthesisCleanup);
+    assertFalse(SpeechSettings.fromJson(settings.json()).synthesisCleanup);
+  }
+
+  @Test
+  public void unseenMeasurementsReachTinyTokenizerWithoutUnhandledSymbols() {
+    SpeechSettings settings = new SpeechSettings();
+    for (String source : new String[]{"-5°C", "37.5℃", "12 cm²", "2 m³", "220 Ω", "5 μs", "V25 = 5"}) {
+      String spoken = settings.spoken(source);
+      assertFalse(spoken.matches(".*[A-Za-z0-9°²³Ωμ℃].*"));
+      assertTrue(TinyVoice.tokens(spoken).length > 1);
+    }
+  }
+
+  @Test
+  public void disabledSoundProcessingPreservesNativePcm() throws Exception {
+    File root = java.nio.file.Files.createTempDirectory("unaltered-tone").toFile();
+    for (int hz : new int[]{22050, 24000}) {
+      float[] samples = new float[hz];
+      for (int i=0; i<hz; i++) samples[i] = (float)(.1*Math.sin(2*Math.PI*190*i/hz)
+          + .05*Math.sin(2*Math.PI*3700*i/hz));
+      File raw=new File(root,"raw.wav"), out=new File(root,"out.wav");
+      PcmWave.write(raw,samples,hz);
+      VoiceDeliveryDsp.process(raw,out,false,false,null,new AtomicBoolean(),false,false,(RenderCleanup.Cleaner)null);
+      assertArrayEquals(java.nio.file.Files.readAllBytes(raw.toPath()),java.nio.file.Files.readAllBytes(out.toPath()));
+    }
+  }
+
+  @Test
   public void closingMarkupDoesNotCreateAnEmptyNeuralRequest() {
     SpeechSettings settings = new SpeechSettings();
     var original =

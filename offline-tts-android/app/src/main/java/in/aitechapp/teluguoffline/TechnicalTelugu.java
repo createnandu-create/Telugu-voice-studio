@@ -27,6 +27,8 @@ final class TechnicalTelugu {
   private static final Pattern COMPARE = Pattern.compile(LEFT + "(-?" + NUM + ")\\s*(>=|<=|!=|[<>≥≤≠])\\s*(-?" + NUM + ")");
   private static final Pattern VIDEO_K = Pattern.compile("(?i)" + LEFT + "(2|4|8)k" + RIGHT);
   private static final Pattern UNIT = Pattern.compile(LEFT + "(" + NUM + ")\\s*(MB/s|Mb/s|Mbps|MBps|kbps|GHz|MHz|kHz|Hz|fps|FPS|GB|MB|KB|ms|mAh|%)" + RIGHT);
+  private static final Pattern MEASUREMENT = Pattern.compile(LEFT + "([-−]?" + NUM
+      + ")\\s*(°\\s*[CF]|℃|℉|km/h|m/s|cm[²³]?|mm[²³]?|km[²³]?|m[²³]|[µμ]s|Ω)" + RIGHT);
   private static final Pattern ARITHMETIC = Pattern.compile("(?i)^(?:what is\\s+|calculate\\s+|solve\\s+)?(-?\\d{1,6})\\s*([+×*÷/−-])\\s*(-?\\d{1,6})\\s*(?:ఎంత|ఎంత అవుతుంది)?\\s*\\?$");
   private static final Pattern ROOT_QUESTION = Pattern.compile("(?i)^(?:what is (?:the )?square root of\\s+|what is\\s*√\\s*|√\\s*)(\\d{1,8})\\s*(?:ఎంత)?\\s*\\?$");
   private static final Pattern IGNORE_CASE_ROOT = Pattern.compile("(?i)\\b(?:the )?square root of\\s+(" + NUM + ")\\s+(?:is|equals)\\s+(" + NUM + ")" + RIGHT);
@@ -44,6 +46,7 @@ final class TechnicalTelugu {
     TERMS.put("(?:the )?file size(?: is)?", "ఫైల్ పరిమాణం");
     TERMS.put("frames per second", "సెకనుకు ఫ్రేములు");
     TERMS.put("battery capacity", "బ్యాటరీ సామర్థ్యం");
+    TERMS.put("(?:the )?temperature(?: is)?", "ఉష్ణోగ్రత");
     TERMS.put("background noise", "నేపథ్య శబ్దం");
     TERMS.put("noise reduction", "శబ్దాన్ని తగ్గించడం");
     TERMS.put("voice cloning", "వాయిస్ క్లోనింగ్");
@@ -107,6 +110,25 @@ final class TechnicalTelugu {
     }
   }
 
+  private static String measurement(Matcher m) {
+    String unit = m.group(2).replaceAll("\\s+", "");
+    String spoken;
+    switch (unit) {
+      case "°C": case "℃": spoken = "డిగ్రీల సెల్సియస్"; break;
+      case "°F": case "℉": spoken = "డిగ్రీల ఫారన్‌హీట్"; break;
+      case "km/h": spoken = "కిలోమీటర్లు గంటకు"; break;
+      case "m/s": spoken = "మీటర్లు సెకనుకు"; break;
+      case "µs": case "μs": spoken = "మైక్రోసెకన్లు"; break;
+      case "Ω": spoken = "ఓములు"; break;
+      default:
+        String dimension = unit.endsWith("²") ? "చదరపు " : unit.endsWith("³") ? "ఘనపు " : "";
+        String base = unit.replace("²", "").replace("³", "");
+        spoken = dimension + (base.equals("cm") ? "సెంటీమీటర్లు" : base.equals("mm")
+            ? "మిల్లీమీటర్లు" : base.equals("km") ? "కిలోమీటర్లు" : "మీటర్లు");
+    }
+    return number(m.group(1)) + " " + spoken;
+  }
+
   private static String answer(Matcher m) {
     BigDecimal a=new BigDecimal(m.group(1)), b=new BigDecimal(m.group(3)), result;
     String operator=m.group(2);
@@ -150,6 +172,7 @@ final class TechnicalTelugu {
     s=replace(s,RATIO,m->number(m.group(1))+" భాగాలకు "+number(m.group(2))+" భాగాలు");
     s=replace(s,VIDEO_K,m->m.group(1).equals("4")?"ఫోర్ కే":m.group(1).equals("8")?"ఎయిట్ కే":"టూ కే");
     s=replace(s,COMPARE,m->number(m.group(1))+" అనేది "+number(m.group(3))+" "+op(m.group(2)));
+    s=replace(s,MEASUREMENT,TechnicalTelugu::measurement);
     s=replace(s,UNIT,TechnicalTelugu::quantity);
     s=replace(s,OPERATOR,m->" "+op(m.group(1))+" ");
     s=replace(s,TERM,m->{

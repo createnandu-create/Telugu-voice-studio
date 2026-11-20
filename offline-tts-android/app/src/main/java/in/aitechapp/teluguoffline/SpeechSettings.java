@@ -12,6 +12,7 @@ public final class SpeechSettings {
   public boolean questionLift = true;
   public boolean commaBuffer = true;
   public boolean femaleSoftening = false;
+  public boolean synthesisCleanup = false;
   public boolean carefulDiction = true;
   public boolean explainTechnical = true;
   public boolean readDigits = false;
@@ -31,6 +32,7 @@ public final class SpeechSettings {
     s.questionLift = o.optBoolean("questionLift", true);
     s.commaBuffer = o.optBoolean("commaBuffer", true);
     s.femaleSoftening = o.optBoolean("femaleSoftening", false);
+    s.synthesisCleanup = o.optBoolean("synthesisCleanup", false);
     s.carefulDiction = o.optBoolean("carefulDiction", true);
     s.explainTechnical = o.optBoolean("explainTechnical", true);
     s.readDigits = o.optBoolean("readDigits", false);
@@ -58,6 +60,7 @@ public final class SpeechSettings {
             .put("questionLift", questionLift)
             .put("commaBuffer", commaBuffer)
             .put("femaleSoftening", femaleSoftening)
+            .put("synthesisCleanup", synthesisCleanup)
             .put("carefulDiction", carefulDiction)
             .put("explainTechnical", explainTechnical)
             .put("readDigits", readDigits)

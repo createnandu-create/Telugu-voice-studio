@@ -96,9 +96,13 @@ public final class TinyVoice implements AutoCloseable {
   public float[] generate(
       String text, boolean male, float speed, long seed, boolean zeroNoise, boolean guard)
       throws Exception {
+    return generate(text, male, speed, seed, zeroNoise, guard, false);
+  }
+
+  public float[] generate(String text, boolean male, float speed, long seed,
+      boolean zeroNoise, boolean guard, boolean toneEnhancement) throws Exception {
     float[] mel = acousticMel(text, male, speed, seed, zeroNoise);
-    int length = mel.length / 100;
-    restoreMelContrast(mel, length, male);
+    if (toneEnhancement) restoreMelContrast(mel, mel.length / 100, male);
     return vocode(mel);
   }
 

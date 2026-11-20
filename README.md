@@ -1,12 +1,20 @@
 # Telugu Voice Studio — Android Offline Telugu Narrator
 
-**Android 15 · Nothing Phone (1) · 6 GB RAM · Snapdragon 778G+**
+**Android 15 · Nothing Phone (1) · 8 GB RAM · Snapdragon 778G+**
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
+## v0.8.10 downloads
+
+[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.10.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.10-source.zip) · [Native / optional tone comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Native-Tone-Comparison.zip) · [Checksums](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/SHA256SUMS.txt)
+
+Narration now preserves the native model tone by default. **Narration cleanup + tone EQ** is an explicit opt-in in Direction; it also controls Indic Tiny's mel contrast adjustment. Female EQ stays off when switching voices. Recording enhancement remains available separately. Final loudness normalization and export remain available; disabling cleanup does not claim to repair a model's pronunciation or make it human-like.
+
+New technical readings cover signed temperatures, squared/cubed dimensions, speed, microseconds and resistance. `V25` stays a letter-number label, distinct from `√25`. Written scripts and saved projects are preserved. See the [audio audit and limitations](docs/evaluation/v0810-audio-audit.md).
+
 ## v0.8.9 downloads
 
-[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.9.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.9-source.zip) · [Three technical narration samples](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Technical-Telugu-Comparison.zip)
+[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.9-a9f887634f17/TeluguVoiceStudio-v0.8.9.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.9-a9f887634f17/TeluguVoiceStudio-v0.8.9-source.zip) · [Three technical narration samples](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Technical-Telugu-Comparison.zip)
 
 In Direction, **Explain English technical terms and maths in Telugu** previews the spoken form of supported expressions. The offline rules cover ratios, numeric square roots, measurements, common English technical phrases and simple arithmetic questions. Turn the switch off for the earlier reading. Studio retains the written script and stores the switch with each queued job.
 

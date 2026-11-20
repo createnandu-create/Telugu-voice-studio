@@ -313,6 +313,12 @@ public final class VoiceDeliveryDsp {
           samples[index++] = (short) ((block[i] & 255) | (block[i + 1] << 8)) / 32768f;
       }
     }
+    // No processing means no second PCM quantization or implicit peak normalization either.
+    if (!question && !soft && direction == null && !studio && cleaner == null) {
+      if (cancel.get()) throw new CancellationException();
+      java.nio.file.Files.copy(input.toPath(), output.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      return new Result(samples, false, 0, 0);
+    }
     Result r =
         direction == null
             ? apply(samples, rate, question, soft, cancel)

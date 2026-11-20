@@ -95,6 +95,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var commaBuffer by mutableStateOf(true)
     var femaleSoftening by mutableStateOf(ModelCatalog.VOICES[voice].tiny() && ModelCatalog.VOICES[voice].gender == "Female")
     var carefulDiction by mutableStateOf(!ModelCatalog.VOICES[voice].tiny())
+    var explainTechnical by mutableStateOf(true)
+        private set
     var readDigits by mutableStateOf(false)
     var warmthEq by mutableStateOf(false)
     var latest by mutableStateOf<File?>(null)
@@ -120,6 +122,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     SpeechSettings.load(app)
                 }
             entries = speech.dictionary.toMap()
+            explainTechnical = speech.explainTechnical
             readDigits = speech.readDigits
             applyControls(controlsFor(voice, activeClone))
             settingsLoaded = true
@@ -990,6 +993,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     savePlan()
                 }
             }
+            "technical" -> explainTechnical = enabled
             "duration" -> durationGuard = enabled
             "question" -> questionLift = enabled
             "comma" -> commaBuffer = enabled
@@ -1002,6 +1006,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     private fun currentSpeech(): SpeechSettings =
         SpeechSettings().also { s ->
             s.dictionary.putAll(entries)
+            s.explainTechnical = explainTechnical
             s.readDigits = readDigits
             s.warmthEq = warmthEq
             s.youtuber = youtuber
@@ -1020,6 +1025,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             it.carefulDiction = !model.tiny()
         }
         s.dictionary.putAll(entries)
+        s.explainTechnical = explainTechnical
         s.readDigits = readDigits
         return s
     }
@@ -1041,7 +1047,11 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun speechPreview(): String = PronunciationLexicon.apply(script, entries, readDigits)
+    fun spokenLine(text: String): String = PronunciationLexicon.apply(text, entries, readDigits, explainTechnical)
+
+    fun speechPreview(): String = speechPreviewLines().joinToString(" ") { spokenLine(it.text) }
+
+    private fun speechPreviewLines() = NarrationDirector.planExact(script, NarrationDirector.Style.AUTO)
 
     fun openProject(project: ProjectRow) {
         work {

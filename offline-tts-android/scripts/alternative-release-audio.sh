@@ -59,3 +59,8 @@ for voice in ("srinivas","bhavana","karthik"):
     subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-v", "error", "-y", "-i", str(work/f"hima-{voice}.wav"),
                     "-ac","1","-b:a","96k",str(out/f"{voice}-full-demo.mp3")],check=True)
 PYTHON
+
+mkdir -p "$tmp/technical"
+java -Djava.library.path="$tmp" -cp "$tmp/classes:$tmp/ort.jar:$tmp/json.jar" in.aitechapp.teluguoffline.NarratorComparison "$tmp" "$assets" "$tmp/technical" --technical
+"$tmp/venv/bin/python" ../tools/narration-audit/transcribe.py "$tmp" "$tmp/technical"
+(cd "$tmp/technical" && zip -q "$out/Technical-Telugu-Comparison.zip" *.mp3 *.txt recognition.json)

@@ -13,6 +13,7 @@ public final class SpeechSettings {
   public boolean commaBuffer = true;
   public boolean femaleSoftening = false;
   public boolean carefulDiction = true;
+  public boolean explainTechnical = true;
   public boolean readDigits = false;
   public boolean warmthEq = false; // Explicit opt-in only; raw audio is default.
 
@@ -31,6 +32,7 @@ public final class SpeechSettings {
     s.commaBuffer = o.optBoolean("commaBuffer", true);
     s.femaleSoftening = o.optBoolean("femaleSoftening", false);
     s.carefulDiction = o.optBoolean("carefulDiction", true);
+    s.explainTechnical = o.optBoolean("explainTechnical", true);
     s.readDigits = o.optBoolean("readDigits", false);
     s.warmthEq = o.optBoolean("warmthEq", false);
     JSONObject entries = o.getJSONObject("entries");
@@ -57,6 +59,7 @@ public final class SpeechSettings {
             .put("commaBuffer", commaBuffer)
             .put("femaleSoftening", femaleSoftening)
             .put("carefulDiction", carefulDiction)
+            .put("explainTechnical", explainTechnical)
             .put("readDigits", readDigits)
             .put("warmthEq", warmthEq);
   }
@@ -71,6 +74,6 @@ public final class SpeechSettings {
   }
 
   public String spoken(String original) {
-    return PronunciationLexicon.apply(original, dictionary, readDigits);
+    return PronunciationLexicon.apply(original, dictionary, readDigits, explainTechnical);
   }
 }

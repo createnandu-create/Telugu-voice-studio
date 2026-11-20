@@ -4,9 +4,15 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
+## v0.8.9 downloads
+
+[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.9.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.9-source.zip) · [Three technical narration samples](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Technical-Telugu-Comparison.zip)
+
+In Direction, **Explain English technical terms and maths in Telugu** previews the spoken form of supported expressions. The offline rules cover ratios, numeric square roots, measurements, common English technical phrases and simple arithmetic questions. Turn the switch off for the earlier reading. Studio retains the written script and stores the switch with each queued job.
+
 ## v0.8.8 downloads
 
-[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.8.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.8-source.zip) · [Narrator comparisons](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/YouTube-Voice-Comparison.zip)
+[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.8-7c9b52bdae97/TeluguVoiceStudio-v0.8.8.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.8-7c9b52bdae97/TeluguVoiceStudio-v0.8.8-source.zip) · [Narrator comparisons](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/YouTube-Voice-Comparison.zip)
 
 Hear the full editor script with [Karthik](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/karthik-full-demo.mp3), [Srinivas](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/srinivas-full-demo.mp3) or [Bhavana](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/bhavana-full-demo.mp3).
 

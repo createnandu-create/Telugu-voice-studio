@@ -268,14 +268,14 @@ public final class StudioJobService extends Service {
     }
     List<NarrationDirector.Segment> renderSegments =
         DeliveryControls.expand(plan.segments, speech.commaBuffer, speech.carefulDiction);
-    renderSegments = speech.audible(renderSegments);
+    renderSegments = speech.audible(TechnicalTelugu.phrases(renderSegments, speech.explainTechnical));
     boolean soft = voice.tiny() && speech.femaleSoftening && voice.gender.equals("Female");
     boolean waveformQuestions = speech.questionLift;
     AlternativePack checkerPack=AlternativePack.pronunciation(store.root);
     boolean checkWords=getSharedPreferences("StudioActivity", 0).getBoolean("verifyWords", true) && checkerPack.ready();
     StringBuilder spokenIdentity =
         new StringBuilder((voice.hima() ? "hima-diction-v087/" : "delivery-v085-acoustic/"))
-            .append("studio-v088/").append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
+            .append("studio-v089/").append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
             .append('/')

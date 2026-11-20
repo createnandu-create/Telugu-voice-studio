@@ -15,6 +15,7 @@ from scipy.signal import resample_poly
 from scipy.signal.windows import hann
 
 work, out = map(Path, sys.argv[1:])
+ort.disable_telemetry_events()
 opts = ort.SessionOptions()
 opts.intra_op_num_threads = 2
 opts.inter_op_num_threads = 1

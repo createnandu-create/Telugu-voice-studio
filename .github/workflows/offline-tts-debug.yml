@@ -68,42 +68,42 @@ jobs:
       - name: Build the unified APK and run Android tests
         run: gradle --no-daemon --project-dir offline-tts-android :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 
-      - name: Verify upgrade package and certificate against v0.8.7
+      - name: Verify upgrade package and certificate against v0.8.8
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p dist "$RUNNER_TEMP/v087"
-          apk=dist/TeluguVoiceStudio-v0.8.8.apk
+          mkdir -p dist "$RUNNER_TEMP/v088"
+          apk=dist/TeluguVoiceStudio-v0.8.9.apk
           cp offline-tts-android/app/build/outputs/apk/debug/app-debug.apk "$apk"
-          gh release download v0.8.7-34570eefc9a9 -p TeluguVoiceStudio-v0.8.7.apk -D "$RUNNER_TEMP/v087"
-          previous="$RUNNER_TEMP/v087/TeluguVoiceStudio-v0.8.7.apk"
+          gh release download v0.8.8-7c9b52bdae97 -p TeluguVoiceStudio-v0.8.8.apk -D "$RUNNER_TEMP/v088"
+          previous="$RUNNER_TEMP/v088/TeluguVoiceStudio-v0.8.8.apk"
           tools="$ANDROID_HOME/build-tools/35.0.0"
           "$tools/apksigner" verify --print-certs "$previous" > "$RUNNER_TEMP/old-cert"
           "$tools/apksigner" verify --print-certs "$apk" > "$RUNNER_TEMP/new-cert"
           diff <(grep 'certificate SHA-256 digest' "$RUNNER_TEMP/old-cert") <(grep 'certificate SHA-256 digest' "$RUNNER_TEMP/new-cert")
           "$tools/aapt2" dump badging "$apk" > "$RUNNER_TEMP/new-badging"
           "$tools/aapt2" dump badging "$previous" > "$RUNNER_TEMP/old-badging"
-          grep -F "package: name='in.aitechapp.teluguoffline.fresh' versionCode='66' versionName='0.8.8'" "$RUNNER_TEMP/new-badging"
-          grep -F "package: name='in.aitechapp.teluguoffline.fresh' versionCode='65'" "$RUNNER_TEMP/old-badging"
+          grep -F "package: name='in.aitechapp.teluguoffline.fresh' versionCode='67' versionName='0.8.9'" "$RUNNER_TEMP/new-badging"
+          grep -F "package: name='in.aitechapp.teluguoffline.fresh' versionCode='66'" "$RUNNER_TEMP/old-badging"
           "$tools/zipalign" -c -P 16 4 "$apk"
           for graph in fastpitch-pace hima-encoder; do
             unzip -p "$apk" "assets/$graph.pb.bin" | cmp - "offline-tts-android/app/src/main/assets/$graph.pb.bin"
           done
-          git archive -o dist/TeluguVoiceStudio-v0.8.8-source.zip HEAD
+          git archive -o dist/TeluguVoiceStudio-v0.8.9-source.zip HEAD
 
       - name: Generate four narrators and verify quiet-reference OpenVoice conversion
         run: |
           set -euo pipefail
           bash offline-tts-android/scripts/release-audio.sh "$RUNNER_TEMP/listening"
           cp "$RUNNER_TEMP/listening/"{Padmavathi,Venkatesh,Indic_Tiny_Male,Indic_Tiny_Female}_Clean.mp3 dist/
-          bash offline-tts-android/scripts/alternative-release-audio.sh "$RUNNER_TEMP/listening" "$GITHUB_WORKSPACE/dist/TeluguVoiceStudio-v0.8.8.apk"
-          cp "$RUNNER_TEMP/listening/"{YouTube-Voice-Comparison.zip,narration-recognition.json} dist/
+          bash offline-tts-android/scripts/alternative-release-audio.sh "$RUNNER_TEMP/listening" "$GITHUB_WORKSPACE/dist/TeluguVoiceStudio-v0.8.9.apk"
+          cp "$RUNNER_TEMP/listening/"{Technical-Telugu-Comparison.zip,YouTube-Voice-Comparison.zip,narration-recognition.json} dist/
           cp "$RUNNER_TEMP/listening/"{hima-srinivas,hima-bhavana,fastpitch-male,fastpitch-female}.wav dist/
           cp "$RUNNER_TEMP/listening/"*-full-demo.mp3 dist/
           cp "$RUNNER_TEMP/listening/"/hima-{lakshmi,sravani,karthik,pranay}.wav dist/
           (cd "$RUNNER_TEMP/listening" && sha256sum *.wav *.mp3 > SHA256SUMS.txt)
-          (cd "$RUNNER_TEMP/listening" && zip -q "$GITHUB_WORKSPACE/dist/TeluguVoiceStudio-v0.8.8-audio.zip" ./*)
+          (cd "$RUNNER_TEMP/listening" && zip -q "$GITHUB_WORKSPACE/dist/TeluguVoiceStudio-v0.8.9-audio.zip" ./*)
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -116,7 +116,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="v0.8.8-${GITHUB_SHA:0:12}"
-          gh release create "$tag" dist/* --target "$GITHUB_SHA" --title 'Telugu Voice Studio v0.8.8' --notes 'Single in-place upgrade. Includes Hima and Indic-TTS male/female offline narrators, optional native Hima recording-based cloning, and public-reference listening samples.'
+          tag="v0.8.9-${GITHUB_SHA:0:12}"
+          gh release create "$tag" dist/* --target "$GITHUB_SHA" --title 'Telugu Voice Studio v0.8.9' --notes 'Single in-place upgrade. Includes Hima and Indic-TTS male/female offline narrators, optional native Hima recording-based cloning, and public-reference listening samples.'
           gh release download "$tag" -D "$RUNNER_TEMP/release-check"
           for file in dist/*; do cmp "$file" "$RUNNER_TEMP/release-check/$(basename "$file")"; done

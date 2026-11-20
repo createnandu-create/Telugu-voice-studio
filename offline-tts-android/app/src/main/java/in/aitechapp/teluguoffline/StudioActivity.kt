@@ -794,6 +794,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 items(vm.plan.indices.toList(), key = { it }) { index ->
                     val segment = vm.plan[index]
                     Panel {
+                        val isTechnical = vm.explainTechnical && TechnicalTelugu.explain(segment.text) != segment.text.trim()
                         Row {
                             Text(
                                 "${index+1}".padStart(2, '0'),
@@ -802,11 +803,15 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                                 fontWeight = FontWeight.Bold,
                             )
                             Spacer(Modifier.width(10.dp))
-                            Text(segment.label(), fontSize = 11.sp, color = Muted)
+                            Text(if (isTechnical && segment.emotion == NarrationDirector.Emotion.NEUTRAL) "TECHNICAL EXPLANATION" else segment.label(), fontSize = 11.sp, color = Muted)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(segment.text)
+                                if (isTechnical) {
+                                    Text("Spoken Telugu", fontSize = 12.sp, color = Muted)
+                                    Text(vm.spokenLine(segment.text), style = MaterialTheme.typography.bodyMedium)
+                                }
                                 Text(
                                     "${segment.rate}×  ·  ${segment.pauseAfterMs} ms pause",
                                     fontSize = 12.sp,
@@ -2384,6 +2389,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
         listOf(
                 Triple("youtuber", "YouTuber delivery · conversational timing", vm.youtuber),
 
+                Triple("technical", "Explain English technical terms and maths in Telugu", vm.explainTechnical),
                 Triple("question", "Question endings · +13%", vm.questionLift),
                 Triple("comma", "Comma breath · 110 ms", vm.commaBuffer),
                 Triple("careful", "Careful pace · complex clauses", vm.carefulDiction),

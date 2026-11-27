@@ -18,6 +18,16 @@ public class WordCoverageTest {
     assertEquals(0, WordCoverage.compare("నీరు పోసి చూడు", "నీరు పోసి చూడు").missing);
   }
 
+  @Test public void repeatedClauseCannotReplaceAnOmittedWord() {
+    String expected = "మొక్కకు నీరు పోసే ముందు మట్టిని చూడండి";
+    String partial = "మ పోసే ముందు మట్టిని చూడండి";
+    String repeated = expected.replace("నీరు ", "");
+    float[] pcm = new float[0];
+    PronunciationCheck.Take first = new PronunciationCheck.Take(pcm, expected, partial);
+    assertFalse(new PronunciationCheck.Take(pcm, expected, repeated + " " + repeated).improvesOn(first));
+    assertTrue(new PronunciationCheck.Take(pcm, expected, expected).improvesOn(first));
+  }
+
   @Test public void instructionalAccentPreservesSamplesAndSpeed() {
     float[] guide = new float[24000], quiet = new float[guide.length];
     java.util.Arrays.fill(guide, .2f);

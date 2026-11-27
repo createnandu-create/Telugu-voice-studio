@@ -115,7 +115,7 @@ final class PronunciationCheck implements AutoCloseable {
     float[] generate(String text, float rate) throws Exception;
   }
 
-  private static final class Take {
+  static final class Take {
     final float[] pcm;
     final WordCoverage coverage;
     final boolean missingBrand;
@@ -129,6 +129,11 @@ final class PronunciationCheck implements AutoCloseable {
       double penalty = missingBrand ? .45 : 0;
       if (target.contains("వాట్ఏపర్ఫెక్ట్") && !letters(heard).contains("వాట్ఏ")) penalty += .25;
       loss = coverage.characterError + .28 * Math.min(3, coverage.missing) + penalty;
+    }
+
+    boolean improvesOn(Take previous) {
+      // Repeating a clause can hide a deletion in the alignment but adds unrelated speech.
+      return loss + .015 < previous.loss && coverage.characterError <= previous.coverage.characterError + .03;
     }
   }
 
@@ -152,7 +157,7 @@ final class PronunciationCheck implements AutoCloseable {
         if (pcm.length > hz * 30 || pcm.length < hz / 5) continue;
         pcm = ConversationTiming.trimPadding(pcm, hz);
         Take next = new Take(pcm, text, checker.recognize(pcm, hz));
-        if (next.loss + .015 < best.loss) best = next;
+        if (next.improvesOn(best)) best = next;
       } catch (ConversationTiming.UnusableTake rejected) {
         // Compare the remaining candidates with the intact full take.
       }
@@ -168,7 +173,7 @@ final class PronunciationCheck implements AutoCloseable {
       float[] joined = Arrays.copyOf(first, first.length + last.length);
       System.arraycopy(last, 0, joined, first.length, last.length);
       Take next = new Take(joined, text, checker.recognize(joined, hz));
-      if (next.loss + .015 < best.loss) best = next;
+      if (next.improvesOn(best)) best = next;
     } catch (ConversationTiming.UnusableTake rejected) {
       // Both halves must be available before replacing the full take.
     }
@@ -183,6 +188,7 @@ final class PronunciationCheck implements AutoCloseable {
       while (end < normalized.length() && !Character.isWhitespace(normalized.charAt(end))) end++;
       reviewWord = normalized.substring(first, end);
     } else if (selected.missingBrand) reviewWord = "AiTechApp";
+    else if (selected.coverage.characterError >= .30) reviewWord = text;
     return selected.pcm;
   }
 

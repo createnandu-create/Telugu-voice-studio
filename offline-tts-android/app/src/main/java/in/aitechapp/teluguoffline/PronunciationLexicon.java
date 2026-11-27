@@ -15,6 +15,11 @@ public final class PronunciationLexicon {
   }
 
   public static String apply(String original, Map<String, String> dictionary, boolean readDigits, boolean explain) {
+    return apply(original, dictionary, readDigits, explain, false);
+  }
+
+  public static String apply(String original, Map<String,String> dictionary, boolean readDigits,
+      boolean explain, boolean englishNotation) {
     String text = Normalizer.normalize(original, Normalizer.Form.NFC);
     // Remove invisible format characters only in the leading prefix. Keep interior Telugu joiners.
     int prefix = 0;
@@ -57,7 +62,8 @@ public final class PronunciationLexicon {
       m.appendTail(out);
       text = out.toString();
     }
-    if (explain) text = TechnicalTelugu.explain(text);
+    if (englishNotation) text = EnglishNotation.read(text);
+    else if (explain) text = TechnicalTelugu.explain(text);
     text = MathScienceNormalizer.apply(text);
     boolean math = SpeechMarkup.math(text);
     text = SpeechMarkup.clean(text);

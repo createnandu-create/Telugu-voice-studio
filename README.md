@@ -4,9 +4,15 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
+## v0.8.12 downloads
+
+[Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.12.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.12-source.zip) · [English notation listening comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/English-Notation-Comparison.zip)
+
+Direction → **Read technical notation in English** reads ratios, numeric roots, equalities, percentages, dimensional labels and video resolution aloud in English within a Telugu sentence. The option defaults to on for new renders. Commas and full stops add no fixed silence in this mode. Models can still pause naturally. Turn it off to use the previous Telugu explanation or Telugu literal settings. Saved scripts and previously queued jobs retain their content.
+
 ## v0.8.11 downloads
 
-[APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.11.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.11-source.zip)
+[APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.11-c421132c93be/TeluguVoiceStudio-v0.8.11.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.11-c421132c93be/TeluguVoiceStudio-v0.8.11-source.zip)
 
 Use Reset & back during a render to submit another narrator. Each request saves its script and voice settings. One foreground worker processes requests in order to bound memory use. With notifications enabled, progress and completion are visible outside the app. Android force-stop and foreground service time limits can interrupt rendering.
 

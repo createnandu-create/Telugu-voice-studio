@@ -143,6 +143,18 @@ final class TechnicalTelugu {
     return number(m.group(1))+" "+op(operator)+" "+number(m.group(3))+" ఎంత? సమాధానం "+number(result.stripTrailingZeros().toPlainString())+".";
   }
 
+  static String clocks(String s) {
+    s=replace(s,CLOCK,m->number(m.group(1))+" గంటల "+MathScienceNormalizer.number(Integer.parseInt(m.group(2)))+" నిమిషాలు "+(m.group(3).equalsIgnoreCase("a")?"ఏ ఎమ్":"పీ ఎమ్"));
+    s=replace(s,TIMECODE,m->number(m.group(1))+" గంటలు "+MathScienceNormalizer.number(Integer.parseInt(m.group(2)))+" నిమిషాలు "+MathScienceNormalizer.number(Integer.parseInt(m.group(3)))+" సెకన్లు");
+    s=replace(s,CLOCK24,m->"సమయం "+MathScienceNormalizer.number(Integer.parseInt(m.group(1)))+" గంటల "+MathScienceNormalizer.number(Integer.parseInt(m.group(2)))+" నిమిషాలు");
+    return s;
+  }
+
+  static String measurements(String s) {
+    s=replace(s,MEASUREMENT,TechnicalTelugu::measurement);
+    return replace(s,UNIT,TechnicalTelugu::quantity);
+  }
+
   static String explain(String source) {
     String s=source.trim();
     for (char c='౦'; c<='౯'; c++) s=s.replace(c,(char)('0'+c-'౦'));
@@ -162,9 +174,7 @@ final class TechnicalTelugu {
       if (solved!=null) return solved;
       return number(q.group(1))+" "+op(q.group(2))+" "+number(q.group(3))+" ఎంత?";
     }
-    s=replace(s,CLOCK,m->number(m.group(1))+" గంటల "+MathScienceNormalizer.number(Integer.parseInt(m.group(2)))+" నిమిషాలు "+(m.group(3).equalsIgnoreCase("a")?"ఏ ఎమ్":"పీ ఎమ్"));
-    s=replace(s,TIMECODE,m->number(m.group(1))+" గంటలు "+MathScienceNormalizer.number(Integer.parseInt(m.group(2)))+" నిమిషాలు "+MathScienceNormalizer.number(Integer.parseInt(m.group(3)))+" సెకన్లు");
-    s=replace(s,CLOCK24,m->"సమయం "+MathScienceNormalizer.number(Integer.parseInt(m.group(1)))+" గంటల "+MathScienceNormalizer.number(Integer.parseInt(m.group(2)))+" నిమిషాలు");
+    s=clocks(s);
     s=replace(s,DIMENSIONS,m->number(m.group(1))+" బై "+number(m.group(2))+" పిక్సెల్స్");
     s=replace(s,IGNORE_CASE_ROOT,m->number(m.group(1))+" యొక్క వర్గమూలం "+number(m.group(2)));
     s=replace(s,ROOT,m->number(m.group(1)!=null ? m.group(1) : m.group(2))+" యొక్క వర్గమూలం ");
@@ -172,8 +182,7 @@ final class TechnicalTelugu {
     s=replace(s,RATIO,m->number(m.group(1))+" భాగాలకు "+number(m.group(2))+" భాగాలు");
     s=replace(s,VIDEO_K,m->m.group(1).equals("4")?"ఫోర్ కే":m.group(1).equals("8")?"ఎయిట్ కే":"టూ కే");
     s=replace(s,COMPARE,m->number(m.group(1))+" అనేది "+number(m.group(3))+" "+op(m.group(2)));
-    s=replace(s,MEASUREMENT,TechnicalTelugu::measurement);
-    s=replace(s,UNIT,TechnicalTelugu::quantity);
+    s=measurements(s);
     s=replace(s,OPERATOR,m->" "+op(m.group(1))+" ");
     s=replace(s,TERM,m->{
       int i=1;

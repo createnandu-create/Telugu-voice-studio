@@ -14,6 +14,7 @@ public final class SpeechSettings {
   public boolean femaleSoftening = false;
   public boolean synthesisCleanup = false;
   public boolean carefulDiction = true;
+  public boolean englishNotation = true;
   public boolean explainTechnical = true;
   public boolean readDigits = false;
   public boolean warmthEq = false; // Explicit opt-in only; raw audio is default.
@@ -22,7 +23,10 @@ public final class SpeechSettings {
     SpeechSettings s = new SpeechSettings();
     File file = new File(c.getFilesDir(), "pronunciation.json");
     if (!file.exists()) return s;
-    return fromJson(new JSONObject(FileIntegrity.read(file)));
+    JSONObject saved = new JSONObject(FileIntegrity.read(file));
+    s = fromJson(saved);
+    s.englishNotation = saved.optBoolean("englishNotation", true);
+    return s;
   }
 
   static SpeechSettings fromJson(JSONObject o) throws JSONException {
@@ -34,6 +38,7 @@ public final class SpeechSettings {
     s.femaleSoftening = o.optBoolean("femaleSoftening", false);
     s.synthesisCleanup = o.optBoolean("synthesisCleanup", false);
     s.carefulDiction = o.optBoolean("carefulDiction", true);
+    s.englishNotation = o.optBoolean("englishNotation", false); // Already queued jobs keep their reading.
     s.explainTechnical = o.optBoolean("explainTechnical", true);
     s.readDigits = o.optBoolean("readDigits", false);
     s.warmthEq = o.optBoolean("warmthEq", false);
@@ -62,9 +67,22 @@ public final class SpeechSettings {
             .put("femaleSoftening", femaleSoftening)
             .put("synthesisCleanup", synthesisCleanup)
             .put("carefulDiction", carefulDiction)
+            .put("englishNotation", englishNotation)
             .put("explainTechnical", explainTechnical)
             .put("readDigits", readDigits)
             .put("warmthEq", warmthEq);
+  }
+
+  public List<NarrationDirector.Segment> renderSegments(List<NarrationDirector.Segment> plan) {
+    List<NarrationDirector.Segment> lines = DeliveryControls.expand(plan, !englishNotation && commaBuffer, carefulDiction);
+    if (!englishNotation) return audible(TechnicalTelugu.phrases(lines, explainTechnical));
+    List<NarrationDirector.Segment> flowing = new ArrayList<>();
+    for (NarrationDirector.Segment line : lines) {
+      boolean punctuation = line.text.trim().endsWith(".") || line.text.trim().endsWith(",");
+      flowing.add(new NarrationDirector.Segment(line.text, line.emotion, line.rate, line.pitch,
+          punctuation ? 0 : line.pauseAfterMs));
+    }
+    return audible(flowing);
   }
 
   public List<NarrationDirector.Segment> audible(List<NarrationDirector.Segment> segments) {
@@ -77,6 +95,7 @@ public final class SpeechSettings {
   }
 
   public String spoken(String original) {
-    return PronunciationLexicon.apply(original, dictionary, readDigits, explainTechnical);
+    String text = PronunciationLexicon.apply(original, dictionary, readDigits, explainTechnical, englishNotation);
+    return englishNotation ? text.replaceAll("[,.]+", " ").replaceAll(" +", " ").trim() : text;
   }
 }

@@ -98,6 +98,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var femaleSoftening by mutableStateOf(false)
     var synthesisCleanup by mutableStateOf(false)
     var carefulDiction by mutableStateOf(!ModelCatalog.VOICES[voice].tiny())
+    var englishNotation by mutableStateOf(true)
+        private set
     var explainTechnical by mutableStateOf(true)
         private set
     var readDigits by mutableStateOf(false)
@@ -125,6 +127,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     SpeechSettings.load(app)
                 }
             entries = speech.dictionary.toMap()
+            englishNotation = speech.englishNotation
             explainTechnical = speech.explainTechnical
             synthesisCleanup = speech.synthesisCleanup
             readDigits = speech.readDigits
@@ -1001,6 +1004,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     savePlan()
                 }
             }
+            "englishNotation" -> englishNotation = enabled
             "technical" -> explainTechnical = enabled
             "duration" -> durationGuard = enabled
             "question" -> questionLift = enabled
@@ -1015,6 +1019,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     private fun currentSpeech(): SpeechSettings =
         SpeechSettings().also { s ->
             s.dictionary.putAll(entries)
+            s.englishNotation = englishNotation
             s.explainTechnical = explainTechnical
             s.readDigits = readDigits
             s.warmthEq = warmthEq
@@ -1036,6 +1041,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
             it.carefulDiction = !model.tiny()
         }
         s.dictionary.putAll(entries)
+        s.englishNotation = englishNotation
         s.explainTechnical = explainTechnical
         s.readDigits = readDigits
         return s
@@ -1059,7 +1065,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun spokenLine(text: String): String = PronunciationLexicon.apply(text, entries, readDigits, explainTechnical)
+    fun spokenLine(text: String): String = currentSpeech().spoken(text)
 
     fun speechPreview(): String = speechPreviewLines().joinToString(" ") { spokenLine(it.text) }
 

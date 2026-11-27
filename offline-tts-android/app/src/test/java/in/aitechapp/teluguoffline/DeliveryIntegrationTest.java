@@ -63,6 +63,28 @@ public class DeliveryIntegrationTest {
   }
 
   @Test
+  public void literalRenderPlanKeepsTheScriptAndOmitsFixedPunctuationSilence() throws Exception {
+    SpeechSettings settings = new SpeechSettings();
+    String script = "ఇక్కడ, 100% చూడండి. 16:9 లేదా √25 = 5.";
+    var original = NarrationDirector.planExact(script, NarrationDirector.Style.AUTO);
+    var rendered = settings.renderSegments(original);
+    assertEquals(original.size(), rendered.size());
+    for (int i=0; i<rendered.size(); i++) {
+      assertEquals(original.get(i).text,rendered.get(i).text);
+      assertEquals(0,rendered.get(i).pauseAfterMs);
+      String spoken=settings.spoken(rendered.get(i).text);
+      assertFalse(spoken.contains(",") || spoken.contains("."));
+      assertTrue(TinyVoice.tokens(spoken).length>1);
+    }
+    JSONObject saved=settings.json();
+    assertTrue(SpeechSettings.fromJson(saved).englishNotation);
+    saved.remove("englishNotation");
+    SpeechSettings old=SpeechSettings.fromJson(saved);
+    assertFalse(old.englishNotation);
+    assertTrue(old.spoken("16:9").contains("భాగాలకు"));
+  }
+
+  @Test
   public void cleanupIsOptInAndSurvivesTheQueuedSpeechSnapshot() throws Exception {
     SpeechSettings settings = new SpeechSettings();
     assertFalse(settings.synthesisCleanup);

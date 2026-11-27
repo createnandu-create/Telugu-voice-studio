@@ -803,7 +803,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 items(vm.plan.indices.toList(), key = { it }) { index ->
                     val segment = vm.plan[index]
                     Panel {
-                        val isTechnical = vm.explainTechnical && TechnicalTelugu.explain(segment.text) != segment.text.trim()
+                        val isTechnical = if (vm.englishNotation) EnglishNotation.read(segment.text) != segment.text.trim() else vm.explainTechnical && TechnicalTelugu.explain(segment.text) != segment.text.trim()
                         Row {
                             Text(
                                 "${index+1}".padStart(2, '0'),
@@ -812,7 +812,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                                 fontWeight = FontWeight.Bold,
                             )
                             Spacer(Modifier.width(10.dp))
-                            Text(if (isTechnical && segment.emotion == NarrationDirector.Emotion.NEUTRAL) "TECHNICAL EXPLANATION" else segment.label(), fontSize = 11.sp, color = Muted)
+                            Text(if (isTechnical && segment.emotion == NarrationDirector.Emotion.NEUTRAL) "TECHNICAL READING" else segment.label(), fontSize = 11.sp, color = Muted)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
@@ -2399,6 +2399,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
         listOf(
                 Triple("youtuber", "YouTuber delivery · conversational timing", vm.youtuber),
 
+                Triple("englishNotation", "Read technical notation in English", vm.englishNotation),
                 Triple("technical", "Explain English technical terms and maths in Telugu", vm.explainTechnical),
                 Triple("question", "Question endings · +13%", vm.questionLift),
                 Triple("comma", "Comma breath · 110 ms", vm.commaBuffer),
@@ -2406,6 +2407,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
                 Triple("soft", "Female tone · gentle EQ", vm.femaleSoftening),
                 Triple("cleanup", "Narration cleanup + tone EQ · optional", vm.synthesisCleanup),
             )
+            .filter { !vm.englishNotation || (it.first != "technical" && it.first != "comma") }
             .filter { it.first != "soft" || (vm.activeClone.isEmpty() && ModelCatalog.VOICES[vm.voice].tiny() && ModelCatalog.VOICES[vm.voice].gender == "Female") }
             .forEach { (key, label, enabled) ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

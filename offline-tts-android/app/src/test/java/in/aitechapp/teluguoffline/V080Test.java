@@ -41,6 +41,10 @@ public class V080Test {
       {"శ్రావ్యమైన శ్రోతలకు కర్కశ", "శ్రావ్యమైన శ్రోతలకు కర్కశ"}
     };
     SpeechSettings settings = new SpeechSettings();
+    assertTrue(settings.englishNotation);
+    assertEquals("సిక్స్‌టీన్ ఇజ్ టు నైన్", settings.spoken("16:9"));
+    assertEquals("రూట్ ట్వెంటీ ఫైవ్ ఇజ్ ఈక్వల్ టు ఫైవ్", settings.spoken("√25 = 5"));
+    settings.englishNotation = false;
     assertTrue(settings.explainTechnical);
     assertEquals("పదహారు భాగాలకు తొమ్మిది భాగాలు", settings.spoken("16:9"));
     assertEquals("ఇరవై ఐదు యొక్క వర్గమూలం ఐదు", settings.spoken("√25 = 5"));

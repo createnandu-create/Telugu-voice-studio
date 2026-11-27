@@ -12,6 +12,10 @@ public final class TechnicalTeluguTest {
     if (!result.contains(expected)) throw new AssertionError(input + " => " + result + " / " + expected);
   }
   public static void main(String[] args) {
+    String english=PronunciationLexicon.apply("(192-D Vocal DNA), 100% 9:16 √81 = 9 8K",Collections.emptyMap(),false,true,true);
+    for (String phrase:new String[]{"వన్ హండ్రెడ్ నైంటీ టూ డీ వోకల్ డీ ఎన్ ఏ","వన్ హండ్రెడ్ పర్సెంట్",
+        "నైన్ ఇజ్ టు సిక్స్‌టీన్","రూట్ ఎయిటీ వన్ ఇజ్ ఈక్వల్ టు నైన్","ఎయిట్ కే"})
+      if (!english.contains(phrase)) throw new AssertionError(english+" / "+phrase);
     contains("16:9", "పదహారు భాగాలకు తొమ్మిది భాగాలు");
     contains("√25 = 5", "ఇరవై ఐదు యొక్క వర్గమూలం ఐదు");
     contains("\\sqrt{81} = 9", "ఎనభై ఒకటి యొక్క వర్గమూలం తొమ్మిది");

@@ -300,15 +300,14 @@ public final class StudioJobService extends Service {
         throw new IOException("Install OpenVoice before generating a cloned voice");
     }
     List<NarrationDirector.Segment> renderSegments =
-        DeliveryControls.expand(plan.segments, speech.commaBuffer, speech.carefulDiction);
-    renderSegments = speech.audible(TechnicalTelugu.phrases(renderSegments, speech.explainTechnical));
+        speech.renderSegments(plan.segments);
     boolean soft = voice.tiny() && speech.femaleSoftening && voice.gender.equals("Female");
     boolean waveformQuestions = speech.questionLift;
     AlternativePack checkerPack=AlternativePack.pronunciation(store.root);
     boolean checkWords=getSharedPreferences("StudioActivity", 0).getBoolean("verifyWords", true) && checkerPack.ready();
     StringBuilder spokenIdentity =
         new StringBuilder((voice.hima() ? "hima-diction-v087/" : "delivery-v085-acoustic/"))
-            .append("studio-v0811/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
+            .append("studio-v0812/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
             .append('/')
@@ -354,7 +353,7 @@ public final class StudioJobService extends Service {
             .put("tiny_duration_guard", speech.durationGuard)
             .put("female_softening", soft)
             .put("synthesis_cleanup", speech.synthesisCleanup)
-            .put("comma_buffer_ms", speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
+            .put("comma_buffer_ms", !speech.englishNotation && speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
             .put("careful_diction", speech.carefulDiction);
     FileIntegrity.write(new File(journal.directory, "render-identity.json"), identity.toString(2));
     AudioNames.project(journal.directory, voice.name);
@@ -611,7 +610,7 @@ public final class StudioJobService extends Service {
             .put("question_tails_requested", requested)
             .put("question_tails_lifted", lifted)
             .put("female_softening", soft)
-            .put("comma_buffer_ms", speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
+            .put("comma_buffer_ms", !speech.englishNotation && speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
             .put("output_file", output.getName())
             .put("quality_score", JSONObject.NULL);
     FileIntegrity.write(new File(journal.directory, "metrics.json"), stats.toString(2));

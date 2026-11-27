@@ -64,3 +64,7 @@ mkdir -p "$tmp/technical"
 java -Djava.library.path="$tmp" -cp "$tmp/classes:$tmp/ort.jar:$tmp/json.jar" in.aitechapp.teluguoffline.NarratorComparison "$tmp" "$assets" "$tmp/technical" --technical
 "$tmp/venv/bin/python" ../tools/narration-audit/transcribe.py "$tmp" "$tmp/technical"
 (cd "$tmp/technical" && zip -q "$out/Technical-Telugu-Comparison.zip" *.mp3 *.txt recognition.json)
+
+javac -encoding UTF-8 -sourcepath app/src/main/java -cp "$tmp/classes:$tmp/ort.jar:$tmp/json.jar" -d "$tmp/classes" ../tools/narration-audit/ScriptCoverageAudio.java
+java -Djava.library.path="$tmp" -cp "$tmp/classes:$tmp/ort.jar:$tmp/json.jar" in.aitechapp.teluguoffline.ScriptCoverageAudio "$tmp" "$assets" "$tmp/script-check"
+(cd "$tmp/script-check" && zip -q "$out/Srinivas-script-check.zip" *.wav script-and-recognition.txt)

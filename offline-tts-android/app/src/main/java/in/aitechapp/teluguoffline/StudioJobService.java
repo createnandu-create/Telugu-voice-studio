@@ -307,7 +307,7 @@ public final class StudioJobService extends Service {
     boolean checkWords=getSharedPreferences("StudioActivity", 0).getBoolean("verifyWords", true) && checkerPack.ready();
     StringBuilder spokenIdentity =
         new StringBuilder((voice.hima() ? "hima-diction-v087/" : "delivery-v085-acoustic/"))
-            .append("studio-v0812/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
+            .append("studio-v0813/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
             .append('/')
@@ -373,6 +373,7 @@ public final class StudioJobService extends Service {
     List<File> chunks = new ArrayList<>();
     activeProject = journal.directory;
     int reused = 0;
+    List<String> reviewLines = new ArrayList<>();
     try (PronunciationCheck checker=checkWords ? new PronunciationCheck(checkerPack.root,cancelled) : null) {
       for (int i = 0; i < renderSegments.size(); i++) {
         check();
@@ -380,6 +381,7 @@ public final class StudioJobService extends Service {
         status = "Rendering " + (i + 1) + " / " + renderSegments.size() + " · " + voice.name;
         post(getSystemService(NotificationManager.class), null, 41,
             message("render", status + " · " + queueSummary, true));
+        File review = new File(journal.directory, i + "-word-review.txt");
         if (!journal.reusable(i)) {
           if (voice.alternative()) {
             if (alternative == null) {
@@ -401,9 +403,9 @@ public final class StudioJobService extends Service {
             TinyVoice engine = tiny;
             String spoken = speech.spoken(s.text);
             float[] samples = PronunciationCheck.render(checker,spoken, s.rate, 24000, speech.youtuber,
-                rate -> {
+                (phrase, rate) -> {
                   check();
-                  return engine.generate(spoken, voice.gender.equals("Male"), rate, s.text.hashCode(), false, false, speech.synthesisCleanup);
+                  return engine.generate(phrase, voice.gender.equals("Male"), rate, s.text.hashCode(), false, false, speech.synthesisCleanup);
                 });
             check();
             PcmWave.write(journal.chunk(i), samples, 24000);
@@ -432,19 +434,22 @@ public final class StudioJobService extends Service {
             }
             OfflineTts engine = tts;
             String spoken = speech.spoken(s.text);
-            String input = PronunciationLexicon.piperInput(spoken);
             float[] samples = PronunciationCheck.render(checker,spoken, s.rate, 22050, speech.youtuber,
-                rate -> {
+                (phrase, rate) -> {
                   check();
-                  GeneratedAudio audio = engine.generate(input, 0, rate);
+                  GeneratedAudio audio = engine.generate(PronunciationLexicon.piperInput(phrase), 0, rate);
                   if (audio.getSampleRate() != 22050) throw new IOException("Unexpected Piper sample rate");
                   return audio.getSamples();
                 });
             check();
             PcmWave.write(journal.chunk(i), samples, 22050);
           }
+          if (checker != null && !checker.reviewWord.isEmpty())
+            FileIntegrity.write(review, checker.reviewWord);
+          else java.nio.file.Files.deleteIfExists(review.toPath());
           journal.complete(i);
         } else reused++;
+        if (review.isFile()) reviewLines.add("Phrase " + (i + 1) + " · " + FileIntegrity.read(review));
         chunks.add(journal.chunk(i));
         Debug.MemoryInfo memory = new Debug.MemoryInfo();
         Debug.getMemoryInfo(memory);
@@ -613,6 +618,7 @@ public final class StudioJobService extends Service {
             .put("comma_buffer_ms", !speech.englishNotation && speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
             .put("output_file", output.getName())
             .put("quality_score", JSONObject.NULL);
+    FileIntegrity.write(new File(journal.directory, "word-review.txt"), String.join("\n", reviewLines));
     FileIntegrity.write(new File(journal.directory, "metrics.json"), stats.toString(2));
     FileIntegrity.write(new File(getFilesDir(), "last-result.txt"), output.getPath());
     result = output;

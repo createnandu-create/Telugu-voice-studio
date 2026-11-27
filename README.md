@@ -4,9 +4,15 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
+## v0.8.13 downloads
+
+[Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.13.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.13-source.zip) · [Srinivas listening comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Srinivas-script-check.zip)
+
+Enable the optional offline pronunciation checker in Settings to check expected words in order. Suspected omissions trigger another take and, when needed, a retry in two shorter phrases. Recognition can miss a word or mishear a correct pronunciation. Directed Hima and Indic-TTS instructions and questions have a small energy lift at the same playback speed.
+
 ## v0.8.12 downloads
 
-[Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.12.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.12-source.zip) · [English notation listening comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/English-Notation-Comparison.zip)
+[Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.12-dafd1d91b9f1/TeluguVoiceStudio-v0.8.12.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.12-dafd1d91b9f1/TeluguVoiceStudio-v0.8.12-source.zip) · [English notation listening comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.12-dafd1d91b9f1/English-Notation-Comparison.zip)
 
 Direction → **Read technical notation in English** reads ratios, numeric roots, equalities, percentages, dimensional labels and video resolution aloud in English within a Telugu sentence. The option defaults to on for new renders. Commas and full stops add no fixed silence in this mode. Models can still pause naturally. Turn it off to use the previous Telugu explanation or Telugu literal settings. Saved scripts and previously queued jobs retain their content.
 

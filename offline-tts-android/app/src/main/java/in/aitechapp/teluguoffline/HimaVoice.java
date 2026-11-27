@@ -113,6 +113,17 @@ final class HimaVoice extends AlternativeVoice {
     text=spokenForm(text);
     if (!name.equals("Karthik") && !name.equals("Sravani"))
       text=text.replace("ఏఐ టెక్","ఏ ఐ టెక్");
+    // Number expansion can turn a short editor line into a prompt longer than the decoder window.
+    int middle = text.length() / 2;
+    int left = text.lastIndexOf(' ', middle), right = text.indexOf(' ', middle);
+    int cut = right < 0 || (left > 0 && middle - left <= right - middle) ? left : right;
+    if (cut > 0 && ConversationTiming.targetSeconds(text, rate) > 18) {
+      float[] first = render(text.substring(0, cut), rate);
+      float[] last = render(text.substring(cut + 1), rate);
+      float[] joined = Arrays.copyOf(first, first.length + last.length);
+      System.arraycopy(last, 0, joined, first.length, last.length);
+      return joined;
+    }
     // Karthik tends to omit the initial consonants of this isolated app name in lists.
     if (name.equals("Karthik") && text.trim().equals("పిక్సెల్ ల్యాబ్,")) text="పిక్సెల్ ల్యాబ్!";
     // The planner inserts the following breath when merging segments. A standalone
@@ -127,11 +138,14 @@ final class HimaVoice extends AlternativeVoice {
     int chars=(int)text.codePoints().filter(c -> Character.isLetterOrDigit(c) || (c>=0xc00 && c<=0xc7f)).count();
     int limit=Math.min(LIMIT,Math.max(40,(int)Math.ceil((.184*chars+1)*12.5)));
     Random random=new Random(31L*text.hashCode()+name.hashCode()+Float.floatToIntBits(rate)-Float.floatToIntBits(1f));
+    // An early end token can produce a plausible fragment of a longer sentence.
+    double expected = ConversationTiming.targetSeconds(text, rate);
+    int minimumSamples = expected >= 3 ? (int)(expected * .45 * 24000) : 0;
     for(int attempt=0;attempt<6;attempt++) {
       float[] pcm=take(rows,head,Math.min(LIMIT,limit + attempt * 12),random);
       if (pcm != null) {
         float[] spoken = ConversationTiming.trimPadding(pcm, 24000);
-        if (audible(spoken)) return spoken;
+        if (spoken.length >= minimumSamples && audible(spoken)) return spoken;
       }
     }
     throw new ConversationTiming.UnusableTake("Hima could not finish this phrase clearly. Shorten the sentence and retry.");

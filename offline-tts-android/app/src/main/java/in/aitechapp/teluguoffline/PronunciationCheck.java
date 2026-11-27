@@ -15,6 +15,8 @@ final class PronunciationCheck implements AutoCloseable {
   private final OrtSession session;
   private final String[] vocabulary;
   private final AtomicBoolean cancel;
+  // Each checker belongs to one sequential render job. The journal records this with its chunk.
+  String reviewWord = "";
   private static final int N=512, BANDS=80;
   private final double[][] bank=new double[BANDS][N/2+1];
   private final int[] firstBin=new int[BANDS], endBin=new int[BANDS];
@@ -109,70 +111,100 @@ final class PronunciationCheck implements AutoCloseable {
     return app >= 0 && app - start <= 14;
   }
 
-  static double error(String expected,String heard) {
-    String a=letters(expected), b=letters(heard);
-    int[] row=new int[b.length()+1];
-    for(int j=0;j<row.length;j++) row[j]=j;
-    for(int i=1;i<=a.length();i++) {
-      int prev=row[0]; row[0]=i;
-      for(int j=1;j<=b.length();j++) {
-        int old=row[j];
-        row[j]=Math.min(Math.min(row[j]+1,row[j-1]+1),prev+(a.charAt(i-1)==b.charAt(j-1)?0:1));
-        prev=old;
+  interface PhraseSynthesizer {
+    float[] generate(String text, float rate) throws Exception;
+  }
+
+  private static final class Take {
+    final float[] pcm;
+    final WordCoverage coverage;
+    final boolean missingBrand;
+    final double loss;
+
+    Take(float[] pcm, String text, String heard) {
+      this.pcm = pcm;
+      coverage = WordCoverage.compare(text, heard);
+      String target = letters(text);
+      missingBrand = target.contains("ఏఐటెక్") && !hasFullBrand(heard);
+      double penalty = missingBrand ? .45 : 0;
+      if (target.contains("వాట్ఏపర్ఫెక్ట్") && !letters(heard).contains("వాట్ఏ")) penalty += .25;
+      loss = coverage.characterError + .28 * Math.min(3, coverage.missing) + penalty;
+    }
+  }
+
+  static float[] render(PronunciationCheck checker, String text, float rate, int hz,
+                        boolean directed, PhraseSynthesizer synth) throws Exception {
+    float[] original = ConversationTiming.render(text, rate, hz, directed, speed -> synth.generate(text, speed));
+    if (checker == null) return original;
+    checker.reviewWord = "";
+    if (original.length > hz * 30) {
+      checker.reviewWord = "Long phrase outside the recognition window";
+      return original;
+    }
+    Take best = new Take(original, text, checker.recognize(original, hz));
+    boolean sensitive = best.missingBrand || letters(text).contains("వాట్ఏపర్ఫెక్ట్");
+    float[] rates = sensitive ? new float[]{1.02f, rate*.95f, rate*1.04f, 1f} : new float[]{rate*.97f, rate*1.03f};
+    for (float nextRate : rates) {
+      if (best.loss < .22) break;
+      OfflineDenoiser.check(checker.cancel);
+      try {
+        float[] pcm = synth.generate(text, Math.max(.5f, Math.min(2f, nextRate)));
+        if (pcm.length > hz * 30 || pcm.length < hz / 5) continue;
+        pcm = ConversationTiming.trimPadding(pcm, hz);
+        Take next = new Take(pcm, text, checker.recognize(pcm, hz));
+        if (next.loss + .015 < best.loss) best = next;
+      } catch (ConversationTiming.UnusableTake rejected) {
+        // Compare the remaining candidates with the intact full take.
       }
     }
-    double cost=row[b.length()]/(double)Math.max(1,a.length());
-    if(a.contains("ఏఐటెక్") && !hasFullBrand(b)) cost+=.45;
-    if(a.contains("వాట్ఏపర్ఫెక్ట్") && !b.contains("వాట్ఏ")) cost+=.25;
-    return cost;
-  }
-
-  static float[] render(PronunciationCheck checker,String text,float rate,int hz,boolean directed,
-                        ConversationTiming.Synthesizer synth) throws Exception {
-    float[] best=ConversationTiming.render(text,rate,hz,directed,synth);
-    if(checker==null || best.length<hz/3 || best.length>hz*30) return best;
-    double loss=error(text,checker.recognize(best,hz));
-    // Do not spend extra inference on minor spelling variations in recognized Telugu.
-    boolean sensitive = letters(text).contains("ఏఐటెక్") || letters(text).contains("వాట్ఏపర్ఫెక్ట్");
-    float[] rates = sensitive ? new float[]{1.02f, rate*.95f, rate*1.04f, 1f} : new float[]{rate*.95f,rate*1.04f};
-    for(float nextRate : rates) {
-      if(loss<.22) break;
-      OfflineDenoiser.check(checker.cancel);
-      float[] other;
-      try {other=synth.generate(Math.max(.5f,Math.min(2f,nextRate)));}
-      catch(ConversationTiming.UnusableTake rejected){continue;}
-      if(other.length<hz/3 || other.length>hz*30) continue;
-      double next=error(text,checker.recognize(other,hz));
-      if(next+.015<loss){best=ConversationTiming.trimPadding(other,hz);loss=next;}
+    int cut = retryBoundary(text, best);
+    if (cut < 0) return checker.finish(text, best);
+    try {
+      String left = text.substring(0, cut).trim(), right = text.substring(cut).trim();
+      float[] first = ConversationTiming.trimPadding(synth.generate(left, rate), hz);
+      float[] last = ConversationTiming.trimPadding(synth.generate(right, rate), hz);
+      if (first.length < hz / 8 || last.length < hz / 8 || first.length + last.length > hz * 30)
+        return checker.finish(text, best);
+      float[] joined = Arrays.copyOf(first, first.length + last.length);
+      System.arraycopy(last, 0, joined, first.length, last.length);
+      Take next = new Take(joined, text, checker.recognize(joined, hz));
+      if (next.loss + .015 < best.loss) best = next;
+    } catch (ConversationTiming.UnusableTake rejected) {
+      // Both halves must be available before replacing the full take.
     }
-    return best;
+    return checker.finish(text, best);
   }
 
-  /** Keep the entire channel name in one utterance when a long clause swallows its initials. */
+  private float[] finish(String text, Take selected) {
+    int first = selected.coverage.firstMissingOffset;
+    if (first >= 0) {
+      String normalized = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFC);
+      int end = first;
+      while (end < normalized.length() && !Character.isWhitespace(normalized.charAt(end))) end++;
+      reviewWord = normalized.substring(first, end);
+    } else if (selected.missingBrand) reviewWord = "AiTechApp";
+    return selected.pcm;
+  }
+
+  private static int retryBoundary(String text, Take best) {
+    java.util.regex.Matcher brand = java.util.regex.Pattern.compile("ఏ\\s*ఐ టెక్ యాప్(?:స్)?").matcher(text);
+    boolean named = brand.find();
+    if (best.missingBrand && named && brand.end() < text.length()
+        && Character.isWhitespace(text.charAt(brand.end())) && !text.substring(brand.end()).trim().isEmpty())
+      return brand.end();
+    if (best.coverage.missing == 0) return -1;
+    int target = best.coverage.firstMissingOffset, bestCut = -1;
+    for (int i = 1; i < text.length() - 1; i++) {
+      if (!Character.isWhitespace(text.charAt(i)) || Character.isWhitespace(text.charAt(i-1))) continue;
+      if (named && i > brand.start() && i < brand.end()) continue;
+      if (bestCut < 0 || Math.abs(i - target) < Math.abs(bestCut - target)) bestCut = i;
+    }
+    return bestCut;
+  }
+
   static float[] renderNamed(PronunciationCheck checker, String text, float rate, int hz,
                              boolean directed, AlternativeVoice voice) throws Exception {
-    float[] full = render(checker, text, rate, hz, directed, speed -> voice.render(text, speed));
-    if (checker == null || full.length > 30 * hz) return full;
-    java.util.regex.Matcher name = java.util.regex.Pattern.compile("ఏ\\s*ఐ టెక్ యాప్(?:స్)?").matcher(text);
-    if (!name.find()) return full;
-    String tail = text.substring(name.end()).trim();
-    if (tail.isEmpty() || !Character.isLetter(tail.charAt(0))) return full;
-    String heard = checker.recognize(full, hz);
-    if (hasFullBrand(heard)) return full;
-    String lead = text.substring(0, name.end()).trim() + ".";
-    try {
-      float[] first = render(checker, lead, rate, hz, directed, speed -> voice.render(lead, speed));
-      float[] last = render(checker, tail, rate, hz, directed, speed -> voice.render(tail, speed));
-      int gap = hz * 35 / 1000;
-      if (first.length + last.length + gap > 30 * hz) return full;
-      float[] joined = Arrays.copyOf(first, first.length + gap + last.length);
-      System.arraycopy(last, 0, joined, first.length + gap, last.length);
-      String candidate = checker.recognize(joined, hz);
-      if (hasFullBrand(candidate) && error(text, candidate) < error(text, heard)) return joined;
-    } catch (ConversationTiming.UnusableTake ignored) {
-      // Optional alternate phrasing exhausted its native takes. The full take remains playable.
-    }
-    return full;
+    return render(checker, text, rate, hz, directed, voice::render);
   }
 
   public void close() throws OrtException {session.close();}

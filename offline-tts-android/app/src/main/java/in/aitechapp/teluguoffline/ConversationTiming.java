@@ -48,6 +48,8 @@ final class ConversationTiming {
     switch (emotion) {
       case EXCITED: case SURPRISE: accent = 1.8; break;
       case WELCOME: case CALL_TO_ACTION: accent = 1.2; break;
+      case GUIDE: accent = 1.0; break;
+      case QUESTION: accent = .8; break;
       case EMPATHY: case SERIOUS: accent = -1.1; break;
       default: return;
     }

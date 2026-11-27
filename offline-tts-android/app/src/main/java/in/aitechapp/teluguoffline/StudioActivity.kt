@@ -2373,12 +2373,24 @@ private fun ExportDialogs(vm: StudioViewModel) {
 @Composable
 private fun AudioIdentityPanel(file: File, selected: String) {
     var identity by remember(file.parent) { mutableStateOf<AudioIdentity?>(null) }
+    var review by remember(file.parent) { mutableStateOf("") }
     LaunchedEffect(file.parent) {
         identity = withContext(Dispatchers.IO) { AudioIdentity.read(file) }
+        review = withContext(Dispatchers.IO) {
+            val report = File(file.parentFile, "word-review.txt")
+            if (report.isFile) runCatching { report.readText() }.getOrDefault("") else ""
+        }
     }
     identity?.let { info ->
         Text("Audio voice: ${info.name}", style = MaterialTheme.typography.titleMedium)
         Text(info.engine, style = MaterialTheme.typography.bodySmall, color = Muted)
+        if (review.isNotBlank()) {
+            var expanded by rememberSaveable(file.parent) { mutableStateOf(false) }
+            TextButton(onClick = { expanded = !expanded }) {
+                Text(if (expanded) "Hide pronunciation check" else "Review uncertain phrases (${review.lineSequence().count()})")
+            }
+            if (expanded) Text(review, style = MaterialTheme.typography.bodySmall)
+        }
         if (info.id.isNotEmpty() && info.id != selected) {
             val next = ModelCatalog.VOICES.firstOrNull { it.id == selected }?.name ?: selected
             Text(

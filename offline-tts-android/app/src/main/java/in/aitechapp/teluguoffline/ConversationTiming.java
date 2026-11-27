@@ -43,6 +43,26 @@ final class ConversationTiming {
     return first == 0 && end == audio.length ? audio : Arrays.copyOfRange(audio, first, end);
   }
 
+  static void shapeDelivery(float[] pcm, NarrationDirector.Emotion emotion) {
+    double accent;
+    switch (emotion) {
+      case EXCITED: case SURPRISE: accent = 1.8; break;
+      case WELCOME: case CALL_TO_ACTION: accent = 1.2; break;
+      case EMPATHY: case SERIOUS: accent = -1.1; break;
+      default: return;
+    }
+    // A broad, smooth energy arc follows the opening stressed part of the phrase.
+    // A single headroom adjustment preserves the arc without clipping or changing pitch.
+    double peak = 0;
+    for (int i = 0; i < pcm.length; i++) {
+      double t = i / (double)Math.max(1, pcm.length - 1);
+      double envelope = Math.sin(Math.PI * t) * (1 - t) * 1.6;
+      pcm[i] *= (float)Math.pow(10, accent * envelope / 20);
+      peak = Math.max(peak, Math.abs(pcm[i]));
+    }
+    if (peak > .98) for (int i = 0; i < pcm.length; i++) pcm[i] *= (float)(.98 / peak);
+  }
+
   static float candidateRate(double target, double seconds, float rate) {
     if (target <= 0 || seconds < .45 || seconds > 18) return rate;
     double ratio = seconds / target;

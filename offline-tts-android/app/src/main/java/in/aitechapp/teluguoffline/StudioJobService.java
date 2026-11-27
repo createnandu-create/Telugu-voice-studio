@@ -28,6 +28,17 @@ public final class StudioJobService extends Service {
   private PowerManager.WakeLock wake;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
+  private volatile boolean stopping;
+  private int latestStart;
+  private RenderQueue queue;
+  public static volatile boolean rendering;
+  public static volatile String queueSummary = "";
+
+  @Override public void onCreate() {
+    super.onCreate();
+    queue = new RenderQueue(getSharedPreferences("pending-renders", MODE_PRIVATE));
+  }
+
   public IBinder onBind(Intent i) {
     return null;
   }
@@ -38,11 +49,24 @@ public final class StudioJobService extends Service {
   }
 
   public int onStartCommand(Intent intent, int flags, int startId) {
-    if (intent == null) {
+    latestStart = startId;
+    if (intent != null && "render".equals(intent.getAction())) {
+      queue.add(intent.getStringExtra("runId"), intent.getStringExtra("label"));
+      queueSummary = queue.summary();
+    }
+    if (running.get()) return queue.first() == null ? START_NOT_STICKY : START_REDELIVER_INTENT;
+    if ((intent == null || "resume-renders".equals(intent.getAction()) || "render".equals(intent.getAction())) && queue.first() != null)
+      intent = new Intent(this, StudioJobService.class).setAction("render").putExtra("runId", queue.first());
+    if (intent == null || "resume-renders".equals(intent.getAction())) {
       stopSelf();
       return START_NOT_STICKY;
     }
-    if (running.getAndSet(true)) return START_NOT_STICKY;
+    return execute(intent);
+  }
+
+  private int execute(Intent intent) {
+    running.set(true);
+    rendering = "render".equals(intent.getAction());
     busy = true;
     cancelled.set(false);
     status = "Preparing…";
@@ -168,12 +192,21 @@ public final class StudioJobService extends Service {
                     () -> {
                       if (wake != null && wake.isHeld()) wake.release();
                       activeProject = null;
+                      if (stopping) return;
+                      if (rendering) queue.finish(runId);
+                      queueSummary = queue.summary();
+                      rendering = false;
                       running.set(false);
+                      String next = queue.first();
+                      if (next != null) {
+                        execute(new Intent(this, StudioJobService.class).setAction("render").putExtra("runId", next));
+                        return;
+                      }
                       busy = false;
                       downloadingVoice = -1;
                       enhancing = false;
                       stopForeground(STOP_FOREGROUND_REMOVE);
-                      stopSelf(startId);
+                      stopSelf(latestStart);
                     });
           }
         });
@@ -199,7 +232,7 @@ public final class StudioJobService extends Service {
           if (!plan.cloneProfile.isEmpty())
             name = new VoiceProfiles(this).get(plan.cloneProfile).optString("name", "Cloned voice");
           String progress = "Generating audio " + (n + 1) + " of " + plans.length() + ": " + name;
-          post(manager, null, 41, message("render", progress, true));
+          post(manager, null, 41, message("render", progress + " · " + queueSummary, true));
           JSONObject settings = plans.getJSONObject(n).optJSONObject("speech");
           render(store, plan, SpeechSettings.fromJson(settings == null ? legacySpeech : settings));
           post(manager, runId, n + 1, message("completed", "Audio ready: " + AudioNames.forAudio(result), false));
@@ -218,7 +251,7 @@ public final class StudioJobService extends Service {
       if (batch.has("failure")) status = "Failed · " + batch.getString("failure");
       state.delete();
     } catch (CancellationException e) {
-      state.delete();
+      if (!stopping) state.delete();
       throw e;
     }
   }
@@ -275,7 +308,7 @@ public final class StudioJobService extends Service {
     boolean checkWords=getSharedPreferences("StudioActivity", 0).getBoolean("verifyWords", true) && checkerPack.ready();
     StringBuilder spokenIdentity =
         new StringBuilder((voice.hima() ? "hima-diction-v087/" : "delivery-v085-acoustic/"))
-            .append("studio-v0810/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
+            .append("studio-v0811/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
             .append('/')
@@ -346,6 +379,8 @@ public final class StudioJobService extends Service {
         check();
         NarrationDirector.Segment s = renderSegments.get(i);
         status = "Rendering " + (i + 1) + " / " + renderSegments.size() + " · " + voice.name;
+        post(getSystemService(NotificationManager.class), null, 41,
+            message("render", status + " · " + queueSummary, true));
         if (!journal.reusable(i)) {
           if (voice.alternative()) {
             if (alternative == null) {
@@ -360,6 +395,7 @@ public final class StudioJobService extends Service {
             String spoken = voice.hima() ? HimaVoice.spokenForm(expanded) : expanded;
             float[] samples = PronunciationCheck.renderNamed(checker,spoken,s.rate,voice.sampleRate(),speech.youtuber,engine);
             check();
+            if (speech.youtuber) ConversationTiming.shapeDelivery(samples, s.emotion);
             PcmWave.write(journal.chunk(i),samples,voice.sampleRate());
           } else if (voice.tiny()) {
             if (tiny == null) tiny = new TinyVoice(new TinyModelStore(store.root).root, cancelled);
@@ -594,6 +630,7 @@ public final class StudioJobService extends Service {
 
   @Override
   public void onTimeout(int startId, int fgsType) {
+    stopping = true;
     cancel();
     stopForeground(STOP_FOREGROUND_REMOVE);
     stopSelf();
@@ -601,7 +638,12 @@ public final class StudioJobService extends Service {
 
   @Override
   public void onDestroy() {
+    stopping = true;
     cancelled.set(true);
+    if (wake != null && wake.isHeld()) wake.release();
+    rendering = false;
+    busy = false;
+    queueSummary = "";
     worker.shutdown();
     super.onDestroy();
   }

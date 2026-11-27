@@ -3,6 +3,7 @@
 package `in`.aitechapp.teluguoffline
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.os.Bundle
@@ -191,6 +192,14 @@ class StudioActivity : ComponentActivity() {
         super.onStop()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (!StudioJobService.busy &&
+            RenderQueue(getSharedPreferences("pending-renders", MODE_PRIVATE)).first() != null) {
+            startForegroundService(Intent(this, StudioJobService::class.java).setAction("resume-renders"))
+        }
+    }
+
     override fun onDestroy() {
         player?.release()
         super.onDestroy()
@@ -266,7 +275,7 @@ fun StudioApp(
         when {
             vm.page.isNotEmpty() -> vm.page = ""
             vm.tab != "Studio" -> vm.navigate("Studio")
-            vm.step == 3 && !vm.busy -> vm.resetToScript()
+            vm.step == 3 -> vm.resetToScript()
             else -> vm.step--
         }
     }
@@ -623,7 +632,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 item {
                     SectionLabel("TAP A NARRATOR TO GENERATE")
                     var batchDialog by rememberSaveable { mutableStateOf(false) }
-                    OutlinedButton(onClick = { vm.refresh(); batchDialog = true }, enabled = !vm.busy && !vm.recording) {
+                    OutlinedButton(onClick = { vm.refresh(); batchDialog = true }, enabled = vm.canSubmit && !vm.recording) {
                         Text("Generate with multiple voices")
                     }
                     if (batchDialog) {
@@ -825,6 +834,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                     }
                 }
             }
+            if (vm.queueSummary.isNotBlank()) item { Text(vm.queueSummary, color = Muted) }
             if (vm.step == 3) {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -855,7 +865,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                             modifier =
                                 Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
                         )
-                        if (vm.busy) TextButton(onClick = vm::cancel) { Text("Pause") }
+                        if (vm.busy) TextButton(onClick = vm::cancel) { Text("Stop active job") }
                     }
                     if (vm.busy)
                         LinearProgressIndicator(
@@ -985,12 +995,12 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(
-                    onClick = { if (vm.busy) vm.step = 2 else vm.resetToScript() },
+                    onClick = { vm.resetToScript() },
                     modifier = Modifier.weight(.45f).height(48.dp),
                     contentPadding = PaddingValues(4.dp),
                     shape = RoundedCornerShape(50),
                 ) {
-                    Text(if (vm.busy) "← Direction" else "Reset & back", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                    Text("Reset & back", fontSize = 11.sp, maxLines = 1, softWrap = false)
                 }
                 Button(
                     onClick = vm::openSavedFolder,
@@ -1008,7 +1018,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
             Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                 StepNavigation(
                     if (vm.step == 1) "Continue to direction →" else "Generate / Resume",
-                    !vm.busy && !vm.recording,
+                    vm.canSubmit && !vm.recording,
                     { vm.step-- },
                     { if (vm.step == 1) vm.direct() else vm.generate() },
                 )

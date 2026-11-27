@@ -1,0 +1,9 @@
+# Offline narrator comparison, 27 November 2026
+
+[Listen to eight short readings of the channel introduction](Channel-Name-Comparison.zip). These are host-generated Telugu samples. The archive includes six voices from the installed Hima pack and both Indic-TTS voices. No submitted recordings are included.
+
+The three supplied WAVs were mono 44.1 kHz with a peak of about −1.1 dBFS and no full-scale samples. In a local IndicConformer check the Srinivas intro contained “ఏ ఐటెక్ యాప్” and Indic-TTS Male yielded “ఏ ఐటక్యాప్”. The Karthik file starts with a different script about a challan. Its recording cannot serve as a matched comparison for this greeting. No new female phone recording was supplied.
+
+On the same 1.06× greeting, the male FastPitch intro took 4.32 s with the joined reading and 4.40 s with the former comma. The recognizer recovered “ఏఐటెక్ యాప్” with the joined reading. On female FastPitch, the comma produced the clearest transcript in this trial. The new no-comma variant took 4.08 s and recovered “ఏఐై టెక్యాప్”, with an extra vowel mark. The compromise favors continuity and still needs listener evaluation. Karthik and Sravani supported the joined initial. Srinivas and Bhavana retained both initials more reliably with a space. These findings are specific to the test phrase, speed and recognizer.
+
+Hima and FastPitch use different acoustic models and vocoders. FastPitch does not accept emotion instructions. The directed mode uses model-native pacing plus gentle changes in phrase energy for greetings, payoffs and serious or empathetic lines. The evidence does not establish human-like emotion or elimination of perceived background artifacts. Physical Android 15 Recents removal, long running notifications and listening tests on the Nothing Phone remain outstanding.

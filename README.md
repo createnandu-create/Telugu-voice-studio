@@ -4,9 +4,15 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
+## v0.8.11 downloads
+
+[APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.11.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.11-source.zip)
+
+Use Reset & back during a render to submit another narrator. Each request saves its script and voice settings. One foreground worker processes requests in order to bound memory use. With notifications enabled, progress and completion are visible outside the app. Android force-stop and foreground service time limits can interrupt rendering.
+
 ## v0.8.10 downloads
 
-[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.10.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.10-source.zip) · [Native / optional tone comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Native-Tone-Comparison.zip) · [Checksums](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/SHA256SUMS.txt)
+[Unified APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.10-6d6308db05bc/TeluguVoiceStudio-v0.8.10.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.10-6d6308db05bc/TeluguVoiceStudio-v0.8.10-source.zip) · [Checksums](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/SHA256SUMS.txt)
 
 Narration now preserves the native model tone by default. **Narration cleanup + tone EQ** is an explicit opt-in in Direction; it also controls Indic Tiny's mel contrast adjustment. Female EQ stays off when switching voices. Recording enhancement remains available separately. Final loudness normalization and export remain available; disabling cleanup does not claim to repair a model's pronunciation or make it human-like.
 

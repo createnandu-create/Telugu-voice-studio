@@ -50,6 +50,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var step by mutableIntStateOf(0)
     var plan by mutableStateOf<List<NarrationDirector.Segment>>(emptyList())
     private var plannedScript = ""
+    var queueSummary by mutableStateOf("")
+    val canSubmit get() = !busy || queueSummary.isNotEmpty()
     var busy by mutableStateOf(false)
     var downloadingVoice by mutableIntStateOf(-1)
     var status by mutableStateOf("Ready · everything happens on your phone")
@@ -165,6 +167,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     renderingFolder = currentFolder
                     refresh()
                 }
+                queueSummary = StudioJobService.queueSummary
                 busy = StudioJobService.busy
                 downloadingVoice = StudioJobService.downloadingVoice
                 if (busy && StudioJobService.runId.isEmpty()) observedServiceAction = true
@@ -178,7 +181,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 recordingStatus = VoiceRecordingService.status
                 if ((priorBusy && !busy) || (priorRecording && !recording)) refresh()
                 val wanted = requestedSelection
-                if (wanted != null && settingsLoaded && !busy && !recording && !generatePending && !loading && verifying < 0) {
+                if (wanted != null && settingsLoaded && canSubmit && !recording && !generatePending && !loading && verifying < 0) {
                     requestedSelection = null
                     if (wanted == workspaceRevision && script.isNotBlank()) generate()
                 }
@@ -390,7 +393,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     fun generate() = generateBatch(listOf(voice to activeClone))
 
     fun generateBatch(voices: List<Pair<Int,String>>) {
-        if (busy || generatePending || recording || verifying >= 0 || loading) {
+        if (!canSubmit || generatePending || recording || verifying >= 0 || loading) {
             notice = "Finish the current task first."
             return
         }
@@ -428,7 +431,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     withContext(Dispatchers.IO) { File(getApplication<Application>().filesDir, "batch-$id.json").delete() }
                     return@work
                 }
-                startJob("render", id = id)
+                startJob("render", id = id, label = voices.distinct().joinToString(", ") { (index, clone) -> profiles.firstOrNull { it.id == clone }?.name ?: ModelCatalog.VOICES[index].name })
                 step = 3
             } finally {
                 generatePending = false
@@ -436,14 +439,15 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun startJob(action: String, index: Int = voice, id: String = java.util.UUID.randomUUID().toString()) {
-        if (StudioJobService.busy) {
+    private fun startJob(action: String, index: Int = voice, id: String = java.util.UUID.randomUUID().toString(), label: String = "") {
+        if (StudioJobService.busy && !(action == "render" && StudioJobService.rendering)) {
             notice = "A task is already running."
             return
         }
+        val wasBusy = StudioJobService.busy
         StudioJobService.busy = true
         busy = true
-        StudioJobService.status = "Preparing…"
+        if (!wasBusy) StudioJobService.status = "Preparing…"
         activeRunId = id
         try {
             getApplication<Application>()
@@ -451,11 +455,12 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                     Intent(getApplication(), StudioJobService::class.java)
                         .setAction(action)
                         .putExtra("runId", activeRunId)
+                        .putExtra("label", label)
                         .putExtra("voice", index)
                 )
         } catch (e: Exception) {
-            StudioJobService.busy = false
-            busy = false
+            StudioJobService.busy = wasBusy
+            busy = wasBusy
             throw e
         }
     }

@@ -106,12 +106,13 @@ final class HimaVoice extends AlternativeVoice {
     // acoustic tokenizer may fall back to UTF-8 bytes for them.
     return text.replace("‌","").replace("‍","")
         .replace("సబ్స్క్రైబ్","సబ్ స్క్రైబ్").replace("ఆఫ్లైన్","ఆఫ్ లైన్")
-        .replace("ఎక్స్పోర్ట్","ఎక్స్ పోర్ట్").replace("ఎక్స్ప్లనేషన్","ఎక్స్ ప్లనేషన్")
-        .replace("ఏఐ టెక్","ఏ ఐ టెక్");
+        .replace("ఎక్స్పోర్ట్","ఎక్స్ పోర్ట్").replace("ఎక్స్ప్లనేషన్","ఎక్స్ ప్లనేషన్");
   }
 
   float[] render(String text, float rate) throws Exception {
     text=spokenForm(text);
+    if (!name.equals("Karthik") && !name.equals("Sravani"))
+      text=text.replace("ఏఐ టెక్","ఏ ఐ టెక్");
     // Karthik tends to omit the initial consonants of this isolated app name in lists.
     if (name.equals("Karthik") && text.trim().equals("పిక్సెల్ ల్యాబ్,")) text="పిక్సెల్ ల్యాబ్!";
     // The planner inserts the following breath when merging segments. A standalone

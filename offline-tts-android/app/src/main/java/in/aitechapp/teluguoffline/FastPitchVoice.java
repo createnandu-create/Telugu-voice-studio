@@ -31,9 +31,9 @@ final class FastPitchVoice extends AlternativeVoice {
   float[] render(String text,float rate) throws Exception {
     String clean = Normalizer.normalize(text, Normalizer.Form.NFC)
         .replace("‌", "").replace("‍", "").replace('।', '.').replace('–', '-').replace('’', '\'');
-    // A short model-native boundary keeps both letter names audible in this voice.
-    clean = clean.replace("ఏఐ టెక్ యాప్", "ఏ, ఐ టెక్ యాప్")
-        .replace("ఏ ఐ టెక్ యాప్", "ఏ, ఐ టెక్ యాప్");
+    // Keep the brand in one acoustic request without a punctuation pause.
+    String channel = speaker == 1 ? "ఏఐటెక్ యాప్" : "ఏ ఐ టెక్యాప్";
+    clean = clean.replace("ఏఐ టెక్ యాప్", channel).replace("ఏ ఐ టెక్ యాప్", channel);
     long[] ids = new long[clean.length()];
     for (int i=0; i<ids.length; i++) {
       int index = SYMBOLS.lastIndexOf(clean.charAt(i));

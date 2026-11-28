@@ -18,6 +18,29 @@ class StudioUiTest {
     @get:Rule val compose = createAndroidComposeRule<StudioActivity>()
 
     @Test
+    fun scriptPromptCopiesCurrentEditorContentAndPlaceholder() {
+        verifyPromptClipboard("సంక్రాంతి ముగ్గులు")
+    }
+
+    @Test
+    fun emptyEditorCopiesPromptWithTopicPlaceholder() {
+        verifyPromptClipboard("")
+    }
+
+    private fun verifyPromptClipboard(topic: String) {
+        val clipboard = compose.activity.getSystemService(android.content.ClipboardManager::class.java)
+        val editor = compose.onNode(hasSetTextAction())
+        editor.performTextReplacement(topic)
+        val label = "✨ Copy AI Script Prompt"
+        compose.onNodeWithTag("studio-list").performScrollToNode(hasText(label))
+        compose.onNodeWithText(label).performClick()
+        compose.runOnIdle {
+            val value = clipboard.primaryClip!!.getItemAt(0).text.toString()
+            org.junit.Assert.assertEquals(scriptWritingPrompt(topic), value)
+        }
+    }
+
+    @Test
     fun rawAndMasterSelectionKeepsOriginalAudio() {
         val directory = File(compose.activity.filesDir, "fixture-master").apply { mkdirs() }
         val raw = File(directory, "narration.wav")

@@ -542,8 +542,17 @@ private fun SectionLabel(value: String) {
 
 private fun duration(ms: Long) = String.format(Locale.US, "%02d:%02d", ms / 60000, (ms / 1000) % 60)
 
+internal fun scriptWritingPrompt(notes: String): String = """
+    Write a ready-to-record Telugu YouTube narration using the topic and notes below. Return only the script, in short spoken paragraphs. Keep every supplied fact, name, quantity, unit and comparison accurate. Follow the requested length.
+    Open with a concrete hook, explain each step conversationally, and finish with a useful payoff. Use curiosity, warmth, suspense or gentle humour only where the subject earns it. Use natural Telugu with familiar English terms. Write unfamiliar pronunciations in Telugu. For the channel AiTechApp use ఏఐటెక్ యాప్.
+    One offline Telugu voice will speak everything, including English and maths. Write equations, fractions, roots, ratios and percentages in full spoken words, preserving grouping and units. Use a comma for a brief breath, ? for a real question and ! for genuine excitement. Omit quotation marks, raw operators, slashes, markdown, stage directions and speaker labels.
+    Topic or notes:
+    ${notes.trim().ifEmpty { "[YOUR TOPIC]" }}
+""".trimIndent()
+
 @Composable
 private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (File) -> Unit) {
+    val clipboard = LocalContext.current.getSystemService(android.content.ClipboardManager::class.java)
     var editing by remember { mutableIntStateOf(-1) }
     val titles =
         listOf(
@@ -599,6 +608,14 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                             shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Line),
                         )
+                        OutlinedButton(
+                            onClick = {
+                                val prompt = scriptWritingPrompt(vm.script)
+                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Telugu narration prompt", prompt))
+                                vm.notice = "AI Script Prompt copied! Paste in Gemini/ChatGPT for best narration."
+                            },
+                            shape = CircleShape,
+                        ) { Text("✨ Copy AI Script Prompt", maxLines = 1) }
                         Text(
                             "${vm.script.length} characters · original words stay unchanged",
                             fontSize = 11.sp,
@@ -1358,7 +1375,7 @@ private fun VoicesScreen(
                 ) {
                     var more by remember(p.id) { mutableStateOf(false) }
                     var cleanup by remember(p.id) { mutableStateOf(false) }
-                    var roomTail by remember(p.id) { mutableStateOf(false) }
+                    var roomTail by remember(p.id) { mutableStateOf(true) }
                     var create by remember(p.id) { mutableStateOf(false) }
                     var consent by remember(p.id) { mutableStateOf(false) }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2420,7 +2437,7 @@ private fun DeliveryPanel(vm: StudioViewModel) {
                 Triple("soft", "Female tone · gentle EQ", vm.femaleSoftening),
                 Triple("cleanup", "Narration cleanup + tone EQ · optional", vm.synthesisCleanup),
             )
-            .filter { !vm.englishNotation || (it.first != "technical" && it.first != "comma") }
+            .filter { !vm.englishNotation || it.first != "technical" }
             .filter { it.first != "soft" || (vm.activeClone.isEmpty() && ModelCatalog.VOICES[vm.voice].tiny() && ModelCatalog.VOICES[vm.voice].gender == "Female") }
             .forEach { (key, label, enabled) ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

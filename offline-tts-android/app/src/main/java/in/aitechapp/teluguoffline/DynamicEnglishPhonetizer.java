@@ -5,7 +5,7 @@ import java.util.*;
 import java.util.regex.*;
 import java.util.zip.GZIPInputStream;
 
-/** CMU phonemes mapped to Telugu script; deterministic letter-name fallback for unseen words. */
+/** CMU phonemes mapped to Telugu script; grapheme-to-phoneme fallback for out-of-dictionary words. */
 public final class DynamicEnglishPhonetizer {
   private static volatile Map<String, String> lexicon = Collections.emptyMap();
   private static final String[] LETTERS = {
@@ -15,15 +15,24 @@ public final class DynamicEnglishPhonetizer {
   private static final Map<String, String> WORDS = new LinkedHashMap<>();
 
   static {
+    WORDS.put("sankranti", "సంక్రాంతి");
+    WORDS.put("muggu", "ముగ్గు");
+    WORDS.put("haritha", "హరిత");
+    WORDS.put("teacher", "టీచర్");
+    WORDS.put("regular", "రెగ్యులర్");
+    WORDS.put("color", "కలర్");
+    WORDS.put("pro", "ప్రో");
+    WORDS.put("free", "ఫ్రీ");
+    WORDS.put("link", "లింక్");
+    WORDS.put("download", "డౌన్‌లోడ్");
+    WORDS.put("easy", "ఈజీ");
+    WORDS.put("font", "ఫాంట్");
     WORDS.put("app","యాప్");
     WORDS.put("apps","యాప్స్");
-    WORDS.put("aitechapps", "ఏఐ టెక్ యాప్స్");
-    WORDS.put("aitechapp", "ఏఐ టెక్ యాప్");
     WORDS.put("pixellab", "పిక్సెల్ ల్యాబ్");
     WORDS.put("kinemaster", "కైన్ మాస్టర్");
     WORDS.put("alight", "అలైట్");
     WORDS.put("motion", "మోషన్");
-    WORDS.put("vn", "వి ఎన్");
     WORDS.put("mind", "మైండ్");
     WORDS.put("blowing", "బ్లోయింగ్");
     WORDS.put("tech", "టెక్");
@@ -33,8 +42,6 @@ public final class DynamicEnglishPhonetizer {
     WORDS.put("main", "మెయిన్");
     WORDS.put("problem", "ప్రాబ్లమ్");
     WORDS.put("vocal", "వోకల్");
-    WORDS.put("dna", "డీ ఎన్ ఏ");
-    WORDS.put("ai", "ఏఐ");
     WORDS.put("subscribe", "సబ్‌స్క్రైబ్");
     WORDS.put("youtube", "యూట్యూబ్");
     WORDS.put("hello", "హలో");
@@ -115,8 +122,7 @@ public final class DynamicEnglishPhonetizer {
     return a[sign ? 1 : 0];
   }
 
-  public static String phones(String sequence) {
-    Map<String, String> consonants =
+  private static final Map<String, String> CONSONANTS =
         Map.ofEntries(
             Map.entry("B", "బ"),
             Map.entry("CH", "చ"),
@@ -142,6 +148,7 @@ public final class DynamicEnglishPhonetizer {
             Map.entry("Y", "య"),
             Map.entry("Z", "జ"),
             Map.entry("ZH", "ష"));
+  public static String phones(String sequence) {
     StringBuilder b = new StringBuilder();
     boolean pending = false;
     for (String raw : sequence.split("\\s+")) {
@@ -151,7 +158,7 @@ public final class DynamicEnglishPhonetizer {
         b.append(v);
         pending = false;
       } else {
-        String c = consonants.get(p);
+        String c = CONSONANTS.get(p);
         if (c != null) {
           if (pending) b.append('్');
           b.append(c);
@@ -163,30 +170,71 @@ public final class DynamicEnglishPhonetizer {
     return b.toString();
   }
 
+  private static final Set<String> INITIALISMS = Set.of("USB","APK","AI","PDF","DNA","API","CPU","GPU","UI","URL","LED","HDMI","HTML","ID");
+  // Longest common graphemes first. The resulting phonemes share the CMU Telugu renderer.
+  private static final String[][] GRAPHEMES = {
+    {"tion","SH AH N"}, {"sion","ZH AH N"}, {"tch","CH"}, {"igh","AY"}, {"sch","S K"},
+    {"ch","CH"}, {"sh","SH"}, {"th","TH"}, {"ph","F"}, {"ng","NG"}, {"qu","K W"},
+    {"ck","K"}, {"dh","DH"}, {"bh","B HH"}, {"kh","K HH"}, {"ee","IY"}, {"ea","IY"},
+    {"oo","UW"}, {"ai","EY"}, {"ay","EY"}, {"oa","OW"}, {"ou","AW"}, {"oi","OY"},
+    {"oy","OY"}, {"au","AO"}, {"ar","AA R"}, {"or","AO R"}, {"er","ER"}
+  };
+  private static final String[] SINGLE = ("AE B K D EH F G HH IH JH K L M N OW P K R S T AH V W K_S Y Z").split(" ");
+
+  private static String approximate(String word) {
+    StringJoiner out = new StringJoiner(" ");
+    for (int at = 0; at < word.length();) {
+      char c = word.charAt(at);
+      if (c < 'a' || c > 'z') { at++; continue; }
+      String sound = null;
+      for (String[] rule : GRAPHEMES) {
+        if (word.startsWith(rule[0], at)) {
+          sound = rule[1];
+          at += rule[0].length();
+          break;
+        }
+      }
+      if (sound == null) {
+        sound = SINGLE[c - 'a'].replace('_',' ');
+        if (c == 'y' && at > 0 && (at+1 == word.length() || "aeiou".indexOf(word.charAt(at+1)) < 0))
+          sound = at+1 == word.length() ? "IY" : "IH";
+        if (c == 'c' && at+1 < word.length() && "eiy".indexOf(word.charAt(at+1)) >= 0) sound = "S";
+        at++;
+      }
+      out.add(sound);
+    }
+    return phones(out.toString());
+  }
+
+  static String letter(char c) { return LETTERS[Character.toUpperCase(c) - 'A']; }
+
   private static String word(String word) {
-    String known = WORDS.get(word.toLowerCase(Locale.ROOT));
-    if (known != null) return known;
-    if (!word.equals(word.toUpperCase(Locale.ROOT))) {
-      known = lexicon.get(word.toLowerCase(Locale.ROOT));
-      if (known != null && !known.isEmpty()) return known;
+    String lower = word.toLowerCase(Locale.ROOT);
+    if (word.equals("I")) return "ఐ";
+    if (word.equals("AI")) return "ఏఐ";
+    if (word.equals("VN")) return "వి ఎన్";
+    if (INITIALISMS.contains(word) || word.matches("[B-DF-HJ-NP-TV-XZ]{2,4}")) {
+      StringJoiner names = new StringJoiner(" ");
+      for (char c : word.toCharArray()) names.add(letter(c));
+      return names.toString();
     }
-    StringBuilder b = new StringBuilder();
-    for (char c : word.toUpperCase(Locale.ROOT).toCharArray()) {
-      if (c < 'A' || c > 'Z') continue;
-      if (b.length() > 0) b.append(' ');
-      b.append(LETTERS[c - 'A']);
-    }
-    return b.toString();
+    if (word.length() == 1 && !"ai".contains(lower)) return letter(word.charAt(0));
+    String known = WORDS.get(lower);
+    if (known == null) known = lexicon.get(lower);
+    if (known != null && !known.isEmpty()) return known;
+    if (word.length() == 1 && Character.isUpperCase(word.charAt(0))) return letter(word.charAt(0));
+    return approximate(lower);
   }
 
   static final Pattern BRAND = Pattern.compile(
       "(?iu)(?<![\\p{L}\\p{M}\\p{N}])a[.\\s]*i[.\\s-]*tech[\\s-]*app(s?)(?![A-Za-z])");
 
   public static String apply(String source) {
+    source = source.replace('’', (char) 39).replaceAll("[“”‘\"]", " ");
     Matcher brand = BRAND.matcher(source);
     StringBuffer branded = new StringBuffer();
     while (brand.find()) {
-      brand.appendReplacement(branded, brand.group(1).isEmpty() ? "ఏఐ టెక్ యాప్" : "ఏఐ టెక్ యాప్స్");
+      brand.appendReplacement(branded, "ఏఐటెక్ యాప్");
     }
     source = brand.appendTail(branded).toString();
     Matcher m = Pattern.compile("[A-Za-z]+(?:'[A-Za-z]+)?").matcher(source);
@@ -206,7 +254,7 @@ public final class DynamicEnglishPhonetizer {
       m.appendReplacement(b, Matcher.quoteReplacement(value));
     }
     m.appendTail(b);
-    return b.toString().replaceAll("(?<=[\\p{L}\\p{M}])[-–](?=[\\p{L}\\p{M}])", " ");
+    return b.toString().replace((char) 39, ' ').trim().replaceAll(" +", " ").replaceAll("(?<=[\\p{L}\\p{M}])[-–](?=[\\p{L}\\p{M}])", " ");
   }
 
   private static boolean isLatin(char c) {

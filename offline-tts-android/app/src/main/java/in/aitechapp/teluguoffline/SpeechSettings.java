@@ -74,15 +74,33 @@ public final class SpeechSettings {
   }
 
   public List<NarrationDirector.Segment> renderSegments(List<NarrationDirector.Segment> plan) {
-    List<NarrationDirector.Segment> lines = DeliveryControls.expand(plan, !englishNotation && commaBuffer, carefulDiction);
-    if (!englishNotation) return audible(TechnicalTelugu.phrases(lines, explainTechnical));
+    List<NarrationDirector.Segment> verified = new ArrayList<>();
+    for (NarrationDirector.Segment sentence : plan) {
+      List<NarrationDirector.Segment> parts = expandSentence(sentence);
+      String expected = tokenSequence(spoken(sentence.text));
+      StringJoiner actual = new StringJoiner(" ");
+      for (NarrationDirector.Segment part : parts) actual.add(spoken(part.text));
+      // A dictionary phrase or equation may span a proposed pause. Preserve its full reading.
+      if (!expected.equals(tokenSequence(actual.toString()))) verified.add(sentence);
+      else verified.addAll(parts);
+    }
+    return audible(verified);
+  }
+
+  private static String tokenSequence(String text) {
+    return text.replaceAll("[\\p{P}\\s]+", " ").trim();
+  }
+
+  private List<NarrationDirector.Segment> expandSentence(NarrationDirector.Segment sentence) {
+    List<NarrationDirector.Segment> lines = DeliveryControls.expand(Collections.singletonList(sentence), commaBuffer, carefulDiction);
+    if (!englishNotation) return TechnicalTelugu.phrases(lines, explainTechnical);
     List<NarrationDirector.Segment> flowing = new ArrayList<>();
     for (NarrationDirector.Segment line : lines) {
-      boolean punctuation = line.text.trim().endsWith(".") || line.text.trim().endsWith(",");
+      boolean punctuation = line.text.trim().endsWith(".") || (!commaBuffer && line.text.trim().endsWith(","));
       flowing.add(new NarrationDirector.Segment(line.text, line.emotion, line.rate, line.pitch,
           punctuation ? 0 : line.pauseAfterMs));
     }
-    return audible(flowing);
+    return flowing;
   }
 
   public List<NarrationDirector.Segment> audible(List<NarrationDirector.Segment> segments) {

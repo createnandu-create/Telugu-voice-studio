@@ -325,7 +325,11 @@ public final class NarrationDirector {
         return;
       }
       int cut = rest.lastIndexOf(' ', max);
-      if (cut < max / 3) cut = max;
+      if (cut < 1) {
+        // A split inside a name, numeral or Telugu cluster changes its pronunciation.
+        cut = rest.indexOf(' ', max);
+        if (cut < 0) cut = rest.length();
+      }
       if (cut < rest.length() && cut > 0 && Character.isHighSurrogate(rest.charAt(cut - 1))) cut--;
       if (cut <= 0) cut = max;
       String part = rest.substring(0, cut).trim();

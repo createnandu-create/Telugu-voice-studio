@@ -162,6 +162,45 @@ final class PronunciationCheck implements AutoCloseable {
         // Compare the remaining candidates with the intact full take.
       }
     }
+    if (best.coverage.missing > 0 || best.coverage.characterError > .35) {
+      int[] boundaries = equationBoundaries(text);
+      if (boundaries.length > 0) {
+        try {
+          ArrayList<float[]> clips = new ArrayList<>();
+          int start = 0, total = 0;
+          for (int end : boundaries) {
+            String phrase = text.substring(start, end).trim();
+            OfflineDenoiser.check(checker.cancel);
+            float[] pcm = ConversationTiming.trimPadding(synth.generate(phrase, rate), hz);
+            if (pcm.length < hz / 8 || pcm.length > hz * 30) break;
+            Take clip = new Take(pcm, phrase, checker.recognize(pcm, hz));
+            if (clip.loss > .22) {
+              float[] retry = ConversationTiming.trimPadding(synth.generate(phrase, rate * .97f), hz);
+              if (retry.length >= hz/8 && retry.length < hz*30) {
+                Take alternative = new Take(retry, phrase, checker.recognize(retry, hz));
+                if (alternative.improvesOn(clip)) clip = alternative;
+              }
+            }
+            total += clip.pcm.length;
+            if (total > hz * 30) break;
+            clips.add(clip.pcm);
+            start = end;
+          }
+          if (start == text.length()) {
+            float[] joined = new float[total];
+            int offset = 0;
+            for (float[] clip : clips) {
+              System.arraycopy(clip,0,joined,offset,clip.length);
+              offset += clip.length;
+            }
+            Take checked = new Take(joined,text,checker.recognize(joined,hz));
+            if (checked.improvesOn(best)) best = checked;
+          }
+        } catch (ConversationTiming.UnusableTake rejected) {
+          // Keep the best complete take when an isolated operand cannot be spoken.
+        }
+      }
+    }
     int cut = retryBoundary(text, best);
     if (cut < 0) return checker.finish(text, best);
     try {
@@ -192,8 +231,23 @@ final class PronunciationCheck implements AutoCloseable {
     return selected.pcm;
   }
 
+  // Every slice is an exact source substring, including its operator. Retry only uncertain audio.
+  private static final java.util.regex.Pattern OPERATOR = java.util.regex.Pattern.compile(
+      "(?<=\\s)(?:ఈక్వల్స్ టు|ప్లస్|మైనస్|ఇంటూ|బై|ఈజ్ టు|టు ది పవర్ ఆఫ్)(?=\\s)");
+  static int[] equationBoundaries(String text) {
+    var match = OPERATOR.matcher(text);
+    ArrayList<Integer> positions = new ArrayList<>();
+    while (match.find()) {
+      positions.add(match.start());
+      if (positions.size() > 8) return new int[0];
+    }
+    if (positions.isEmpty()) return new int[0];
+    positions.add(text.length());
+    return positions.stream().mapToInt(Integer::intValue).toArray();
+  }
+
   private static int retryBoundary(String text, Take best) {
-    java.util.regex.Matcher brand = java.util.regex.Pattern.compile("ఏ\\s*ఐ టెక్ యాప్(?:స్)?").matcher(text);
+    java.util.regex.Matcher brand = java.util.regex.Pattern.compile("ఏ\\s*ఐ\\s*టెక్ యాప్(?:స్)?").matcher(text);
     boolean named = brand.find();
     if (best.missingBrand && named && brand.end() < text.length()
         && Character.isWhitespace(text.charAt(brand.end())) && !text.substring(brand.end()).trim().isEmpty())

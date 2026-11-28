@@ -31,7 +31,7 @@ public final class DirectionContract {
     }
     // Only the existing deterministic boundaries are allowed; even changed word spacing is
     // rejected.
-    if (index != source.size())
+    if (index != source.size() || !compact(original).equals(compact(String.join(" ", source))))
       throw new IllegalArgumentException(
           "Direction changed the script. Restore the original words.");
   }

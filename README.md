@@ -4,9 +4,9 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
-## v0.8.14 downloads
+## v0.8.15 downloads
 
-[Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.14.apk) · [Srinivas presenter MP3](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Srinivas-presenter.mp3) · [Eight voice samples](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Telugu-presenter-voices.zip) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.14-source.zip)
+[Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.15.apk) · [Srinivas English names MP3](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Srinivas-English-names.mp3) · [Srinivas presenter MP3](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Srinivas-presenter.mp3) · [Eight voice samples](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Telugu-presenter-voices.zip) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.15-source.zip)
 
 Direction supports a measured opening hook, humor, wry delivery, suspense, brisk directions, encouragement and respectful address. You can change a line's delivery in its Edit menu. The six Hima speakers share one download. Settings also offers separate SYSPIN Male and Female Telugu narrators (114 MB each) in place of the two FastPitch choices. Earlier projects retain their original speaker indices.
 

@@ -307,7 +307,7 @@ public final class StudioJobService extends Service {
     boolean checkWords=getSharedPreferences("StudioActivity", 0).getBoolean("verifyWords", true) && checkerPack.ready();
     StringBuilder spokenIdentity =
         new StringBuilder((voice.hima() ? "hima-diction-v087/" : "delivery-v085-acoustic/"))
-            .append("studio-v0814/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
+            .append("studio-v0815/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
             .append('/')
@@ -322,10 +322,12 @@ public final class StudioJobService extends Service {
           .append(clone.getString("cloneModel"))
           .append(clone.getString("cloneToneSha"));
     org.json.JSONArray inputAudit = new org.json.JSONArray();
+    List<String> inputs = new java.util.ArrayList<>(renderSegments.size());
     for (NarrationDirector.Segment segment : renderSegments) {
       String spoken = speech.spoken(segment.text);
       if (voice.hima()) spoken = HimaVoice.spokenForm(spoken);
       if (voice.tiny()) TinyVoice.tokens(spoken);
+      inputs.add(spoken);
       spokenIdentity.append(spoken.length()).append(':').append(spoken);
       inputAudit.put(new JSONObject().put("original", segment.text).put("spoken", spoken));
     }
@@ -353,7 +355,7 @@ public final class StudioJobService extends Service {
             .put("tiny_duration_guard", speech.durationGuard)
             .put("female_softening", soft)
             .put("synthesis_cleanup", speech.synthesisCleanup)
-            .put("comma_buffer_ms", !speech.englishNotation && speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
+            .put("comma_buffer_ms", speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
             .put("careful_diction", speech.carefulDiction);
     FileIntegrity.write(new File(journal.directory, "render-identity.json"), identity.toString(2));
     AudioNames.project(journal.directory, voice.name);
@@ -393,8 +395,7 @@ public final class StudioJobService extends Service {
                   : new FastPitchVoice(pack,voice.gender.equals("Male"),cancelled);
             }
             AlternativeVoice engine = alternative;
-            String expanded = speech.spoken(s.text);
-            String spoken = voice.hima() ? HimaVoice.spokenForm(expanded) : expanded;
+            String spoken = inputs.get(i);
             float[] samples = PronunciationCheck.renderNamed(checker,spoken,s.rate,voice.sampleRate(),speech.youtuber,engine);
             check();
             if (speech.youtuber) ConversationTiming.shapeDelivery(samples, s.emotion);
@@ -402,7 +403,7 @@ public final class StudioJobService extends Service {
           } else if (voice.tiny()) {
             if (tiny == null) tiny = new TinyVoice(new TinyModelStore(store.root).root, cancelled);
             TinyVoice engine = tiny;
-            String spoken = speech.spoken(s.text);
+            String spoken = inputs.get(i);
             float[] samples = PronunciationCheck.render(checker,spoken, s.rate, 24000, speech.youtuber,
                 (phrase, rate) -> {
                   check();
@@ -434,7 +435,7 @@ public final class StudioJobService extends Service {
                           .build());
             }
             OfflineTts engine = tts;
-            String spoken = speech.spoken(s.text);
+            String spoken = inputs.get(i);
             float[] samples = PronunciationCheck.render(checker,spoken, s.rate, 22050, speech.youtuber,
                 (phrase, rate) -> {
                   check();
@@ -617,7 +618,7 @@ public final class StudioJobService extends Service {
             .put("question_tails_requested", requested)
             .put("question_tails_lifted", lifted)
             .put("female_softening", soft)
-            .put("comma_buffer_ms", !speech.englishNotation && speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
+            .put("comma_buffer_ms", speech.commaBuffer ? DeliveryControls.COMMA_MS : 0)
             .put("output_file", output.getName())
             .put("quality_score", JSONObject.NULL);
     FileIntegrity.write(new File(journal.directory, "word-review.txt"), String.join("\n", reviewLines));

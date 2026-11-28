@@ -28,7 +28,7 @@ public class V080Test {
       {"100%", "వంద శాతం"},
       {"4K", "ఫోర్ కే"},
       {"192-D", "నూట తొంభై రెండు డీ"},
-      {"AiTechApp", "ఏఐ టెక్ యాప్"},
+      {"AiTechApp", "ఏఐటెక్ యాప్"},
       {"PixelLab", "పిక్సెల్ ల్యాబ్"},
       {"Alight Motion", "అలైట్ మోషన్"},
       {"main problem", "మెయిన్ ప్రాబ్లమ్"},
@@ -42,8 +42,8 @@ public class V080Test {
     };
     SpeechSettings settings = new SpeechSettings();
     assertTrue(settings.englishNotation);
-    assertEquals("సిక్స్‌టీన్ ఇజ్ టు నైన్", settings.spoken("16:9"));
-    assertEquals("రూట్ ట్వెంటీ ఫైవ్ ఇజ్ ఈక్వల్ టు ఫైవ్", settings.spoken("√25 = 5"));
+    assertEquals("సిక్స్‌టీన్ ఈజ్ టు నైన్", settings.spoken("16:9"));
+    assertEquals("రూట్ ట్వెంటీ ఫైవ్ ఈక్వల్స్ టు ఫైవ్", settings.spoken("√25 = 5"));
     settings.englishNotation = false;
     assertTrue(settings.explainTechnical);
     assertEquals("పదహారు భాగాలకు తొమ్మిది భాగాలు", settings.spoken("16:9"));

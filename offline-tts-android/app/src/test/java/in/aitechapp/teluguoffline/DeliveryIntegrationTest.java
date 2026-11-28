@@ -63,15 +63,15 @@ public class DeliveryIntegrationTest {
   }
 
   @Test
-  public void literalRenderPlanKeepsTheScriptAndOmitsFixedPunctuationSilence() throws Exception {
+  public void literalRenderPlanKeepsWordsAndPausesOnlyAtEnabledCommas() throws Exception {
     SpeechSettings settings = new SpeechSettings();
     String script = "ఇక్కడ, 100% చూడండి. 16:9 లేదా √25 = 5.";
     var original = NarrationDirector.planExact(script, NarrationDirector.Style.AUTO);
     var rendered = settings.renderSegments(original);
-    assertEquals(original.size(), rendered.size());
+    assertEquals(3, rendered.size());
+    assertEquals(script, String.join(" ", rendered.stream().map(s -> s.text).collect(java.util.stream.Collectors.toList())));
     for (int i=0; i<rendered.size(); i++) {
-      assertEquals(original.get(i).text,rendered.get(i).text);
-      assertEquals(0,rendered.get(i).pauseAfterMs);
+      assertEquals(i == 0 ? 110 : 0,rendered.get(i).pauseAfterMs);
       String spoken=settings.spoken(rendered.get(i).text);
       assertFalse(spoken.contains(",") || spoken.contains("."));
       assertTrue(TinyVoice.tokens(spoken).length>1);

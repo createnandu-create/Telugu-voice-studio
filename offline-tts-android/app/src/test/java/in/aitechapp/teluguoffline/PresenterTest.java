@@ -23,6 +23,8 @@ public class PresenterTest {
     assertEquals("సిక్స్‌టీన్ ఇజ్ టు నైన్",EnglishNotation.read("16:9"));
     assertTrue(PronunciationLexicon.apply("x != 2",Map.of(),false,true,true).contains("నాట్ ఈక్వల్ టు"));
     assertEquals(1,NarrationDirector.planExact("x != 2.",NarrationDirector.Style.AUTO).size());
+    String integral = EnglishNotation.read("\\int_{0}^{2} x²");
+    assertTrue(integral.contains("ఇంటిగ్రల్ ఫ్రమ్ జీరో టు టూ") && integral.contains("స్క్వేర్డ్"));
     assertEquals("2026-11-27",EnglishNotation.read("2026-11-27"));
   }
 }

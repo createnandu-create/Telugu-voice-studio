@@ -98,9 +98,36 @@ final class EnglishNotation {
     return equations.appendTail(result).toString();
   }
 
+  // Canonicalize equivalent LaTeX and Unicode operators before verbalizing their operands.
+  private static String calculus(String input) {
+    String s = input.replaceAll("\\\\sum(?![A-Za-z])", "∑").replaceAll("\\\\prod(?![A-Za-z])", "∏")
+        .replaceAll("\\\\int(?![A-Za-z])", "∫").replaceAll("\\\\infty(?![A-Za-z])", "∞")
+        .replaceAll("\\\\pi(?![A-Za-z])", "π").replaceAll("\\\\times(?![A-Za-z])", "×")
+        .replaceAll("\\\\div(?![A-Za-z])", "÷");
+    Matcher limits = Pattern.compile("([∑∏∫])_\\{([^{}]+)\\}\\^\\{([^{}]+)\\}").matcher(s);
+    StringBuffer expanded = new StringBuffer();
+    while (limits.find()) limits.appendReplacement(expanded, Matcher.quoteReplacement(
+        limits.group(1) + " ఫ్రమ్ " + bound(limits.group(2)) + " టు " + bound(limits.group(3)) + " "));
+    return limits.appendTail(expanded).toString();
+  }
+
+  private static String bound(String token) {
+    String value = token.trim();
+    return value.matches(N) ? number(value) : expressions(value);
+  }
+
+  private static String symbols(String text) {
+    return text.replace("∑", " సమ్ ").replace("∏", " ప్రాడక్ట్ ").replace("∫", " ఇంటిగ్రల్ ")
+        .replace("∂", " పార్షియల్ ").replace("∞", " ఇన్ఫినిటీ ").replace("π", " పై ")
+        .replace("≈", " అప్రాక్సిమేట్లీ ఈక్వల్ టు ").replace("±", " ప్లస్ ఆర్ మైనస్ ")
+        .replace("∈", " బిలాంగ్స్ టు ").replace("∪", " యూనియన్ ").replace("∩", " ఇంటర్‌సెక్షన్ ")
+        .replace("∇", " నాబ్లా ").replace("≠", " నాట్ ఈక్వల్ టు ")
+        .replaceAll("(?<=[xyzabc0-9])²", " స్క్వేర్డ్ ").replaceAll("(?<=[xyzabc0-9])³", " క్యూబ్డ్ ");
+  }
+
   static String read(String input) {
     for(char c='౦'; c<='౯'; c++) input=input.replace(c,(char)('0'+c-'౦'));
-    input = input.replaceAll("\\\\frac\\s*\\{("+N+")\\}\\s*\\{("+N+")\\}", "($1/$2)");
+    input = calculus(input).replaceAll("\\\\frac\\s*\\{("+N+")\\}\\s*\\{("+N+")\\}", "($1/$2)");
     Matcher m=TOKEN.matcher(expressions(TechnicalTelugu.clocks(input)));
     StringBuffer out=new StringBuffer();
     while(m.find()) {
@@ -112,7 +139,7 @@ final class EnglishNotation {
       else spoken="వోకల్ డీ ఎన్ ఏ";
       m.appendReplacement(out,Matcher.quoteReplacement(" "+spoken+" "));
     }
-    return TechnicalTelugu.measurements(m.appendTail(out).toString()).trim().replaceAll(" +"," ");
+    return symbols(TechnicalTelugu.measurements(m.appendTail(out).toString())).trim().replaceAll(" +"," ");
   }
   private EnglishNotation() {}
 }

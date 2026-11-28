@@ -38,7 +38,7 @@ public final class CloneProfiles {
       "hima-srinivas.wav", "hima-bhavana.wav", "fastpitch-male.wav", "fastpitch-female.wav"
     };
     File dest = new File(c.getCacheDir(), "openvoice-base-" + voice + ".wav");
-    try (InputStream in = c.getAssets().open("comparison/" + names[voice]);
+    try (InputStream in = c.getAssets().open("comparison/" + (ModelCatalog.VOICES[voice].syspin() ? ModelCatalog.VOICES[voice].id + ".wav" : names[voice]));
         OutputStream out = new FileOutputStream(dest)) {
       byte[] buffer = new byte[65536];
       int count;

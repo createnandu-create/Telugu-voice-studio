@@ -14,6 +14,23 @@ fetch() {
 }
 hf=https://huggingface.co
 hima="$hf/Prahaladha/hima-tts-nano-te-ONNX/resolve/8fd92e3956163815892f6adcf7e3aae91e70272b"
+for gender in male female; do
+  if [[ $gender == male ]]; then
+    revision=6650e4cb5e553e80af13e5b079ffaf86c30ac19b
+    model_sha=022ffde2ceb933aa61230ab0bbeff9b23d0b91bc2493f483eed1fc14604338ed
+    tokens_sha=d451ccb72770d6bf15094a27a5eeee566799fb1ac8162663875d1286026c0c0e
+  else
+    revision=24682cdcc245b8930f177cc57108baca7103e0fb
+    model_sha=0ceb91c9f4628ba8766ba0b4e23eb63b238449f25c767f501351d0af708bea48
+    tokens_sha=05f3a237c7b2710bfb51fff70cc4281e0e5edc30a97dda34516a1655405c19fc
+  fi
+  pack="$tmp/syspin-$gender"
+  mkdir -p "$pack"
+  for asset in model.onnx tokens.txt; do
+    fetch "$hf/codebucketsolutions/bolo-syspin-telugu-$gender/resolve/$revision/$asset" "$pack/$asset"
+  done
+  (cd "$pack" && echo "$model_sha  model.onnx" | sha256sum -c - && echo "$tokens_sha  tokens.txt" | sha256sum -c -)
+done
 for p in prefix.safetensors tokenizer.model voices/voices.safetensors onnx/decoder_int8.onnx onnx/voices/step_int8.onnx onnx/voices/frame_int8.onnx; do
   fetch "$hima/$p" "$tmp/hima/$(basename "$p")"
 done

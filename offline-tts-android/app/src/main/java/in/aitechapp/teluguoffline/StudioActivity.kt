@@ -637,7 +637,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                     }
                     if (batchDialog) {
                         val ready = vm.models.filter { it.ready }
-                        val voices = ready.map { (it.index to "") to it.name } +
+                        val voices = ready.filterNot { ModelCatalog.VOICES[it.index].fastPitch() }.map { (it.index to "") to it.name } +
                             vm.profiles.filter { p -> vm.clonePackReady(p.cloneBase) && p.cloneReady && ready.any { it.index == p.cloneBase } }
                                 .map { (it.cloneBase to it.id) to (it.name + " · Cloned") }
                         var excluded by remember { mutableStateOf(emptySet<Pair<Int, String>>()) }
@@ -673,7 +673,7 @@ private fun StudioScreen(vm: StudioViewModel, play: (File) -> Unit, export: (Fil
                             dismissButton = { TextButton(onClick = { batchDialog = false }) { Text("Cancel") } })
                     }
                 }
-                items(vm.models, key = { it.index }) { m ->
+                items(vm.models.filterNot { ModelCatalog.VOICES[it.index].fastPitch() }.sortedBy { !ModelCatalog.VOICES[it.index].hima() }, key = { it.index }) { m ->
                     VoiceChoice(
                         m,
                         vm.voice == m.index && vm.activeClone.isEmpty(),
@@ -1888,7 +1888,7 @@ private fun SettingsScreen(vm: StudioViewModel) {
         item {
             Panel {
                 SectionLabel("ON THIS DEVICE")
-                Text("Piper, Indic Tiny, Hima and Indic-TTS", style = MaterialTheme.typography.titleMedium)
+                Text("Hima, SYSPIN, Piper and Indic Tiny", style = MaterialTheme.typography.titleMedium)
                 val context = LocalContext.current
                 val version = remember { AppIdentity.version(context) }
                 Text(
@@ -2001,7 +2001,7 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                     vm.models.filter {
                         it.ready || it.partial > 0 || it.damaged || vm.downloadingVoice == it.index
                     }
-                else vm.models
+                else vm.models.filterNot { ModelCatalog.VOICES[it.index].fastPitch() }
             if (shown.isEmpty())
                 item {
                     Panel {
@@ -2038,6 +2038,7 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                     var details by rememberSaveable(m.index) { mutableStateOf(false) }
                     Text(
                         if (ModelCatalog.VOICES[m.index].hima()) "102 MB shared download · 24 kHz"
+                        else if (ModelCatalog.VOICES[m.index].syspin()) "114 MB per voice · 22.05 kHz"
                         else if (ModelCatalog.VOICES[m.index].fastPitch()) "281 MB download · 137 MB installed · 22.05 kHz"
                         else if (ModelCatalog.VOICES[m.index].tiny()) "91 MB shared pack · 24 kHz"
                         else "63.5 MB · 22.05 kHz",
@@ -2049,8 +2050,8 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                     }
                     if (details) {
                         Text(
-                            if (ModelCatalog.VOICES[m.index].alternative())
-                                "One shared pack installs both speakers. Removal affects both. Inference runs on the device."
+                            if (ModelCatalog.VOICES[m.index].syspin()) "SYSPIN · SPIRE Lab, IISc. This download contains one narrator."
+                            else if (ModelCatalog.VOICES[m.index].alternative()) "All speakers in this pack share one download."
                             else if (ModelCatalog.VOICES[m.index].tiny())
                                 "Indic Tiny Telugu · experimental\n91 MB shared pack · 24 kHz · CC BY 4.0 + MIT\nRevision ${TinyModelStore.REVISION.take(12)}\nTelugu script only. Android phone validation pending."
                             else
@@ -2069,7 +2070,7 @@ private fun ModelsScreen(vm: StudioViewModel, play: (File) -> Unit) {
                         )
                     }
                     if (m.ready) {
-                        Primary("Use ${m.name}", !vm.busy) {
+                        if (!ModelCatalog.VOICES[m.index].fastPitch()) Primary("Use ${m.name}", !vm.busy) {
                             vm.choose(m.index)
                             vm.navigate("Studio")
                             vm.step = 1

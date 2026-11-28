@@ -307,7 +307,7 @@ public final class StudioJobService extends Service {
     boolean checkWords=getSharedPreferences("StudioActivity", 0).getBoolean("verifyWords", true) && checkerPack.ready();
     StringBuilder spokenIdentity =
         new StringBuilder((voice.hima() ? "hima-diction-v087/" : "delivery-v085-acoustic/"))
-            .append("studio-v0813/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
+            .append("studio-v0814/").append(speech.synthesisCleanup).append('/').append(checkWords).append("/").append(plan.cloneProfile).append("/").append(voice.id).append("/").append(speech.warmthEq).append("/").append(speech.youtuber)
             .append(speech.durationGuard)
             .append(speech.questionLift)
             .append('/')
@@ -389,6 +389,7 @@ public final class StudioJobService extends Service {
               if(voice.fastPitch()) PackTopology.prepare(this,new File(pack,"fastpitch-pace.pb"),FastPitchVoice.TOPOLOGY_SHA);
               alternative = cloned && voice.hima() ? new HimaClonePack(this).voice(cloneDirectory,cancelled)
                   : voice.hima() ? new HimaVoice(pack,voice.name,cancelled)
+                  : voice.syspin() ? new SyspinVoice(pack,cancelled)
                   : new FastPitchVoice(pack,voice.gender.equals("Male"),cancelled);
             }
             AlternativeVoice engine = alternative;
@@ -544,7 +545,8 @@ public final class StudioJobService extends Service {
       for (int i = 0; i < chunks.size(); i++) {
         check();
         boolean question =
-            waveformQuestions && DeliveryControls.question(renderSegments.get(i).text);
+            waveformQuestions && DeliveryControls.question(renderSegments.get(i).text)
+                && !(speech.youtuber && renderSegments.get(i).emotion == NarrationDirector.Emotion.WRY);
         if (question) requested++;
         {
           status = "Applying offline voice controls · " + (i + 1) + " / " + chunks.size();
@@ -555,7 +557,7 @@ public final class StudioJobService extends Service {
                   f,
                   question,
                   soft,
-                  null,
+                  speech.youtuber && (voice.hima() || voice.syspin()) && renderSegments.get(i).performanceCue() ? renderSegments.get(i) : null,
                   cancelled, speech.synthesisCleanup, voice.tiny() || cloned, enhancer);
           if (question && applied.lifted) lifted++;
           controlAudit.put(

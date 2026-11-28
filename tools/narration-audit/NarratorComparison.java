@@ -31,7 +31,7 @@ public final class NarratorComparison {
       RenderCleanup.Cleaner clean=null; // Current default: preserve the native tone.
       try(PronunciationCheck checker=new PronunciationCheck(new File(work,"stt"),cancel);
           AlternativeVoice engine=voice.hima() ? new HimaVoice(new File(work,"hima"),voice.name,cancel)
-          : new FastPitchVoice(new File(work,"indic"),voice.gender.equals("Male"),cancel)) {
+          : voice.syspin() ? new SyspinVoice(new File(work,voice.id),cancel) : new FastPitchVoice(new File(work,"indic"),voice.gender.equals("Male"),cancel)) {
         for(NarrationDirector.Segment segment:plan) {
           String expanded=PronunciationLexicon.apply(segment.text,Map.of(),false,true);
           String input=voice.hima() ? HimaVoice.spokenForm(expanded) : expanded;

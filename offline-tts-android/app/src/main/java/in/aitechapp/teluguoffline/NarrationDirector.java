@@ -28,7 +28,7 @@ public final class NarrationDirector {
     SERIOUS,
     EMPATHY,
     QUESTION,
-    CALL_TO_ACTION
+    CALL_TO_ACTION, HOOK, PLAYFUL, WRY, SUSPENSE, RESPECTFUL, MOTIVATING, BRISK
   }
 
   public static final class Segment {
@@ -44,6 +44,13 @@ public final class NarrationDirector {
       this.rate = rate;
       this.pitch = pitch;
       this.pauseAfterMs = pauseAfterMs;
+    }
+
+    public boolean performanceCue() {
+      switch (emotion) {
+        case HOOK: case PLAYFUL: case WRY: case SUSPENSE: case RESPECTFUL: case MOTIVATING: case BRISK: return true;
+        default: return false;
+      }
     }
 
     public String label() {
@@ -83,12 +90,16 @@ public final class NarrationDirector {
     for (String sentence : sentences) {
       String s = sentence.trim();
       if (s.isEmpty()) continue;
-      Emotion e = choose(s, style == null ? Style.AUTO : style);
+      Emotion e = choose(s, style == null ? Style.AUTO : style, output.isEmpty() || (output.size()==1 && output.get(0).emotion==Emotion.WELCOME));
+      if (e == Emotion.NEUTRAL && !output.isEmpty()) {
+        Segment previous = output.get(output.size()-1);
+        if (previous.emotion == Emotion.PLAYFUL && has(previous.text, "జోక్ చెబుతా", "తమాషా ఏంటంటే")) e = Emotion.PLAYFUL;
+      }
       float rate = 1.0f, pitch = 1.0f;
       int pause = 240;
       switch (e) {
         case WELCOME:
-          rate = 1.08f;
+          rate = !stripMarkers && output.isEmpty() ? .96f : 1.08f;
           pitch = 1.08f;
           break;
         case GUIDE:
@@ -119,6 +130,13 @@ public final class NarrationDirector {
           rate = 1.06f;
           pitch = 1.10f;
           break;
+        case HOOK: rate = .94f; pitch = 1.04f; pause = 270; break;
+        case SUSPENSE: rate = .93f; pitch = .96f; pause = 300; break;
+        case WRY: rate = .98f; pitch = .97f; break;
+        case PLAYFUL: rate = 1.04f; pitch = 1.08f; break;
+        case RESPECTFUL: rate = .95f; pitch = .99f; break;
+        case MOTIVATING: rate = 1.04f; pitch = 1.05f; break;
+        case BRISK: rate = 1.07f; pitch = 1.02f; break;
         case NEUTRAL:
         default:
           if (style == Style.NEWS) {
@@ -153,7 +171,7 @@ public final class NarrationDirector {
     return output;
   }
 
-  private static Emotion choose(String s, Style style) {
+  private static Emotion choose(String s, Style style, boolean opening) {
     String t = s.toLowerCase(Locale.ROOT);
     if (has(
         t,
@@ -179,6 +197,13 @@ public final class NarrationDirector {
         "పనిచేయకపోతే",
         "ఇబ్బంది",
         "దురదృష్టవశాత్తు")) return Emotion.EMPATHY;
+    if (has(t, "మహోదయ", "గౌరవనీయ", "వినమ్రంగా", "హృదయపూర్వక ధన్యవాదాలు", "గురువుగారికి", "గౌరవపూర్వకంగా")) return Emotion.RESPECTFUL;
+    if (has(t, "వ్యంగ్యంగా", "ఎటకారం", "భలే లాజిక్", "భలే తెలివి", "అబ్బో ఎంత", "అబ్బో ఎంతటి")) return Emotion.WRY;
+    if (has(t, "హాహా", "హా హా", "భలే సరదా", "తమాషా ఏంటంటే", "నవ్వొస్తోంది", "చిన్న జోక్", "సరదాగా అంటున్నా")) return Emotion.PLAYFUL;
+    if (opening && has(t, "ఊహించండి", "ఒక్క క్షణం", "ఒక్క క్షణమే", "మీకు తెలుసా", "ఎప్పుడైనా ఆలోచించారా")) return Emotion.HOOK;
+    if (has(t, "ఆ తర్వాత ఏం", "తర్వాత ఏం జరిగింద", "అసలు మలుపు", "రహస్యం ఏంటంటే", "ఎవరూ ఊహించలేదు", "ఇంతలోనే")) return Emotion.SUSPENSE;
+    if (has(t, "నీ వల్ల అవుతుంది", "మీ వల్ల అవుతుంది", "వదులుకోకండి", "మరోసారి ప్రయత్నిద్దాం", "ధైర్యంగా ముందుకు", "చిన్న అడుగుతో")) return Emotion.MOTIVATING;
+    if (has(t, "చకచకా", "త్వరగా చేద్దాం", "ఫటాఫట్", "వెంటవెంటనే")) return Emotion.BRISK;
     if (t.trim().endsWith("?") || t.trim().endsWith("కదా!")) return Emotion.QUESTION;
     if (has(
         t,
@@ -232,7 +257,30 @@ public final class NarrationDirector {
     if (t.contains("?") || has(t, "ఎందుకు", "ఏంటి", "ఎలా", "నిజమేనా", "ఏమిటి"))
       return Emotion.QUESTION;
     // Punctuation alone is not evidence of excitement.
-    return Emotion.NEUTRAL;
+    Emotion cue = null;
+    for (String word : t.replace("‌","").replace("‍","").split("[^ఁ-౿]+")) {
+      Emotion next = LEARNED.get(word);
+      if (next == null) continue;
+      if (cue != null && cue != next) return Emotion.NEUTRAL;
+      cue = next;
+    }
+    return cue == null ? Emotion.NEUTRAL : cue;
+  }
+
+  private static final java.util.Map<String,Emotion> LEARNED = loadEmotionWords();
+
+  private static java.util.Map<String,Emotion> loadEmotionWords() {
+    java.util.Map<String,Emotion> words = new java.util.HashMap<>();
+    try (java.io.InputStream in = NarrationDirector.class.getResourceAsStream("emotion-words.tsv")) {
+      if (in == null) return words;
+      java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String[] pair = line.split("\t");
+        if (pair.length == 2) words.put(pair[0], pair[1].equals("happy") ? Emotion.EXCITED : Emotion.EMPATHY);
+      }
+    } catch (java.io.IOException ignored) { words.clear(); }
+    return words;
   }
 
   /**
@@ -259,7 +307,7 @@ public final class NarrationDirector {
               && i + 1 < value.length()
               && !Character.isWhitespace(value.charAt(i - 1))
               && !Character.isWhitespace(value.charAt(i + 1));
-      if ((c == '.' && !innerDot && !(hasBrand && i >= brand.start())) || c == '!' || c == '?' || c == '।' || c == '॥') {
+      if ((c == '.' && !innerDot && !(hasBrand && i >= brand.start())) || (c == '!' && !(i+1 < value.length() && value.charAt(i+1) == '=')) || c == '?' || c == '।' || c == '॥') {
         // Preserve punctuation and next sentence independence.
         addCapped(out, current.toString(), maxChars);
         current.setLength(0);

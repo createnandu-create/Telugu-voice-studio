@@ -27,9 +27,11 @@ public final class ModelCatalog {
 
     public boolean hima() { return id.startsWith("hima-"); }
     public boolean fastPitch() { return id.startsWith("fastpitch-"); }
-    public boolean alternative() { return hima() || fastPitch(); }
+    public boolean syspin() { return id.startsWith("syspin-"); }
+    public boolean alternative() { return hima() || fastPitch() || syspin(); }
     public int sampleRate() { return tiny() || hima() ? 24000 : 22050; }
     public String engine() {
+      if (syspin()) return "SYSPIN / Coqui VITS";
       if (hima()) return "Hima Nano INT8";
       if (fastPitch()) return "Indic-TTS / FastPitch + HiFi-GAN";
       return tiny() ? "Indic Tiny / Vocos" : "Piper / VITS";
@@ -70,7 +72,9 @@ public final class ModelCatalog {
     new Voice("hima-lakshmi","Lakshmi","Female","","hima-lakshmi-8fd92e39"),
     new Voice("hima-sravani","Sravani","Female","","hima-sravani-8fd92e39"),
     new Voice("hima-karthik","Karthik","Male","","hima-karthik-8fd92e39"),
-    new Voice("hima-pranay","Pranay","Male","","hima-pranay-8fd92e39")
+    new Voice("hima-pranay","Pranay","Male","","hima-pranay-8fd92e39"),
+    new Voice("syspin-male","SYSPIN Male","Male","","022ffde2ceb933aa61230ab0bbeff9b23d0b91bc2493f483eed1fc14604338ed"),
+    new Voice("syspin-female","SYSPIN Female","Female","","0ceb91c9f4628ba8766ba0b4e23eb63b238449f25c767f501351d0af708bea48")
   };
 
   public static int previewBase(String label, int selected) {

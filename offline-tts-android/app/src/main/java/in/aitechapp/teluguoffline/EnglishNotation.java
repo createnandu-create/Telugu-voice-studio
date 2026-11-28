@@ -34,9 +34,74 @@ final class EnglishNotation {
     if (dot>=0) return number(n.substring(0,dot))+" పాయింట్ "+digits(n.substring(dot+1));
     return n.length()>12 || n.length()>1 && n.startsWith("0") ? digits(n) : cardinal(Long.parseLong(n));
   }
+  private static final String ATOM = "(?:" + N + "(?:[abcijkmnpqrtuvwxyz](?![a-zA-Z]))?|[abcijkmnpqrtuvwxyzπ∞])(?:[²³])?";
+  private static final String TERM = "(?:[\\(\\[]\\s*)*[-−]?\\s*(?:(?:√|sin|cos|tan|log|ln)\\s*\\(?\\s*)?" + ATOM + "(?:\\s*[)\\]])*";
+  private static final String OP = "(?:<=|>=|!=|[+−*/×÷^=<>≤≥≠-])";
+  private static final Pattern EXPRESSION = Pattern.compile("(?<![a-zA-Z0-9_:/.-])"
+      + TERM + "(?:\\s*" + OP + "\\s*" + TERM + ")+(?![a-zA-Z0-9_/:%])");
+  private static final Pattern PART = Pattern.compile(N + "|sin|cos|tan|log|ln|<=|>=|!=|[^\\s]");
+  private static final java.util.Map<String,String> SYMBOLS = new java.util.HashMap<>();
+  static {
+    SYMBOLS.put("+", "ప్లస్");
+    SYMBOLS.put("-", "మైనస్");
+    SYMBOLS.put("−", "మైనస్");
+    SYMBOLS.put("*", "టైమ్స్");
+    SYMBOLS.put("×", "టైమ్స్");
+    SYMBOLS.put("/", "డివైడెడ్ బై");
+    SYMBOLS.put("÷", "డివైడెడ్ బై");
+    SYMBOLS.put("^", "టు ది పవర్ ఆఫ్");
+    SYMBOLS.put("=", "ఇజ్ ఈక్వల్ టు");
+    SYMBOLS.put("√", "రూట్");
+    SYMBOLS.put(">", "గ్రేటర్ దాన్");
+    SYMBOLS.put("<", "లెస్ దాన్");
+    SYMBOLS.put("≥", "గ్రేటర్ దాన్ ఆర్ ఈక్వల్ టు");
+    SYMBOLS.put("≤", "లెస్ దాన్ ఆర్ ఈక్వల్ టు");
+    SYMBOLS.put("≠", "నాట్ ఈక్వల్ టు");
+    SYMBOLS.put("²", "స్క్వేర్డ్");
+    SYMBOLS.put("³", "క్యూబ్డ్");
+    SYMBOLS.put("(", "ఓపెన్ బ్రాకెట్");
+    SYMBOLS.put(")", "క్లోజ్ బ్రాకెట్");
+    SYMBOLS.put("[", "ఓపెన్ బ్రాకెట్");
+    SYMBOLS.put("]", "క్లోజ్ బ్రాకెట్");
+    SYMBOLS.put("sin", "సైన్");
+    SYMBOLS.put("cos", "కాస్");
+    SYMBOLS.put("tan", "టాన్");
+    SYMBOLS.put("log", "లాగ్");
+    SYMBOLS.put("ln", "నేచురల్ లాగ్");
+    SYMBOLS.put("∞", "ఇన్ఫినిటీ");
+    SYMBOLS.put("x", "ఎక్స్");
+    SYMBOLS.put("y", "వై");
+    SYMBOLS.put("z", "జెడ్");
+    SYMBOLS.put("π", "పై");
+  }
+
+  private static String expressions(String input) {
+    Matcher equations = EXPRESSION.matcher(input);
+    StringBuffer result = new StringBuffer();
+    while (equations.find()) {
+      String expression = equations.group().trim();
+      if (expression.equals("m/s") || expression.matches("[0-9]{1,4}[-/][0-9]{1,2}[-/][0-9]{1,4}")) continue;
+      Matcher parts = PART.matcher(expression);
+      java.util.StringJoiner reading = new java.util.StringJoiner(" ");
+      while (parts.find()) {
+        String token = parts.group();
+        if (token.equals("<=")) token = "≤";
+        if (token.equals(">=")) token = "≥";
+        if (token.equals("!=")) token = "≠";
+        String pronunciation = SYMBOLS.get(token);
+        if (pronunciation == null) pronunciation = Character.isDigit(token.charAt(0)) ? number(token)
+            : DynamicEnglishPhonetizer.apply(token.toUpperCase(java.util.Locale.ROOT));
+        reading.add(pronunciation);
+      }
+      equations.appendReplacement(result, Matcher.quoteReplacement(" " + reading + " "));
+    }
+    return equations.appendTail(result).toString();
+  }
+
   static String read(String input) {
     for(char c='౦'; c<='౯'; c++) input=input.replace(c,(char)('0'+c-'౦'));
-    Matcher m=TOKEN.matcher(TechnicalTelugu.clocks(input));
+    input = input.replaceAll("\\\\frac\\s*\\{("+N+")\\}\\s*\\{("+N+")\\}", "($1/$2)");
+    Matcher m=TOKEN.matcher(expressions(TechnicalTelugu.clocks(input)));
     StringBuffer out=new StringBuffer();
     while(m.find()) {
       String spoken;

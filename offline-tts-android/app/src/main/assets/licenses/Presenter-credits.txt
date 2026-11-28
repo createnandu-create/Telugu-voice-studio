@@ -1,0 +1,6 @@
+The optional speaker packs are SYSPIN Telugu VITS (SPIRE Lab, Indian Institute of Science, Bengaluru), exported to ONNX by the bolo project. The included two SYSPIN reference WAVs were synthesized from original Telugu text with the pinned models. See SYSPIN-attribution.txt and SYSPIN-MIT.txt.
+
+Emotion-words.tsv is a derived word model trained on Telugu_Emotion by Mounika Marreddy, Subba Reddy Oota, Lakshmi Sireesha Vakada, Venkata Charan Chinni and Radhika Mamidi. Data Sets, Embeddings, Models and Analysis for four different NLP tasks in Telugu Language, ACM TALLIP, 2022. Multi-Task Text Classification using Graph Convolutional Networks for Large-Scale Low Resource Language (2022).
+Dataset and derived word model: Creative Commons Attribution 4.0 International, https://creativecommons.org/licenses/by/4.0/
+Source: https://huggingface.co/datasets/mounikaiiith/Telugu_Emotion/tree/6432e1357ed6ad57db1683451b08943639eb45ae
+Changes: document-frequency counts and held-out threshold selection; original news sentences are not distributed.

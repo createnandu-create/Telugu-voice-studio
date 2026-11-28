@@ -1,0 +1,24 @@
+syspin-te-female: Telugu female voice
+
+Model: https://huggingface.co/SYSPIN/vits_Telugu_Female (revision dbbe1cbbfec4b2fb48f1ab3435142b932eca5766),
+by the SYSPIN project, SPIRE Lab, Indian Institute of Science (IISc), Bengaluru.
+The model weights are published under the MIT licence (see LICENSE).
+
+Training data: the SYSPIN text-to-speech corpus (IISc), licensed CC-BY-4.0
+(https://creativecommons.org/licenses/by/4.0/).
+
+This archive is a format conversion (Coqui VITS checkpoint to ONNX) made with
+tools/voices/export_syspin.py of the bolo project (https://github.com/cb-Sigma/bolo).
+The weights were not retrained or otherwise changed.
+syspin-te-male: Telugu male voice
+
+Model: https://huggingface.co/SYSPIN/vits_Telugu_Male (revision cf04058b94123801f7742ebe1b604af160c4f677),
+by the SYSPIN project, SPIRE Lab, Indian Institute of Science (IISc), Bengaluru.
+The model weights are published under the MIT licence (see LICENSE).
+
+Training data: the SYSPIN text-to-speech corpus (IISc), licensed CC-BY-4.0
+(https://creativecommons.org/licenses/by/4.0/).
+
+This archive is a format conversion (Coqui VITS checkpoint to ONNX) made with
+tools/voices/export_syspin.py of the bolo project (https://github.com/cb-Sigma/bolo).
+The weights were not retrained or otherwise changed.

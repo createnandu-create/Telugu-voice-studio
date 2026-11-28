@@ -46,7 +46,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                 ?: app.assets.open("studio-demo.txt").bufferedReader().use { it.readText().trimEnd() }
         )
     var voice by
-        mutableIntStateOf(prefs.getInt("voice", 0).coerceIn(0, ModelCatalog.VOICES.lastIndex))
+        mutableIntStateOf(when (val saved = prefs.getInt("voice", 4)) { 6 -> 12; 7 -> 13; else -> saved.coerceIn(0, ModelCatalog.VOICES.lastIndex) })
     var step by mutableIntStateOf(0)
     var plan by mutableStateOf<List<NarrationDirector.Segment>>(emptyList())
     private var plannedScript = ""
@@ -147,8 +147,8 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
                             "Indic Tiny · Female" to "indic-tiny-female-2.wav",
                             "Srinivas" to "hima-srinivas.wav",
                             "Bhavana" to "hima-bhavana.wav",
-                            "Indic-TTS Male" to "fastpitch-male.wav",
-                            "Indic-TTS Female" to "fastpitch-female.wav",
+                            "SYSPIN Male" to "syspin-male.wav",
+                            "SYSPIN Female" to "syspin-female.wav",
                         )
                         .map { (label, name) ->
                             val folder = File(app.cacheDir, "comparison-v04").apply { mkdirs() }

@@ -46,6 +46,12 @@ final class ConversationTiming {
   static void shapeDelivery(float[] pcm, NarrationDirector.Emotion emotion) {
     double accent;
     switch (emotion) {
+      case HOOK: case MOTIVATING: accent = 2.0; break;
+      case WRY: accent = 1.1; break;
+      case PLAYFUL: accent = 1.65; break;
+      case SUSPENSE: accent = 1.4; break;
+      case RESPECTFUL: accent = -.65; break;
+      case BRISK: accent = 1.25; break;
       case EXCITED: case SURPRISE: accent = 1.8; break;
       case WELCOME: case CALL_TO_ACTION: accent = 1.2; break;
       case GUIDE: accent = 1.0; break;
@@ -59,6 +65,13 @@ final class ConversationTiming {
     for (int i = 0; i < pcm.length; i++) {
       double t = i / (double)Math.max(1, pcm.length - 1);
       double envelope = Math.sin(Math.PI * t) * (1 - t) * 1.6;
+      switch (emotion) {
+        case WRY: envelope = Math.sin(Math.PI*t) * Math.sin(2*Math.PI*t); break;
+        case PLAYFUL: envelope = Math.sin(Math.PI*t) * (.55 + .45*Math.sin(4*Math.PI*t)); break;
+        case SUSPENSE: envelope = Math.sin(Math.PI*t) * (2*t-1); break;
+        case MOTIVATING: envelope = Math.sin(Math.PI*t) * (t+.3); break;
+        default: break;
+      }
       pcm[i] *= (float)Math.pow(10, accent * envelope / 20);
       peak = Math.max(peak, Math.abs(pcm[i]));
     }

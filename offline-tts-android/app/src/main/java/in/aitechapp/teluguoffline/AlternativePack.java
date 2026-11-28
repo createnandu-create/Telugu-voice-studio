@@ -34,16 +34,26 @@ final class AlternativePack {
   private static final Asset ARCHIVE = new Asset("te-IN-1.0.0.itantra",280580175L,"79fa256cac907c2e86a8093f9c1d1bcab14d9ee1c7cc1f0b4b578386c07bf68b");
 
   final File root;
-  private final boolean hima;
+  private final boolean direct;
   private final String revision, url;
   private final Asset[] assets;
   AlternativePack(File parent, ModelCatalog.Voice v) {
-    this(parent,v.hima(),false);
+    this(parent,v,false);
   }
-  static AlternativePack pronunciation(File parent) { return new AlternativePack(parent,false,true); }
+  static AlternativePack pronunciation(File parent) { return new AlternativePack(parent,null,true); }
 
-  private AlternativePack(File parent, boolean hima, boolean check) {
-    this.hima=hima;
+  private AlternativePack(File parent, ModelCatalog.Voice voice, boolean check) {
+    boolean hima = !check && voice.hima();
+    direct = hima || (!check && voice.syspin());
+    if (!check && voice.syspin()) {
+      boolean male = voice.gender.equals("Male");
+      revision = male ? "6650e4cb5e553e80af13e5b079ffaf86c30ac19b" : "24682cdcc245b8930f177cc57108baca7103e0fb";
+      assets = new Asset[]{new Asset("model.onnx", male ? 114206547 : 114221140, voice.installedSha),
+          new Asset("tokens.txt", male ? 676 : 832, male ? "d451ccb72770d6bf15094a27a5eeee566799fb1ac8162663875d1286026c0c0e" : "05f3a237c7b2710bfb51fff70cc4281e0e5edc30a97dda34516a1655405c19fc")};
+      root = new File(parent, voice.id + "-" + revision.substring(0,12));
+      url = "https://huggingface.co/codebucketsolutions/bolo-syspin-telugu-" + (male ? "male" : "female") + "/resolve/" + revision + "/";
+      return;
+    }
     revision=hima?HIMA_REV:INDIC_REV;
     assets=check?CHECKER:hima?HIMA:INDIC;
     root=new File(parent,(check?"indic-check-":hima?"hima-":"indic-fastpitch-")+revision.substring(0,12));
@@ -87,8 +97,14 @@ final class AlternativePack {
   void install(AtomicBoolean cancel, VoiceModelStore.Progress progress) throws Exception {
     if (ready()) return;
     if (!root.isDirectory() && !root.mkdirs()) throw new IOException("Cannot create model folder");
-    if (root.getUsableSpace() < (hima?110_000_000L:assets==CHECKER?490_000_000L:430_000_000L)) throw new IOException("Insufficient storage for the model pack");
-    if (hima) {
+    long needed = assets == CHECKER ? 490_000_000L : 430_000_000L;
+    if (direct) {
+      needed = 4_000_000L;
+      for (Asset a : assets) if (!installed(a))
+        needed += Math.max(0, a.size - new File(root, a.file + ".download").length());
+    }
+    if (root.getUsableSpace() < needed) throw new IOException("Insufficient storage for the model pack");
+    if (direct) {
       for(Asset a:assets) {
         if(installed(a)) continue;
         File part=fetch(a,cancel,progress);
@@ -119,6 +135,6 @@ final class AlternativePack {
       Files.deleteIfExists(new File(archive+".properties").toPath());
     }
     if(!verify()) throw new IOException("Model pack integrity check failed");
-    progress.update(assets==CHECKER ? "Offline pronunciation check ready" : "Male and female voices ready offline");
+    progress.update(assets==CHECKER ? "Offline pronunciation check ready" : "Voice pack ready offline");
   }
 }

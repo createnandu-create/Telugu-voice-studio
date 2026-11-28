@@ -4,9 +4,17 @@
 
 An actively developed offline Telugu YouTube voice narrator prototype. The testing branch now integrates **downloadable Telugu Piper neural voices with a Kotlin Compose / Material 3 English Android Studio and resumable local WAV rendering**. An experimental OpenVoice V2 tone-conversion path now requires a real local preview before selecting a personal narrator. Human-level expression, voice similarity and an on-device semantic LLM remain unverified or unavailable.
 
+## v0.8.14 downloads
+
+[Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.14.apk) · [Srinivas presenter MP3](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Srinivas-presenter.mp3) · [Eight voice samples](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Telugu-presenter-voices.zip) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.14-source.zip)
+
+Direction supports a measured opening hook, humor, wry delivery, suspense, brisk directions, encouragement and respectful address. You can change a line's delivery in its Edit menu. The six Hima speakers share one download. Settings also offers separate SYSPIN Male and Female Telugu narrators (114 MB each) in place of the two FastPitch choices. Earlier projects retain their original speaker indices.
+
+The director uses explicit Telugu cues and a small joy/sadness word model fitted to 24,599 Telugu_Emotion training rows. On the held-out text test it classified 158 of 6,985 rows and matched 124 labels. These results concern text classification. Listener ratings, natural laughter and device performance are unverified. See [training and model credits](offline-tts-android/app/src/main/assets/licenses/Presenter-credits.txt).
+
 ## v0.8.13 downloads
 
-[Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.13.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/TeluguVoiceStudio-v0.8.13-source.zip) · [Srinivas listening comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/latest/download/Srinivas-script-check.zip)
+[Android APK](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.13-2446e714e9d6/TeluguVoiceStudio-v0.8.13.apk) · [Source ZIP](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.13-2446e714e9d6/TeluguVoiceStudio-v0.8.13-source.zip) · [Srinivas listening comparison](https://github.com/createnandu-create/Telugu-voice-studio/releases/download/v0.8.13-2446e714e9d6/Srinivas-script-check.zip)
 
 Enable the optional offline pronunciation checker in Settings to check expected words in order. Suspected omissions trigger another take and, when needed, a retry in two shorter phrases. Recognition can miss a word or mishear a correct pronunciation. Directed Hima and Indic-TTS instructions and questions have a small energy lift at the same playback speed.
 

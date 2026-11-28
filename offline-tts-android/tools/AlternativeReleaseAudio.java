@@ -30,6 +30,7 @@ public final class AlternativeReleaseAudio {
       ModelCatalog.Voice profile = ModelCatalog.VOICES[i];
       try (AlternativeVoice voice = profile.hima()
           ? new HimaVoice(shared, profile.name, CANCEL)
+          : profile.syspin() ? new SyspinVoice(new File(root, profile.id), CANCEL)
           : new FastPitchVoice(new File(root, "indic"), profile.gender.equals("Male"), CANCEL)) {
         float[] pcm = voice.render(TEXT);
         validate(pcm, profile.sampleRate());
